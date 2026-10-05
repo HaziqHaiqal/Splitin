@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Splitin
 
-## Getting Started
+Split shared bills with friends or family. Add the people, add the bills and who paid each one, and Splitin works out who owes whom with the fewest payments. Share the result as a receipt picture and a link. Nobody signs up or installs anything.
 
-First, run the development server:
+Planned work is in [TODO.md](TODO.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What it does
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Opens straight into the tool.** No landing page and no login.
+- **Several bills, different payers.** For example, Afiq paid the electricity and Haziq paid the water and wifi.
+- **Equal split by default.** You can type a different amount for one person and the rest re-splits, or leave someone out of a bill.
+- **Receipt-style summary.** Each person's share, who owes and who collects, and the smallest set of payments that settles everything.
+- **Share to the group.** A picture of the receipt plus a link, sent through WhatsApp or the phone's share menu.
+- **Friends use the link.** They pick their name, copy the bank account number and tap "I've paid". The person who shared sees a PAID stamp and can send reminders.
+- **Links delete themselves** 30 days after they are created.
+- **English and Bahasa Melayu**, dark and light mode. New visitors get English and dark mode.
+- **Phone and desktop layouts**, plus a built-in "How to use Splitin" guide with small try-it demos.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Amounts are in Malaysian Ringgit (RM) only.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How it works
 
-## Learn More
+**Drafts stay on the device.** While you add people and bills, everything is saved in the browser's `localStorage` (`splitin:draft:v2`). Nothing reaches the server until you tap "Share receipt".
 
-To learn more about Next.js, take a look at the following resources:
+**Sharing creates a link.** "Share receipt" saves the bill to the `bills` table and returns a random id, so the link is `/bill/<id>`. The browser that shared it also gets a secret owner token (`splitin:owner:<id>`); only its hash is stored in the database. Whoever holds the token can edit the bill. Anyone with the link can mark a payment as paid or undo it.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Money is whole sen.** All amounts are integers, so nothing is lost to decimals. When an amount does not divide evenly, the leftover sen go to the first people in the list: RM 240.90 between four people is 60.23, 60.23, 60.22 and 60.22. The maths is in [src/lib/money](src/lib/money) and [src/lib/bill.ts](src/lib/bill.ts).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Live updates.** After a change, the server sends a small "changed" signal on the Supabase Realtime channel `bill:<id>`. It carries no data. Open pages hear it and reload their data from the server.
 
-## Deploy on Vercel
+**Automatic deletion.** A shared bill stops loading 30 days after it was created, and a daily database job deletes it, together with its payments.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Access control.** Row-level security is on for both tables with no policies, so the public key cannot read or write anything. Only server code, using the service-role key, touches the tables. Sharing is limited to 30 new bills per hour per IP address.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Receipt picture.** The receipt is drawn in the page and captured as a PNG in the browser. On phones it goes to the system share menu with the message. On computers it is copied to the clipboard and WhatsApp opens with the message and link.
