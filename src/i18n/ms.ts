@@ -42,6 +42,7 @@ export const ms: Dictionary = {
     addBill: "Tambah bil",
     total: "Jumlah",
     totalPeople: "Jumlah · {count} orang",
+    seeReceipt: "Lihat resit",
     duplicateName: "{name} sudah ada dalam senarai",
     editTitle: "Ubah tajuk",
     clearAll: "Kosongkan semua",
@@ -136,8 +137,7 @@ export const ms: Dictionary = {
     remind: "Ingatkan {name}",
     markPaid: "Tanda dah bayar",
     viewReceipt: "Lihat resit",
-    shareAgain: "Kongsi semula",
-    editBills: "Ubah bil",
+    editBills: "Ubah bil (kemas kini pautan ini)",
     remindMessage: "Hai {from}, peringatan untuk {title}: sila bayar {to} {amount}.",
   },
   settled: {
@@ -150,7 +150,7 @@ export const ms: Dictionary = {
   },
   friend: {
     pickTitle: "Anda yang mana?",
-    pickDesc: "Ketik nama anda untuk lihat berapa perlu bayar dan ke mana.",
+    pickDesc: "Ketik nama anda untuk lihat berapa perlu bayar, atau siapa bayar anda.",
     owes: "berhutang {amount}",
     collects: "kutip {amount}",
     settledUp: "selesai",

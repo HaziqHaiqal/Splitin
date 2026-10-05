@@ -13,7 +13,8 @@ const GREEN = "#176b46";
 export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
-    <svg width="100%" height="8" preserveAspectRatio="none" aria-hidden className="block">
+    // overlaps the paper by 1px so no hairline seam shows between the teeth and the paper in the picture
+    <svg width="100%" height="8" preserveAspectRatio="none" aria-hidden className={edge === "top" ? "-mb-px block" : "-mt-px block"}>
       <defs>
         <pattern id={`zz${id}`} width="10" height="8" patternUnits="userSpaceOnUse">
           <path d={edge === "top" ? "M0 8 L5 0 L10 8 Z" : "M0 0 L5 8 L10 0 Z"} fill="#fffdf6" />
@@ -42,7 +43,13 @@ function Barcode() {
 }
 
 const Dashed = ({ double }: { double?: boolean }) => (
-  <div style={{ borderTop: double ? `4px double ${INK}` : `1.5px dashed ${INK}`, margin: "10px 0 8px" }} />
+  <div
+    style={
+      double
+        ? { borderTop: `1.5px solid ${INK}`, borderBottom: `1.5px solid ${INK}`, height: 5, margin: "10px 0 8px" }
+        : { borderTop: `1.5px dashed ${INK}`, margin: "10px 0 8px" }
+    }
+  />
 );
 
 function Leader({ left, right, bold }: { left: React.ReactNode; right: React.ReactNode; bold?: boolean }) {

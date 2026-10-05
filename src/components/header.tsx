@@ -2,14 +2,14 @@
 
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { Fragment, useTransition } from "react";
+import { Fragment, useTransition, type ReactNode } from "react";
 import { setLocale } from "@/app/actions";
 import type { Locale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { useHydrated } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { HelpButton } from "./help/how-to";
-import { MoonIcon, SunIcon } from "./icons";
+import { BackIcon, MoonIcon, SunIcon } from "./icons";
 
 export function Logo() {
   return (
@@ -78,21 +78,55 @@ export function ThemeToggle() {
 }
 
 /**
- * Stays at the top of the window while the page scrolls. It lives inside the page's own column, so
- * the logo and controls line up with the content; the bar behind it spans the whole window.
- * The page container must set a background and have no top padding.
+ * Pinned to the top of the window. It is `fixed`, not `sticky`, so the iPhone's rubber-band
+ * bounce (dragging past the top of the page) cannot pull it down with the content.
+ * It copies its page column's width, side padding and background (`inherit`), so the logo and
+ * controls line up with the content; the hairline bar behind it spans the whole window.
+ * A spacer keeps the page content below it.
  */
 export function Header({ theme = true }: { theme?: boolean }) {
   return (
-    <header className="sticky top-0 z-30 mb-2 flex h-14 shrink-0 items-center justify-between bg-inherit md:mb-4 md:h-16">
-      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
-      <Logo />
-      {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
-      <div className="-mr-2 flex items-center gap-0.5">
-        {theme ? <HelpButton /> : null}
-        <LanguageToggle />
-        {theme ? <ThemeToggle /> : null}
-      </div>
-    </header>
+    <>
+      <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-14 max-w-[inherit] items-center justify-between bg-inherit px-[inherit] md:h-16">
+        <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
+        <Logo />
+        {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
+        <div className="-mr-2 flex items-center gap-0.5">
+          {theme ? <HelpButton /> : null}
+          <LanguageToggle />
+          {theme ? <ThemeToggle /> : null}
+        </div>
+      </header>
+      <div aria-hidden className="h-16 shrink-0 md:h-20" />
+    </>
+  );
+}
+
+/**
+ * The fixed top bar of a sub-page (the receipt): back on the left, the page name in the middle and
+ * an optional action on the right. Pinned and sized like `Header`, with the same spacer below.
+ */
+export function TopBar({ back, title, action }: { back: { label: string; href?: string; onClick?: () => void }; title: string; action?: ReactNode }) {
+  const backClass = "-ml-1.5 flex h-10 items-center gap-1 justify-self-start pr-2 text-[15px] font-bold text-ink no-underline";
+  return (
+    <>
+      <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[1fr_auto_1fr] items-center bg-inherit px-[inherit] md:h-16">
+        <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
+        {back.href ? (
+          <Link href={back.href} className={backClass}>
+            <BackIcon />
+            {back.label}
+          </Link>
+        ) : (
+          <button type="button" onClick={back.onClick} className={backClass}>
+            <BackIcon />
+            {back.label}
+          </button>
+        )}
+        <h1 className="m-0 text-[16px] font-extrabold">{title}</h1>
+        <div className="flex justify-self-end">{action}</div>
+      </header>
+      <div aria-hidden className="h-16 shrink-0 md:h-20" />
+    </>
   );
 }

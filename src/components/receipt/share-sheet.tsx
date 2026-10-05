@@ -1,12 +1,35 @@
 "use client";
 
-import { domToBlob } from "modern-screenshot";
+import { domToCanvas } from "modern-screenshot";
 import { useEffect, useState, type RefObject } from "react";
 import { DownloadIcon, LinkIcon, MoreIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
+
+/** The app's dark background. The cream paper and its torn top and bottom edges stand out on it. */
+const BACKDROP = "#0e131b";
+const MARGIN = 28;
+const SCALE = 2;
+
+/**
+ * The receipt as a PNG: captured on a transparent background, so the gaps between the torn-edge
+ * teeth stay empty, then laid on a dark backdrop with a margin all round.
+ */
+async function receiptPicture(node: HTMLElement): Promise<Blob | null> {
+  const paper = await domToCanvas(node, { scale: SCALE, backgroundColor: null, style: { filter: "none" } });
+  const pad = MARGIN * SCALE;
+  const canvas = document.createElement("canvas");
+  canvas.width = paper.width + pad * 2;
+  canvas.height = paper.height + pad * 2;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = BACKDROP;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(paper, pad, pad);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
 
 export function ShareSheet({
   open,
@@ -37,7 +60,7 @@ export function ShareSheet({
     void (async () => {
       try {
         await document.fonts?.ready;
-        const blob = await domToBlob(node, { scale: 2, backgroundColor: "#e9ebe7" });
+        const blob = await receiptPicture(node);
         if (cancelled || !blob) return;
         objectUrl = URL.createObjectURL(blob);
         setImage({ blob, url: objectUrl });
@@ -125,12 +148,12 @@ export function ShareSheet({
     <Sheet open={open} onOpenChange={onOpenChange} title={t.share.title}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-[14px] rounded-2xl bg-field p-3">
-          <div className="flex h-[118px] w-[82px] shrink-0 -rotate-3 items-start justify-center overflow-hidden bg-[#fffdf6] shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
+          <div className="flex h-[118px] w-[82px] shrink-0 -rotate-3 items-start justify-center overflow-hidden bg-[#0e131b] shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image.url} alt="" className="w-full" />
             ) : (
-              <span className="mt-12 text-[10px] text-[#6d675e]">{t.share.preparing}</span>
+              <span className="mt-12 text-[10px] text-[#8a96a8]">{t.share.preparing}</span>
             )}
           </div>
           <div className="flex-1">

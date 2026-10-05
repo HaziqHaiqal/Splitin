@@ -41,6 +41,7 @@ export const en = {
     addBill: "Add a bill",
     total: "Total",
     totalPeople: "Total · {count} people",
+    seeReceipt: "See receipt",
     duplicateName: "{name} is already in the list",
     editTitle: "Edit title",
     clearAll: "Clear all",
@@ -137,8 +138,7 @@ export const en = {
     remind: "Remind {name}",
     markPaid: "Mark paid",
     viewReceipt: "View receipt",
-    shareAgain: "Share again",
-    editBills: "Edit bills",
+    editBills: "Edit bills (updates this link)",
     remindMessage:
       "Hi {from}, a gentle reminder for {title}: please pay {to} {amount}.",
   },
@@ -152,7 +152,7 @@ export const en = {
   },
   friend: {
     pickTitle: "Which one are you?",
-    pickDesc: "Tap your name to see what you owe and where to pay.",
+    pickDesc: "Tap your name to see what you owe, or who pays you.",
     owes: "owes {amount}",
     collects: "collects {amount}",
     settledUp: "all settled",

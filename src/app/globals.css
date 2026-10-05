@@ -16,6 +16,10 @@
   --green-soft: #dcfce7;
   --green-soft-ink: #166534;
   --owe: #b4472a;
+  --bar: #1c1f1d;
+  --bar-ink: #ffffff;
+  --bar-muted: #b7bfb9;
+  --bar-border: transparent;
   --paper-bg: #e9ebe7;
   --dash: #b9c0ba;
   --sheet: #ffffff;
@@ -43,6 +47,10 @@
   --green-soft: #173d2a;
   --green-soft-ink: #86efac;
   --owe: #f2876a;
+  --bar: #171d26;
+  --bar-ink: #f0f2f5;
+  --bar-muted: #8a96a8;
+  --bar-border: #263140;
   --paper-bg: #0e131b;
   --dash: #33404f;
   --sheet: #171d26;
@@ -70,6 +78,10 @@
   --color-green-soft: var(--green-soft);
   --color-green-soft-ink: var(--green-soft-ink);
   --color-owe: var(--owe);
+  --color-bar: var(--bar);
+  --color-bar-ink: var(--bar-ink);
+  --color-bar-muted: var(--bar-muted);
+  --color-bar-border: var(--bar-border);
   --color-paper-bg: var(--paper-bg);
   --color-dash: var(--dash);
   --color-sheet: var(--sheet);

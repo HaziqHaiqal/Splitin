@@ -53,9 +53,13 @@ export const BackIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Three linked dots: one on the left joined to two on the right. */
 export const ShareIcon = (p: IconProps) => (
-  <svg {...base({ strokeWidth: 2, size: 20, ...p })}>
-    <path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+  <svg {...base({ strokeWidth: 2.2, size: 20, ...p })}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
   </svg>
 );
 

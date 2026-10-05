@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
 import { Header } from "@/components/header";
 import { Receipt } from "@/components/receipt/receipt";
-import { ShareSheet } from "@/components/receipt/share-sheet";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -37,8 +36,6 @@ export function Tracking({
   const toast = useToast();
   const draft = useDraft();
   const [pending, start] = useTransition();
-  const [shareOpen, setShareOpen] = useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
   const nameOf = (id: string) => bill.doc.people.find((p) => p.id === id)?.name ?? "?";
 
   const settled = summary.done.reduce((s, l) => s + l.amount, 0);
@@ -144,17 +141,13 @@ export function Tracking({
         <button type="button" onClick={onViewReceipt} className="h-[52px] rounded-2xl border border-[#d9ddd8] bg-card text-[15px] font-bold text-ink md:hidden dark:border-border">
           {t.track.viewReceipt}
         </button>
-        <button type="button" onClick={() => setShareOpen(true)} className="h-[52px] rounded-2xl bg-green text-[15px] font-bold text-white">
-          {t.track.shareAgain}
-        </button>
       </div>
 
       </div>
-      <div className="pointer-events-none fixed top-0 -left-[9999px] w-[350px] md:pointer-events-auto md:sticky md:top-6 md:left-auto md:w-auto">
-        <Receipt ref={receiptRef} doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />
+      <div className="hidden md:sticky md:top-[88px] md:block">
+        <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />
       </div>
       </div>
-      <ShareSheet open={shareOpen} onOpenChange={setShareOpen} billId={bill.id} title={bill.doc.title} receiptRef={receiptRef} />
     </div>
   );
 }

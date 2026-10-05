@@ -23,6 +23,20 @@ function randomId(length: number) {
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
+/**
+ * Actions answer with a result instead of throwing. A thrown action replaces the whole page with
+ * the framework's "This page couldn't load" screen; this way the screen that called it shows its
+ * own message, and the real reason (for example a missing Supabase key) goes to the server log.
+ */
+async function guard<T>(run: () => Promise<Result<T>>): Promise<Result<T>> {
+  try {
+    return await run();
+  } catch (error) {
+    console.error("[splitin] action failed:", error);
+    return { ok: false, error: "server" };
+  }
+}
+
 function changed(id: string) {
   after(() => broadcastChange(id));
   refresh();
@@ -42,41 +56,45 @@ export async function setLocale(locale: string) {
 
 /** Saves a new shared bill and returns its link id plus the secret that lets this device edit it. */
 export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ownerToken: string }>> {
-  const parsed = billDocSchema.safeParse(doc);
-  if (!parsed.success) return { ok: false, error: "invalid" };
+  return guard(async () => {
+    const parsed = billDocSchema.safeParse(doc);
+    if (!parsed.success) return { ok: false, error: "invalid" };
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  const creatorHash = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY ?? "splitin").update(ip).digest("hex").slice(0, 32);
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  const { count } = await db()
-    .from("bills")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_hash", creatorHash)
-    .gte("created_at", since);
-  if ((count ?? 0) >= BILLS_PER_HOUR) return { ok: false, error: "rate_limited" };
-
-  const ownerToken = randomId(32);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const id = randomId(10);
-    const { error } = await db()
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+    const creatorHash = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY ?? "splitin").update(ip).digest("hex").slice(0, 32);
+    const since = new Date(Date.now() - 3_600_000).toISOString();
+    const { count } = await db()
       .from("bills")
-      .insert({ id, doc: parsed.data, owner_token_hash: hashToken(ownerToken), creator_hash: creatorHash });
-    if (!error) return { ok: true, data: { id, ownerToken } };
-    if (error.code !== "23505") return { ok: false, error: "db" };
-  }
-  return { ok: false, error: "db" };
+      .select("id", { count: "exact", head: true })
+      .eq("creator_hash", creatorHash)
+      .gte("created_at", since);
+    if ((count ?? 0) >= BILLS_PER_HOUR) return { ok: false, error: "rate_limited" };
+
+    const ownerToken = randomId(32);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const id = randomId(10);
+      const { error } = await db()
+        .from("bills")
+        .insert({ id, doc: parsed.data, owner_token_hash: hashToken(ownerToken), creator_hash: creatorHash });
+      if (!error) return { ok: true, data: { id, ownerToken } };
+      if (error.code !== "23505") return { ok: false, error: "db" };
+    }
+    return { ok: false, error: "db" };
+  });
 }
 
 /** Owner-only: replace the people and bills of a shared bill. */
 export async function saveBill(id: string, ownerToken: string, doc: BillDoc): Promise<Result> {
-  const parsed = billDocSchema.safeParse(doc);
-  if (!parsed.success) return { ok: false, error: "invalid" };
-  if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
-  const { error } = await db().from("bills").update({ doc: parsed.data, updated_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { ok: false, error: "db" };
-  after(() => broadcastChange(id));
-  return { ok: true, data: null };
+  return guard(async () => {
+    const parsed = billDocSchema.safeParse(doc);
+    if (!parsed.success) return { ok: false, error: "invalid" };
+    if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
+    const { error } = await db().from("bills").update({ doc: parsed.data, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return { ok: false, error: "db" };
+    after(() => broadcastChange(id));
+    return { ok: true, data: null };
+  });
 }
 
 const paymentSchema = z.object({
@@ -91,34 +109,38 @@ export async function addPayment(
   input: z.input<typeof paymentSchema>,
   ownerToken?: string,
 ): Promise<Result<{ id: string }>> {
-  const parsed = paymentSchema.safeParse(input);
-  if (!parsed.success || parsed.data.from === parsed.data.to) return { ok: false, error: "invalid" };
-  const { data: bill } = await db().from("bills").select("doc").eq("id", id).maybeSingle();
-  if (!bill) return { ok: false, error: "not_found" };
-  const ids = new Set((bill.doc as BillDoc).people.map((p) => p.id));
-  if (!ids.has(parsed.data.from) || !ids.has(parsed.data.to)) return { ok: false, error: "invalid" };
+  return guard(async () => {
+    const parsed = paymentSchema.safeParse(input);
+    if (!parsed.success || parsed.data.from === parsed.data.to) return { ok: false, error: "invalid" };
+    const { data: bill } = await db().from("bills").select("doc").eq("id", id).maybeSingle();
+    if (!bill) return { ok: false, error: "not_found" };
+    const ids = new Set((bill.doc as BillDoc).people.map((p) => p.id));
+    if (!ids.has(parsed.data.from) || !ids.has(parsed.data.to)) return { ok: false, error: "invalid" };
 
-  const markedBy = ownerToken && (await isOwner(id, ownerToken)) ? "owner" : "payer";
-  const { data, error } = await db()
-    .from("payments")
-    .insert({
-      bill_id: id,
-      from_person: parsed.data.from,
-      to_person: parsed.data.to,
-      amount_minor: parsed.data.amountMinor,
-      marked_by: markedBy,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return { ok: false, error: "db" };
-  changed(id);
-  return { ok: true, data: { id: data.id } };
+    const markedBy = ownerToken && (await isOwner(id, ownerToken)) ? "owner" : "payer";
+    const { data, error } = await db()
+      .from("payments")
+      .insert({
+        bill_id: id,
+        from_person: parsed.data.from,
+        to_person: parsed.data.to,
+        amount_minor: parsed.data.amountMinor,
+        marked_by: markedBy,
+      })
+      .select("id")
+      .single();
+    if (error || !data) return { ok: false, error: "db" };
+    changed(id);
+    return { ok: true, data: { id: data.id } };
+  });
 }
 
 export async function removePayment(id: string, paymentId: string): Promise<Result> {
-  if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };
-  const { error } = await db().from("payments").delete().eq("id", paymentId).eq("bill_id", id);
-  if (error) return { ok: false, error: "db" };
-  changed(id);
-  return { ok: true, data: null };
+  return guard(async () => {
+    if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };
+    const { error } = await db().from("payments").delete().eq("id", paymentId).eq("bill_id", id);
+    if (error) return { ok: false, error: "db" };
+    changed(id);
+    return { ok: true, data: null };
+  });
 }

@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
 import { Header } from "@/components/header";
-import { PencilIcon, PlusIcon, ResetIcon } from "@/components/icons";
-import { ReceiptPanel } from "@/components/receipt/receipt-panel";
+import { ArrowRightIcon, PencilIcon, PlusIcon, ResetIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -66,9 +66,9 @@ export function BillsHome() {
   const hasPeople = doc.people.length > 0;
   const hasBills = doc.items.length > 0;
 
-  // One column, top to bottom, the same on phone and desktop: people, bills, then the receipt.
-  // The three numbered steps are on screen from the first visit and just fill in. Nothing sits in
-  // a box; the receipt paper is the only object on the page.
+  // One column, top to bottom, the same on phone and desktop: people, then bills. The three numbered
+  // steps are on screen from the first visit and just fill in; once there is a bill, step 3 becomes
+  // the total bar along the bottom, whose "See receipt" opens the receipt page.
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[640px] flex-col bg-bg px-4 pb-8 text-ink md:px-6 md:pb-12">
       <Header />
@@ -116,16 +116,10 @@ export function BillsHome() {
               {doc.items.map((item) => (
                 <BillRow key={item.id} item={item} payer={nameOf(item.paidBy)} peopleCount={doc.people.length} onClick={() => openBill(item.id)} />
               ))}
-              <div className="flex min-h-[56px] flex-wrap items-center gap-x-3 border-t border-line">
-                <button type="button" onClick={() => openBill(null)} className="flex h-[56px] items-center gap-2 text-left text-[15px] font-bold text-green-ink">
-                  <PlusIcon />
-                  {t.home.addBill}
-                </button>
-                <span className="tabular ml-auto pb-0.5 text-[17px] font-extrabold">
-                  <span className="mr-2.5 text-[13px] font-semibold text-muted">{fmt(t.home.totalPeople, { count: doc.people.length })}</span>
-                  {money(total)}
-                </span>
-              </div>
+              <button type="button" onClick={() => openBill(null)} className="flex h-[56px] w-full items-center gap-2 border-t border-line text-left text-[15px] font-bold text-green-ink">
+                <PlusIcon />
+                {t.home.addBill}
+              </button>
             </div>
           ) : (
             <>
@@ -142,19 +136,30 @@ export function BillsHome() {
           )}
         </section>
 
-        <section className={cn("flex flex-col gap-4", !hasBills && "opacity-55")}>
-          {hasBills && draft ? (
-            <ReceiptPanel draft={draft} heading={<StepHeader n={3} title={t.home.step3} />} />
-          ) : (
-            <>
-              <StepHeader n={3} title={t.home.step3} locked />
-              <p className="-mt-0.5 m-0 text-[14px] text-muted">{t.home.step3Desc}</p>
-            </>
-          )}
-        </section>
+        {hasBills ? null : (
+          <section className="flex flex-col gap-3.5 opacity-55">
+            <StepHeader n={3} title={t.home.step3} locked />
+            <p className="m-0 text-[14px] text-muted">{t.home.step3Desc}</p>
+          </section>
+        )}
       </main>
 
-      <div className="mt-auto pt-12 text-center text-[12px] text-muted">{t.home.expiryNote}</div>
+      {hasBills ? (
+        <div className="sticky bottom-[max(16px,env(safe-area-inset-bottom))] z-20 mt-auto pt-10">
+          <div className="flex items-center justify-between gap-3 rounded-[20px] border border-bar-border bg-bar py-[14px] pr-[14px] pl-[18px] text-bar-ink">
+            <div className="min-w-0">
+              <div className="text-[12px] text-bar-muted">{fmt(t.home.totalPeople, { count: doc.people.length })}</div>
+              <div className="tabular text-[22px] font-extrabold">{money(total)}</div>
+            </div>
+            <Link href="/receipt" className="flex h-[50px] shrink-0 items-center gap-2 rounded-[14px] bg-green px-[18px] text-[15px] font-bold text-white no-underline">
+              {t.home.seeReceipt}
+              <ArrowRightIcon />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-auto pt-12 text-center text-[12px] text-muted">{t.home.expiryNote}</div>
+      )}
 
       <PersonSheet
         key={`p-${personSheet.key}`}

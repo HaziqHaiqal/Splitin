@@ -2,7 +2,6 @@
 
 import { Header } from "@/components/header";
 import { Receipt } from "@/components/receipt/receipt";
-import { useIsDesktop } from "@/components/sheet";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary } from "@/lib/bill";
@@ -42,41 +41,31 @@ function Picker({ bill, summary, onJustLooking }: Omit<Props, "sharedBy">) {
           );
         })}
       </div>
-      <button type="button" onClick={onJustLooking} className="h-10 text-[14px] font-bold text-green-ink md:hidden">
+      <button type="button" onClick={onJustLooking} className="h-10 text-[14px] font-bold text-green-ink">
         {t.friend.justLooking}
       </button>
     </>
   );
 }
 
+/** The same on every screen size: the receipt in one column, the name picker as a panel along the bottom. */
 export function FriendPick({ bill, summary, sharedBy, onJustLooking }: Props) {
   const { t } = useI18n();
-  const desktop = useIsDesktop();
   return (
-    <div data-paper className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-paper-bg text-ink md:max-w-[920px]">
-      <div className="bg-inherit px-5 pb-[380px] md:px-6 md:pb-10 xl:px-8">
+    <div data-paper className="relative mx-auto min-h-dvh w-full max-w-[460px] bg-paper-bg text-ink">
+      {/* bottom padding lets the end of the receipt scroll up clear of the panel */}
+      <div className="max-w-[inherit] bg-inherit px-5 pb-[380px]">
         <Header theme={false} />
-        <div className="mt-3 md:mt-8 md:grid md:grid-cols-[350px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)] md:items-start md:gap-6 xl:gap-10">
-          <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} sharedBy={sharedBy} />
-          {desktop ? (
-            <div className="sticky top-[88px] flex flex-col gap-[14px] rounded-[24px] bg-sheet p-6 shadow-[0_1px_2px_rgba(28,31,29,0.06)]">
-              <Picker bill={bill} summary={summary} onJustLooking={onJustLooking} />
-            </div>
-          ) : null}
-        </div>
+        <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} sharedBy={sharedBy} />
       </div>
-      {desktop ? null : (
-        <>
-          <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(28,31,29,0)_30%,rgba(28,31,29,0.35)_55%)]" />
-          <div
-            role="dialog"
-            aria-label={t.friend.pickTitle}
-            className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-[430px] flex-col gap-[14px] rounded-t-[24px] bg-sheet px-5 pt-5 pb-[max(24px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.12)]"
-          >
-            <Picker bill={bill} summary={summary} onJustLooking={onJustLooking} />
-          </div>
-        </>
-      )}
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(28,31,29,0)_30%,rgba(28,31,29,0.35)_55%)]" />
+      <div
+        role="dialog"
+        aria-label={t.friend.pickTitle}
+        className="fixed inset-x-0 bottom-0 mx-auto flex w-full max-w-[460px] flex-col gap-[14px] rounded-t-[24px] bg-sheet px-5 pt-5 pb-[max(24px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.12)]"
+      >
+        <Picker bill={bill} summary={summary} onJustLooking={onJustLooking} />
+      </div>
     </div>
   );
 }
