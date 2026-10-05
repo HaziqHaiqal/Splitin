@@ -54,12 +54,12 @@ export function FriendPick({ bill, summary, sharedBy, onJustLooking }: Props) {
   const desktop = useIsDesktop();
   return (
     <div data-paper className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-paper-bg text-ink md:max-w-[920px]">
-      <div className="px-5 pt-[14px] pb-[380px] md:px-6 xl:px-8 md:pt-6 md:pb-10">
+      <div className="bg-inherit px-5 pb-[380px] md:px-6 md:pb-10 xl:px-8">
         <Header theme={false} />
         <div className="mt-3 md:mt-8 md:grid md:grid-cols-[350px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)] md:items-start md:gap-6 xl:gap-10">
           <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} sharedBy={sharedBy} />
           {desktop ? (
-            <div className="sticky top-6 flex flex-col gap-[14px] rounded-[24px] bg-sheet p-6 shadow-[0_1px_2px_rgba(28,31,29,0.06)]">
+            <div className="sticky top-[88px] flex flex-col gap-[14px] rounded-[24px] bg-sheet p-6 shadow-[0_1px_2px_rgba(28,31,29,0.06)]">
               <Picker bill={bill} summary={summary} onJustLooking={onJustLooking} />
             </div>
           ) : null}

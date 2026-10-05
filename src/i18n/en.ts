@@ -41,9 +41,10 @@ export const en = {
     addBill: "Add a bill",
     total: "Total",
     totalPeople: "Total · {count} people",
-    seeReceipt: "See receipt",
     duplicateName: "{name} is already in the list",
     editTitle: "Edit title",
+    clearAll: "Clear all",
+    cleared: "Everything cleared",
   },
   person: {
     name: "Name",

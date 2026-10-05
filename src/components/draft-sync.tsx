@@ -13,7 +13,10 @@ export function useDraftSync(draft: Draft | null | undefined) {
   const last = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!draft?.billId) return;
+    if (!draft?.billId) {
+      last.current = null; // cleared or not shared: the next shared bill starts fresh
+      return;
+    }
     const json = JSON.stringify(draft.doc);
     if (last.current === null) {
       last.current = json;

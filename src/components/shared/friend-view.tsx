@@ -59,7 +59,7 @@ export function FriendView({ bill, meId, summary, onReceipt }: { bill: SharedBil
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-3 bg-bg px-4 pt-[14px] pb-5 text-ink md:max-w-[920px] md:px-6 xl:px-8 md:pt-6 md:pb-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-3 bg-bg px-4 pb-5 text-ink md:max-w-[920px] md:px-6 xl:px-8 md:pb-10">
       <Header theme={false} />
       <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1fr)_350px] xl:grid-cols-[minmax(0,1fr)_390px] md:items-start md:gap-6 xl:gap-10 md:pt-6">
       <div className="flex flex-col gap-3">
@@ -162,7 +162,7 @@ export function FriendView({ bill, meId, summary, onReceipt }: { bill: SharedBil
       </button>
       </div>
       {desktop ? (
-        <aside className="sticky top-6">
+        <aside className="sticky top-[88px]">
           <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} sharedBy={bill.doc.people[0]?.name} />
         </aside>
       ) : null}
@@ -181,7 +181,7 @@ export function FriendDone({ bill, meId, done, onReceipt }: { bill: SharedBillDa
   const desktop = useIsDesktop();
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-4 bg-bg px-4 pt-[14px] pb-[22px] text-ink md:max-w-[920px] md:px-6 md:pt-6 md:pb-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-4 bg-bg px-4 pb-[22px] text-ink md:max-w-[920px] md:px-6 md:pb-10">
       <Header theme={false} />
       <div className="flex flex-1 flex-col gap-4 md:grid md:flex-none md:grid-cols-[minmax(0,1fr)_350px] md:items-start md:gap-10 md:pt-6">
       <div className="flex flex-1 flex-col gap-4">
@@ -216,7 +216,7 @@ export function FriendDone({ bill, meId, done, onReceipt }: { bill: SharedBillDa
       </div>
       </div>
       {desktop ? (
-        <aside className="sticky top-6">
+        <aside className="sticky top-[88px]">
           <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} sharedBy={bill.doc.people[0]?.name} />
         </aside>
       ) : null}

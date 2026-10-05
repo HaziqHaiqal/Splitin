@@ -5,7 +5,7 @@ import type { Dictionary } from "@/i18n";
 
 export function Expired({ t }: { t: Dictionary }) {
   return (
-    <div data-paper className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[18px] bg-paper-bg px-5 pt-[14px] pb-[22px] text-ink md:max-w-[900px] md:px-6 md:pt-6">
+    <div data-paper className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[18px] bg-paper-bg px-5 pb-[22px] text-ink md:max-w-[900px] md:px-6">
       <Header theme={false} />
       {/* phone: receipt, text, button stacked · desktop: text + button left, receipt right */}
       <div className="flex flex-1 flex-col gap-[18px] md:grid md:flex-none md:grid-cols-[minmax(0,1fr)_350px] md:gap-x-12 md:gap-y-8 md:pt-20">

@@ -64,7 +64,7 @@ export function Tracking({
   };
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[14px] bg-bg px-4 pt-[14px] pb-[22px] text-ink md:max-w-[980px] md:px-6 xl:px-8 md:pt-6 md:pb-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[14px] bg-bg px-4 pb-[22px] text-ink md:max-w-[980px] md:px-6 xl:px-8 md:pb-10">
       <Header theme={false} />
       <div className="flex flex-1 flex-col gap-[14px] md:grid md:grid-cols-[minmax(0,1fr)_350px] xl:grid-cols-[minmax(0,1fr)_390px] md:items-start md:gap-6 xl:gap-10 md:pt-6">
       <div className="flex flex-1 flex-col gap-[14px]">

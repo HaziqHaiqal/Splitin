@@ -42,9 +42,10 @@ export const ms: Dictionary = {
     addBill: "Tambah bil",
     total: "Jumlah",
     totalPeople: "Jumlah · {count} orang",
-    seeReceipt: "Lihat resit",
     duplicateName: "{name} sudah ada dalam senarai",
     editTitle: "Ubah tajuk",
+    clearAll: "Kosongkan semua",
+    cleared: "Semua dikosongkan",
   },
   person: {
     name: "Nama",

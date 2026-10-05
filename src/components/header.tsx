@@ -77,9 +77,15 @@ export function ThemeToggle() {
   );
 }
 
+/**
+ * Stays at the top of the window while the page scrolls. It lives inside the page's own column, so
+ * the logo and controls line up with the content; the bar behind it spans the whole window.
+ * The page container must set a background and have no top padding.
+ */
 export function Header({ theme = true }: { theme?: boolean }) {
   return (
-    <div className="flex h-10 items-center justify-between">
+    <header className="sticky top-0 z-30 mb-2 flex h-14 shrink-0 items-center justify-between bg-inherit md:mb-4 md:h-16">
+      <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
       <Logo />
       {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
       <div className="-mr-2 flex items-center gap-0.5">
@@ -87,6 +93,6 @@ export function Header({ theme = true }: { theme?: boolean }) {
         <LanguageToggle />
         {theme ? <ThemeToggle /> : null}
       </div>
-    </div>
+    </header>
   );
 }
