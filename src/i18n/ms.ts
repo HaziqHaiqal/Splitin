@@ -128,6 +128,8 @@ export const ms: Dictionary = {
     rateLimited: "Terlalu banyak resit dikongsi. Cuba sebentar lagi.",
   },
   track: {
+    markUnpaid: "Tanda belum bayar",
+    unmarked: "{from} → {to} belum bayar semula",
     shared: "Dikongsi {ago} · {done} daripada {total} bayaran selesai",
     settled: "Selesai",
     of: "daripada",
@@ -141,6 +143,7 @@ export const ms: Dictionary = {
     remindMessage: "Hai {from}, peringatan untuk {title}: sila bayar {to} {amount}.",
   },
   settled: {
+    review: "Belum bayar sebenarnya? Ubah",
     title: "Semua dah bayar.",
     subtitle: "Kesemua {count} bayaran untuk {title} sudah selesai.",
     balance: "BAKI",
@@ -149,14 +152,10 @@ export const ms: Dictionary = {
     deletesOn: "Resit ini dipadam sendiri pada {date}.",
   },
   friend: {
-    paidButton: "Saya dah bayar",
-    whoTitle: "Anda siapa?",
-    whoDesc: "Pilih nama anda untuk tanda apa yang dah dibayar.",
-    owes: "berhutang {amount}",
-    markTitle: "{name}, apa yang dah dibayar?",
-    payTo: "Kepada {name}",
-    markOne: "Dah bayar",
-    notYou: "Bukan {name}?",
+    tapHint: "Dah bayar? Ketik bayaran anda di bawah untuk tanda.",
+    confirmTitle: "{from} dah bayar {to}?",
+    confirmDesc: "Semua yang ada pautan akan nampak cap DIBAYAR pada bayaran ini.",
+    cancel: "Batal",
     marked: "Ditanda dah bayar kepada {name}",
   },
   expired: {
@@ -208,7 +207,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 6: Tanda siapa dah bayar",
-        desc: "Rakan buka pautan dan nampak resit: siapa bayar siapa, dan ke mana. Selepas bayar, mereka tekan “Saya dah bayar” (atau anda tekan Tanda dah bayar) dan semua orang nampak cap DIBAYAR.",
+        desc: "Rakan buka pautan dan nampak resit. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Anda boleh tanda belum bayar.",
         hint: "Cuba: tandakan sudah bayar.",
       },
     ],

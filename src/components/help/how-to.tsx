@@ -392,30 +392,26 @@ function ShareDemo() {
 }
 
 function PayDemo() {
-  const { t, money, date } = useI18n();
-  const [paidAt, setPaidAt] = useState<string | null>(null);
+  const { t, plain } = useI18n();
+  const [paid, setPaid] = useState(false);
   return (
-    <div className={cn(mini, "relative flex w-full max-w-[280px] flex-col gap-2.5 p-3")}>
-      <div className="flex items-center justify-between gap-2">
-        <span>
-          <span className="block text-[13px] font-bold text-ink">Najmi → Haziq</span>
-          <span className="block text-[11px] text-muted">{paidAt ? fmt(t.track.youMarked, { time: date(paidAt, { hour: "numeric", minute: "2-digit" }) }) : t.track.waiting}</span>
-        </span>
-        <span className={cn("tabular text-[15px] font-extrabold", paidAt ? "text-faint line-through" : "text-ink")}>{money(11845)}</span>
-      </div>
-      <div className="flex gap-2">
-        <span className="flex h-8 flex-1 items-center justify-center rounded-lg bg-chip text-[12px] font-bold text-ink">{fmt(t.track.remind, { name: "Najmi" })}</span>
+    <div className="flex w-full max-w-[280px] flex-col items-center">
+      <Paper className="relative w-full">
+        <div className="font-bold tracking-[0.06em]">SETTLE UP</div>
+        <div className="font-sans text-[10px] font-semibold text-[#6d675e]">{t.friend.tapHint}</div>
         <button
           type="button"
-          onClick={() => setPaidAt(paidAt ? null : new Date().toISOString())}
-          className={cn(press, "flex h-8 flex-1 items-center justify-center rounded-lg text-[12px] font-bold", paidAt ? "border border-border bg-card text-ink" : "animate-nudge bg-green-soft text-green-soft-ink")}
+          onClick={() => setPaid(!paid)}
+          className={cn(press, "relative mt-1 -mx-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5 text-left font-mono", paid ? "" : "animate-nudge bg-[#f1ecdd]")}
         >
-          {paidAt ? t.common.undo : t.track.markPaid}
+          <span style={{ color: "#b4472a" }}>NAJMI</span> → <span style={{ color: "#176b46" }}>HAZIQ</span>
+          <span className="flex-1 border-b border-dotted border-[#b5afa4]" />
+          <span className={paid ? "text-[#8a8478] line-through" : ""}>{plain(11845)}</span>
+          {paid ? (
+            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#c2412b] bg-[#fffdf6] px-1 text-[9px] font-bold tracking-[0.12em] text-[#c2412b]">{t.receipt.paidStamp}</span>
+          ) : null}
         </button>
-      </div>
-      {paidAt ? (
-        <span className="absolute -top-2 -right-2 rotate-[8deg] animate-stamp border-2 border-stamp bg-card px-1.5 font-mono text-[11px] font-bold tracking-[0.12em] text-stamp">{t.receipt.paidStamp}</span>
-      ) : null}
+      </Paper>
     </div>
   );
 }

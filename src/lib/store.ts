@@ -90,12 +90,7 @@ export function updateDraft(fallbackTitle: string, fn: (draft: Draft) => Draft) 
 /* ───────── per shared bill: owner secret and "which one are you" ───────── */
 
 const ownerKey = (billId: string) => `splitin:owner:${billId}`;
-const meKey = (billId: string) => `splitin:me:${billId}`;
 
 export const useOwnerToken = (billId: string) => useStored(ownerKey(billId));
 export const getOwnerToken = (billId: string) => read(ownerKey(billId));
 export const setOwnerToken = (billId: string, token: string) => write(ownerKey(billId), token);
-
-/** Which person this browser said it is on a shared bill, so "I've paid" skips the name question next time. */
-export const useMe = (billId: string) => useStored(meKey(billId));
-export const setMe = (billId: string, personId: string | null) => write(meKey(billId), personId);

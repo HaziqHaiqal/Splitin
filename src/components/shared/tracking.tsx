@@ -55,6 +55,12 @@ export function Tracking({
       });
     });
 
+  const markUnpaid = (line: PlanLine) =>
+    start(async () => {
+      const result = await removePayment(bill.id, line.paymentId!, ownerToken);
+      toast({ message: result.ok ? fmt(t.track.unmarked, { from: nameOf(line.from), to: nameOf(line.to) }) : t.common.generic });
+    });
+
   const remind = (line: PlanLine) => {
     const text = `${fmt(t.track.remindMessage, { from: nameOf(line.from), title: bill.doc.title, to: nameOf(line.to), amount: money(line.amount) })} ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
@@ -89,19 +95,27 @@ export function Tracking({
 
       <div className={`${card} px-4 py-1`}>
         {summary.done.map((l, i) => (
-          <div key={l.paymentId} className={`relative flex min-h-[76px] items-center gap-2.5 ${i > 0 ? "border-t border-line" : ""}`}>
-            <div className="flex-1">
-              <div className="text-[15px] font-bold">
-                {nameOf(l.from)} → {nameOf(l.to)}
+          <div key={l.paymentId} className={i > 0 ? "border-t border-line" : ""}>
+            <div className="relative flex min-h-[76px] items-center gap-2.5">
+              <div className="flex-1">
+                <div className="text-[15px] font-bold">
+                  {nameOf(l.from)} → {nameOf(l.to)}
+                </div>
+                <div className="mt-0.5 text-[12px] text-muted">
+                  {l.markedBy === "owner" ? fmt(t.track.youMarked, { time: time(l.paidAt!) }) : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })}
+                </div>
               </div>
-              <div className="mt-0.5 text-[12px] text-muted">
-                {l.markedBy === "owner" ? fmt(t.track.youMarked, { time: time(l.paidAt!) }) : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })}
-              </div>
+              <span className="tabular text-[15px] font-extrabold text-faint line-through">{money(l.amount)}</span>
+              <Stamp rotate={i % 2 ? 6 : -10} className="absolute top-[18px] right-[70px] bg-card/70">
+                {t.receipt.paidStamp}
+              </Stamp>
             </div>
-            <span className="tabular text-[15px] font-extrabold text-faint line-through">{money(l.amount)}</span>
-            <Stamp rotate={i % 2 ? 6 : -10} className="absolute top-[18px] right-[70px] bg-card/70">
-              {t.receipt.paidStamp}
-            </Stamp>
+            {/* a friend can mark a payment by mistake (or untruthfully); the owner can always take it back */}
+            <div className="pb-[14px]">
+              <button type="button" disabled={pending} onClick={() => markUnpaid(l)} className="h-[38px] rounded-xl bg-chip px-4 text-[13px] font-bold text-ink disabled:opacity-60">
+                {t.track.markUnpaid}
+              </button>
+            </div>
           </div>
         ))}
         {summary.remaining.map((l, i) => (

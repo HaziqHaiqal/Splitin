@@ -3,7 +3,7 @@
 import { forwardRef, useId } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { evenShare, itemNote, summarize, type BillDoc, type Payment } from "@/lib/bill";
+import { evenShare, itemNote, summarize, type BillDoc, type Payment, type PlanLine } from "@/lib/bill";
 
 const INK = "#26231f";
 const MUTED = "#6d675e";
@@ -69,10 +69,14 @@ export type ReceiptProps = {
   expiresAt?: string | null;
   /** "SHARED BY HAZIQ · 05/10/2026" instead of time + number */
   sharedBy?: string | null;
+  /** Makes each unpaid payment under SETTLE UP tappable (the shared link, for friends). */
+  onLine?: (line: PlanLine) => void;
+  /** A short grey line under SETTLE UP explaining the tap. */
+  hint?: string;
 };
 
 /** The thermal-receipt look. Paper colours stay the same in dark mode. */
-export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt({ doc, payments = [], billId, expiresAt, sharedBy }, ref) {
+export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt({ doc, payments = [], billId, expiresAt, sharedBy, onLine, hint }, ref) {
   const { t, plain, money, date } = useI18n();
   const r = t.receipt;
   const summary = summarize(doc, payments);
@@ -196,9 +200,10 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
           {lines.length === 0 ? r.nothingToSettle : lines.length === 1 ? r.settleUpOne : fmt(r.settleUp, { count: lines.length })}
         </div>
+        {hint ? <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>{hint}</div> : null}
         <div className="mt-1.5 flex flex-col gap-2">
-          {lines.map((l) => (
-            <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+          {lines.map((l) => {
+            const leader = (
               <Leader
                 bold
                 left={
@@ -206,8 +211,30 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                     <span style={{ color: RED }}>{name(l.from)}</span> → <span style={{ color: GREEN }}>{name(l.to)}</span>
                   </>
                 }
-                right={<span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>{plain(l.amount)}</span>}
+                right={
+                  <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
+                    {plain(l.amount)}
+                    {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
+                  </span>
+                }
               />
+            );
+            if (onLine && !l.paid) {
+              return (
+                <button
+                  key={`${l.from}-${l.to}-open`}
+                  type="button"
+                  onClick={() => onLine(l)}
+                  aria-label={`${name(l.from)} → ${name(l.to)} ${plain(l.amount)}`}
+                  className="-mx-1.5 block rounded-md bg-[#f1ecdd] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#e9e2cc]"
+                >
+                  {leader}
+                </button>
+              );
+            }
+            return (
+            <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+              {leader}
               {l.paid ? (
                 <span
                   className="absolute"
@@ -217,7 +244,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 </span>
               ) : null}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {receivers.length > 0 ? (

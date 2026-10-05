@@ -25,7 +25,7 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
   useBillLive(bill.id);
   const hydrated = useHydrated();
   const ownerToken = useOwnerToken(bill.id);
-  const [view, setView] = useState<"main" | "receipt">("main");
+  const [view, setView] = useState<"main" | "receipt" | "payments">("main");
   const { t } = useI18n();
 
   if (!hydrated) return <div className="min-h-dvh bg-paper-bg" />;
@@ -35,6 +35,6 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
 
   if (!ownerToken) return <ReceiptView bill={bill} sharedBy={sharerName} />;
   if (view === "receipt") return <ReceiptView bill={bill} sharedBy={sharerName} back={{ label: t.receipt.back, onClick: () => setView("main") }} />;
-  if (summary.remaining.length === 0 && summary.done.length > 0) return <Settled bill={bill} summary={summary} />;
+  if (view === "main" && summary.remaining.length === 0 && summary.done.length > 0) return <Settled bill={bill} summary={summary} onReview={() => setView("payments")} />;
   return <Tracking bill={bill} summary={summary} ownerToken={ownerToken} onViewReceipt={() => setView("receipt")} />;
 }

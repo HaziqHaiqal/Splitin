@@ -11,7 +11,7 @@ Planned work is in [TODO.md](TODO.md).
 - **Equal split by default.** You can type a different amount for one person and the rest re-splits, or leave someone out of a bill.
 - **Receipt-style summary.** Each person's share, who owes and who collects, and the smallest set of payments that settles everything.
 - **Share to the group.** A picture of the receipt plus a link, sent through WhatsApp or the phone's share menu.
-- **Friends use the link.** It opens straight on the receipt: who pays who, the bank account numbers, and PAID stamps as payments come in. Someone who has paid taps "I've paid", picks their name and marks their payment. The person who shared can also mark payments and send reminders.
+- **Friends use the link.** It opens straight on the receipt: who pays who, the bank account numbers, and PAID stamps as payments come in. Someone who has paid taps their payment on the receipt and confirms, one payment at a time. The person who shared sees who marked what and can mark any payment unpaid again. The person who shared can also mark payments and send reminders.
 - **Links delete themselves** 30 days after they are created.
 - **English and Bahasa Melayu**, dark and light mode. New visitors get English and dark mode.
 - **Phone and desktop layouts**, plus a built-in "How to use Splitin" guide with small try-it demos.

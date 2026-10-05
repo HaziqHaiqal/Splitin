@@ -9,7 +9,7 @@ import type { BillSummary } from "@/lib/bill";
 import { saveDraft } from "@/lib/store";
 import type { SharedBillData } from "./shared-bill";
 
-export function Settled({ bill, summary }: { bill: SharedBillData; summary: BillSummary }) {
+export function Settled({ bill, summary, onReview }: { bill: SharedBillData; summary: BillSummary; onReview: () => void }) {
   const { t, plain, money, date } = useI18n();
   const router = useRouter();
   const nameOf = (id: string) => bill.doc.people.find((p) => p.id === id)?.name.toUpperCase() ?? "?";
@@ -57,6 +57,9 @@ export function Settled({ bill, summary }: { bill: SharedBillData; summary: Bill
         <div className="mt-auto flex flex-col gap-2.5 md:col-start-1 md:row-start-2 md:mt-0 md:max-w-[400px] md:self-start">
           <button type="button" onClick={newSplit} className="h-14 rounded-2xl bg-green px-5 text-[16px] font-bold text-white">
             {t.settled.newSplit}
+          </button>
+          <button type="button" onClick={onReview} className="h-10 text-[14px] font-bold text-green-ink">
+            {t.settled.review}
           </button>
           <div className="text-center text-[12px] text-muted md:text-left">
             {fmt(t.settled.deletesOn, { date: date(bill.expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}

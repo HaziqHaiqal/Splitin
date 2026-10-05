@@ -129,6 +129,8 @@ export const en = {
     rateLimited: "Too many receipts shared. Try again in a bit.",
   },
   track: {
+    markUnpaid: "Mark unpaid",
+    unmarked: "{from} → {to} is unpaid again",
     shared: "Shared {ago} · {done} of {total} payments done",
     settled: "Settled",
     of: "of",
@@ -143,6 +145,7 @@ export const en = {
       "Hi {from}, a gentle reminder for {title}: please pay {to} {amount}.",
   },
   settled: {
+    review: "Not paid after all? Change it",
     title: "Everyone's paid.",
     subtitle: "All {count} payments for {title} are done.",
     balance: "BALANCE",
@@ -151,14 +154,10 @@ export const en = {
     deletesOn: "This receipt deletes itself on {date}.",
   },
   friend: {
-    paidButton: "I've paid",
-    whoTitle: "Who are you?",
-    whoDesc: "Pick your name to mark what you've paid.",
-    owes: "owes {amount}",
-    markTitle: "{name}, what have you paid?",
-    payTo: "To {name}",
-    markOne: "Paid",
-    notYou: "Not {name}?",
+    tapHint: "Paid? Tap your payment below to mark it.",
+    confirmTitle: "{from} paid {to}?",
+    confirmDesc: "Everyone with the link will see a PAID stamp on this payment.",
+    cancel: "Cancel",
     marked: "Marked as paid to {name}",
   },
   expired: {
@@ -210,7 +209,7 @@ export const en = {
       },
       {
         title: "Step 6: Mark who has paid",
-        desc: "Friends open the link and see the receipt: who pays who, and where. After paying, they tap “I've paid” (or you tap Mark paid) and everyone sees a PAID stamp.",
+        desc: "Friends open the link and see the receipt. After paying, they tap their payment on it and everyone sees a PAID stamp. Wrong? You can mark it unpaid.",
         hint: "Try it: mark it as paid.",
       },
     ],

@@ -57,18 +57,23 @@ function Modal({ open, onOpenChange, title, children, wide }: SheetProps) {
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      // the browser focuses the first control; on a button that reads as "already selected", so focus the pop-up itself
+      if (document.activeElement instanceof HTMLButtonElement) dialog.focus();
+    }
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
   return (
     <dialog
       ref={ref}
+      tabIndex={-1}
       onClose={() => onOpenChange(false)}
       onClick={(e) => {
         if (e.target === ref.current) onOpenChange(false);
       }}
-      className={cn("m-auto w-full rounded-[24px] bg-sheet p-0 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.25)] backdrop:bg-overlay", wide ? "max-w-[min(860px,calc(100vw-48px))]" : "max-w-[460px]")}
+      className={cn("m-auto w-full rounded-[24px] bg-sheet outline-none p-0 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.25)] backdrop:bg-overlay", wide ? "max-w-[min(860px,calc(100vw-48px))]" : "max-w-[460px]")}
     >
       {open ? (
         <div className={cn("flex max-h-[88dvh] flex-col gap-[14px] overflow-y-auto p-6", wide && "gap-5 p-7")}>
