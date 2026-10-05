@@ -67,7 +67,7 @@ export function ReceiptScreen() {
         }
       />
       <Receipt ref={receiptRef} doc={draft.doc} billId={draft.billId} />
-      <ShareSheet open={shareOpen} onOpenChange={setShareOpen} billId={draft.billId} title={draft.doc.title} receiptRef={receiptRef} />
+      <ShareSheet open={shareOpen} onOpenChange={setShareOpen} billId={draft.billId} title={draft.doc.title} createdAt={draft.doc.createdAt} receiptRef={receiptRef} />
     </div>
   );
 }

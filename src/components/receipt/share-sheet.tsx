@@ -31,17 +31,31 @@ async function receiptPicture(node: HTMLElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }
 
+/**
+ * "Receipt_20261006-0148_GagYTBLfty.png": the date and time printed on the receipt (local time),
+ * then the link id. No colons or spaces, so it is a safe file name everywhere.
+ */
+export function receiptFileName(createdAt: string, billId: string | null) {
+  const d = new Date(createdAt);
+  const two = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
+  return `Receipt_${stamp}${billId ? `_${billId}` : ""}.png`;
+}
+
 export function ShareSheet({
   open,
   onOpenChange,
   billId,
   title,
+  createdAt,
   receiptRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   billId: string | null;
   title: string;
+  /** When the bill was made; the saved picture is named after it. */
+  createdAt: string;
   receiptRef: RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useI18n();
@@ -76,7 +90,8 @@ export function ShareSheet({
     };
   }, [open, receiptRef]);
 
-  const file = image ? new File([image.blob], `splitin-${billId ?? "receipt"}.png`, { type: "image/png" }) : null;
+  const fileName = receiptFileName(createdAt, billId);
+  const file = image ? new File([image.blob], fileName, { type: "image/png" }) : null;
 
   const copyPicture = () => {
     if (!image) return null;
@@ -117,7 +132,7 @@ export function ShareSheet({
     if (!image) return;
     const a = document.createElement("a");
     a.href = image.url;
-    a.download = `splitin-${billId ?? "receipt"}.png`;
+    a.download = fileName;
     a.click();
   };
 

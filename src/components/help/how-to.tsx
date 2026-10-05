@@ -392,32 +392,28 @@ function ShareDemo() {
 }
 
 function PayDemo() {
-  const { t, money } = useI18n();
-  const [paid, setPaid] = useState(false);
-  const [copied, flash] = useFlash();
+  const { t, money, date } = useI18n();
+  const [paidAt, setPaidAt] = useState<string | null>(null);
   return (
-    <div className={cn(mini, "relative flex w-full max-w-[270px] flex-col gap-2 p-3")}>
-      <div className="flex items-baseline justify-between">
-        <span className="text-[13px] font-bold text-ink">{fmt(t.friend.payStep, { n: 1, name: "Haziq" })}</span>
-        <span className="tabular text-[15px] font-extrabold text-ink">{money(3530)}</span>
-      </div>
-      <div className="flex items-center justify-between rounded-lg bg-field px-2.5 py-1.5">
+    <div className={cn(mini, "relative flex w-full max-w-[280px] flex-col gap-2.5 p-3")}>
+      <div className="flex items-center justify-between gap-2">
         <span>
-          <span className="block text-[10px] text-muted">Maybank</span>
-          <span className="tabular block text-[13px] font-extrabold text-ink">1642 0098 3321</span>
+          <span className="block text-[13px] font-bold text-ink">Najmi → Haziq</span>
+          <span className="block text-[11px] text-muted">{paidAt ? fmt(t.track.youMarked, { time: date(paidAt, { hour: "numeric", minute: "2-digit" }) }) : t.track.waiting}</span>
         </span>
-        <button type="button" onClick={flash} className={cn(press, "rounded-md border border-border bg-card px-2 py-1 text-[11px] font-bold text-ink")}>
-          {copied ? t.common.copied : t.common.copy}
+        <span className={cn("tabular text-[15px] font-extrabold", paidAt ? "text-faint line-through" : "text-ink")}>{money(11845)}</span>
+      </div>
+      <div className="flex gap-2">
+        <span className="flex h-8 flex-1 items-center justify-center rounded-lg bg-chip text-[12px] font-bold text-ink">{fmt(t.track.remind, { name: "Najmi" })}</span>
+        <button
+          type="button"
+          onClick={() => setPaidAt(paidAt ? null : new Date().toISOString())}
+          className={cn(press, "flex h-8 flex-1 items-center justify-center rounded-lg text-[12px] font-bold", paidAt ? "border border-border bg-card text-ink" : "animate-nudge bg-green-soft text-green-soft-ink")}
+        >
+          {paidAt ? t.common.undo : t.track.markPaid}
         </button>
       </div>
-      <button
-        type="button"
-        onClick={() => setPaid(!paid)}
-        className={cn(press, "flex h-8 items-center justify-center rounded-lg text-[12px] font-bold", paid ? "border border-border bg-card text-ink" : "animate-nudge bg-green text-white")}
-      >
-        {paid ? t.common.undo : fmt(t.friend.iPaid, { name: "Haziq" })}
-      </button>
-      {paid ? (
+      {paidAt ? (
         <span className="absolute -top-2 -right-2 rotate-[8deg] animate-stamp border-2 border-stamp bg-card px-1.5 font-mono text-[11px] font-bold tracking-[0.12em] text-stamp">{t.receipt.paidStamp}</span>
       ) : null}
     </div>

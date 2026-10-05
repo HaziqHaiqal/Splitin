@@ -51,7 +51,7 @@ export function Tracking({
       if (!result.ok) return void toast({ message: t.common.generic });
       toast({
         message: fmt(t.friend.marked, { name: nameOf(line.to) }),
-        action: { label: t.common.undo, onClick: () => void removePayment(bill.id, result.data.id) },
+        action: { label: t.common.undo, onClick: () => void removePayment(bill.id, result.data.id, ownerToken) },
       });
     });
 
