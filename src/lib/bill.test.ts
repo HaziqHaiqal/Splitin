@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evenShare, itemNote, splitItem, summarize, type BillDoc } from "./bill";
+import { evenShare, itemSplitText, splitItem, summarize, type BillDoc } from "./bill";
 import { formatMoney } from "./money";
 
 const people = [
@@ -72,36 +72,38 @@ describe("summarize (the splitinn screenshot)", () => {
   });
 });
 
-describe("receipt notes", () => {
+describe("itemSplitText", () => {
   const fmt = (m: number) => formatMoney(m, "MYR").replace(/[^\d.,]/g, "");
-  const words = { others: "OTHERS", not: "NOT" };
-
-  it("no note for an even split", () => {
-    expect(itemNote(houseBills.items[0], people, fmt, words)).toBeNull();
+  const words = { each: "EACH", about: "ABOUT", others: "OTHERS", not: "NOT" };
+  const bill = (amountMinor: number, overrides: Record<string, number> = {}, participants = all) => ({
+    id: "x",
+    name: "Bill",
+    amountMinor,
+    paidBy: "h",
+    participants,
+    overrides,
   });
 
-  it("describes typed amounts compactly", () => {
-    const item = {
-      id: "4",
-      name: "Barang dapur",
-      amountMinor: 12000,
-      paidBy: "n",
-      participants: all,
-      overrides: { h: 4000 },
-    };
-    expect(itemNote(item, people, fmt, words)).toBe("HAZIQ 40.00 · OTHERS 26.67");
+  it("an even split", () => {
+    expect(itemSplitText(bill(10000), people, fmt, words)).toBe("25.00 EACH");
   });
 
-  it("names people left out", () => {
-    const item = {
-      id: "5",
-      name: "Makan",
-      amountMinor: 9000,
-      paidBy: "h",
-      participants: ["h", "n", "a"],
-      overrides: {},
-    };
-    expect(itemNote(item, people, fmt, words)).toBe("OTHERS 30.00 · NOT IMANUL");
+  it("a sen left over reads as about", () => {
+    expect(itemSplitText(bill(10000, {}, ["h", "n", "a"]), people, fmt, words)).toBe("ABOUT 33.33 EACH · NOT IMANUL");
+  });
+
+  it("a typed amount, the rest shared", () => {
+    expect(itemSplitText(bill(3000, { h: 500 }, ["h", "n", "a"]), people, fmt, words)).toBe(
+      "HAZIQ 5.00 · OTHERS 12.50 EACH · NOT IMANUL",
+    );
+  });
+
+  it("people left out", () => {
+    expect(itemSplitText(bill(9000, {}, ["h", "n", "a"]), people, fmt, words)).toBe("30.00 EACH · NOT IMANUL");
+  });
+
+  it("only one person", () => {
+    expect(itemSplitText(bill(3000, {}, ["n"]), people, fmt, words)).toBe("NAJMI 30.00 · NOT HAZIQ, AFIQ, IMANUL");
   });
 });
 

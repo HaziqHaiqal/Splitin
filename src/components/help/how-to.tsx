@@ -355,12 +355,6 @@ function ReceiptDemo() {
   const [run, setRun] = useState(0);
   const r = t.receipt;
   const print = () => setRun(run + 1);
-  const balances: [string, number][] = [
-    ["HAZIQ", 15375],
-    ["AFIQ", 8315],
-    ["NAJMI", -11845],
-    ["IMANUL", -11845],
-  ];
   const pays: [string, string, number][] = [
     ["NAJMI", "HAZIQ", 11845],
     ["IMANUL", "HAZIQ", 3530],
@@ -383,19 +377,11 @@ function ReceiptDemo() {
         <Paper key={run} className="animate-print">
           <div className="text-center text-[12px] font-bold tracking-[0.3em]">SPLITIN</div>
           <div className="my-1 border-t border-dashed border-[#26231f]" />
-          {balances.map(([name, net]) => (
-            <div key={name} className="flex justify-between font-semibold">
-              <span>{name}</span>
-              <span style={{ color: net > 0 ? "#176b46" : "#b4472a" }}>
-                {net > 0 ? `${r.collects} +${plain(net)}` : `${r.owes} −${plain(-net)}`}
-              </span>
-            </div>
-          ))}
-          <div className="my-1 border-t-[3px] border-double border-[#26231f]" />
+          <div className="font-bold tracking-[0.06em]">{r.settleUp}</div>
           {pays.map(([from, to, amount]) => (
             <div key={from + to} className="flex justify-between">
               <span>
-                <span style={{ color: "#b4472a" }}>{from}</span> → <span style={{ color: "#176b46" }}>{to}</span>
+                <span style={{ color: "#b4472a" }}>{from}</span> {r.pays} <span style={{ color: "#176b46" }}>{to}</span>
               </span>
               <span>{plain(amount)}</span>
             </div>
@@ -471,7 +457,7 @@ function PayDemo() {
   return (
     <div className="flex w-full max-w-[280px] flex-col items-center">
       <Paper className="relative w-full">
-        <div className="font-bold tracking-[0.06em]">SETTLE UP</div>
+        <div className="font-bold tracking-[0.06em]">{t.receipt.settleUp}</div>
         <div className="font-sans text-[10px] font-semibold text-[#6d675e]">{t.friend.tapHint}</div>
         <button
           type="button"
@@ -482,7 +468,8 @@ function PayDemo() {
             paid ? "" : "animate-nudge bg-[#f1ecdd]",
           )}
         >
-          <span style={{ color: "#b4472a" }}>NAJMI</span> → <span style={{ color: "#176b46" }}>HAZIQ</span>
+          <span style={{ color: "#b4472a" }}>NAJMI</span> {t.receipt.pays}{" "}
+          <span style={{ color: "#176b46" }}>HAZIQ</span>
           <span className="flex-1 border-b border-dotted border-[#b5afa4]" />
           <span className={paid ? "text-[#8a8478] line-through" : ""}>{plain(11845)}</span>
           {paid ? (

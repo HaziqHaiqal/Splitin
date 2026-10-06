@@ -1,9 +1,9 @@
 "use client";
 
-import { forwardRef, useId } from "react";
+import { forwardRef, Fragment, useId } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { evenShare, itemNote, summarize, type BillDoc, type Payment, type PlanLine } from "@/lib/bill";
+import { itemSplitText, summarize, type BillDoc, type Payment, type PlanLine } from "@/lib/bill";
 
 const INK = "#26231f";
 const MUTED = "#6d675e";
@@ -54,6 +54,13 @@ function Barcode() {
   );
 }
 
+/** The payment tree lines, the same colour as the dotted leaders. */
+const TREE = "#b5afa4";
+
+const BY_COL = 70;
+const TOTAL_COL = 66;
+const COL_GAP = 8;
+
 const Dashed = ({ double }: { double?: boolean }) => (
   <div
     style={
@@ -81,9 +88,9 @@ export type ReceiptProps = {
   expiresAt?: string | null;
   /** "SHARED BY HAZIQ · 05/10/2026" instead of time + number */
   sharedBy?: string | null;
-  /** Makes each unpaid payment under SETTLE UP tappable (the shared link, for friends). */
+  /** Makes each unpaid payment under WHO PAYS WHO tappable (the shared link, for friends). */
   onLine?: (line: PlanLine) => void;
-  /** A short grey line under SETTLE UP explaining the tap. */
+  /** A short grey line under WHO PAYS WHO explaining the tap. */
   hint?: string;
 };
 
@@ -99,22 +106,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const created = date(doc.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" });
   const createdTime = date(doc.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false });
 
-  const notes: { mark: string; text: string }[] = [];
-  const rows = doc.items.map((item) => {
-    const each = evenShare(item, doc.people.length);
-    let mark = "";
-    if (each === null) {
-      mark = "*".repeat(notes.length + 1);
-      const text = itemNote(item, doc.people, plain, { others: r.others, not: r.not });
-      if (text) notes.push({ mark, text });
-    }
-    return { item, each, mark };
-  });
+  // Each bill: name, who paid and total in columns, then how it's split, in plain words underneath.
+  const splitWords = { each: r.each, about: r.about, others: r.others, not: r.not };
+  const rows = doc.items.map((item) => ({ item, detail: itemSplitText(item, doc.people, plain, splitWords) }));
 
   const lines = [
     ...summary.done.map((l) => ({ ...l, paid: true })),
     ...summary.remaining.map((l) => ({ ...l, paid: false })),
   ];
+  // one group per payer, in the order people were added
+  const groups = doc.people.map((p) => lines.filter((l) => l.from === p.id)).filter((g) => g.length > 0);
   const receivers = [...new Set(lines.map((l) => l.to))]
     .map((id) => doc.people.find((p) => p.id === id))
     .filter((p) => p && p.bank && p.accountNo);
@@ -143,27 +144,44 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         </div>
         <Dashed />
 
-        <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr) 52px 54px 62px", columnGap: 6, rowGap: 4 }}>
+        {/* the split line stays inside the ITEM column: its right padding is the BY + TOTAL columns and their gaps */}
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: `minmax(0,1fr) ${BY_COL}px ${TOTAL_COL}px`, columnGap: COL_GAP, rowGap: 2 }}
+        >
           <span style={{ color: MUTED, fontSize: 11 }}>{r.item}</span>
           <span style={{ color: MUTED, fontSize: 11 }}>{r.by}</span>
-          <span style={{ color: MUTED, fontSize: 11, textAlign: "right" }}>{r.each}</span>
           <span style={{ color: MUTED, fontSize: 11, textAlign: "right" }}>{r.total}</span>
-          {rows.map(({ item, each, mark }) => (
+          {rows.map(({ item, detail }) => (
             <div key={item.id} className="contents">
-              <span className="truncate">{item.name.toUpperCase()}</span>
-              <span className="truncate">{name(item.paidBy)}</span>
-              <span style={{ textAlign: "right" }}>
-                {each !== null ? `${each.exact ? "" : "~"}${plain(each.amount)}` : mark}
+              <span className="truncate" style={{ marginTop: 4 }}>
+                {item.name.toUpperCase()}
               </span>
-              <span style={{ textAlign: "right" }}>{plain(item.amountMinor)}</span>
+              <span className="truncate" style={{ marginTop: 4 }}>
+                {name(item.paidBy)}
+              </span>
+              <span style={{ marginTop: 4, textAlign: "right" }}>{plain(item.amountMinor)}</span>
+              <span
+                className="col-span-3"
+                style={{
+                  color: MUTED,
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                  paddingLeft: 10,
+                  paddingRight: BY_COL + TOTAL_COL + COL_GAP * 2,
+                }}
+              >
+                {/* each "·" part stays on one line, so a wrap never splits "NOT OEABGG" or "ERGTRG 90.00" */}
+                {detail.split(" · ").map((part, i) => (
+                  <Fragment key={i}>
+                    {i > 0 ? " · " : ""}
+                    <span className="whitespace-nowrap">{part}</span>
+                  </Fragment>
+                ))}
+              </span>
             </div>
           ))}
         </div>
-        {notes.map((n) => (
-          <div key={n.mark} style={{ color: MUTED, fontSize: 11.5, paddingLeft: 10 }}>
-            {n.mark} {n.text}
-          </div>
-        ))}
         <Dashed />
         <div className="flex justify-between" style={{ fontSize: 16, fontWeight: 700 }}>
           <span>{r.total}</span>
@@ -171,126 +189,115 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         </div>
 
         {summary.sameShare !== null ? (
-          <>
-            <div className="flex justify-between" style={{ fontWeight: 600 }}>
-              <span>{fmt(r.peopleEach, { count: doc.people.length })}</span>
-              <span>{money(summary.sameShare)}</span>
-            </div>
-            <Dashed />
-            <div style={{ color: MUTED, fontSize: 11 }}>{r.balance}</div>
-            <div
-              className="grid"
-              style={{ gridTemplateColumns: "70px minmax(0,1fr) auto", columnGap: 8, rowGap: 2, fontWeight: 600 }}
-            >
-              {[...summary.people]
-                .filter((p) => p.net !== 0)
-                .sort((a, b) => b.net - a.net)
-                .map((p) => (
-                  <div key={p.id} className="contents">
-                    <span className="truncate">{name(p.id)}</span>
-                    <span style={{ color: p.net > 0 ? GREEN : RED }}>{p.net > 0 ? r.collects : r.owes}</span>
-                    <span style={{ color: p.net > 0 ? GREEN : RED, textAlign: "right" }}>
-                      {p.net > 0 ? "+" : "−"}
-                      {plain(Math.abs(p.net))}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <Dashed />
-            <div className="grid" style={{ gridTemplateColumns: "70px minmax(0,1fr) auto", columnGap: 8, rowGap: 2 }}>
-              <span style={{ color: MUTED, fontSize: 11 }}>{r.name}</span>
-              <span style={{ color: MUTED, fontSize: 11, textAlign: "right" }}>{r.shareCol}</span>
-              <span style={{ color: MUTED, fontSize: 11, textAlign: "right" }}>{r.balance}</span>
-              {summary.people.map((p) => (
-                <div key={p.id} className="contents">
-                  <span className="truncate">{name(p.id)}</span>
-                  <span style={{ textAlign: "right" }}>{plain(p.share)}</span>
-                  <span
-                    style={{ textAlign: "right", fontWeight: 700, color: p.net > 0 ? GREEN : p.net < 0 ? RED : MUTED }}
-                  >
-                    {p.net > 0 ? "+" : p.net < 0 ? "−" : ""}
-                    {plain(Math.abs(p.net))}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-              <span style={{ color: GREEN }}>{r.legend.split(" · ")[0]}</span> ·{" "}
-              <span style={{ color: RED }}>{r.legend.split(" · ")[1]}</span>
-            </div>
-          </>
-        )}
+          <div className="flex justify-between" style={{ fontWeight: 600 }}>
+            <span>{fmt(r.peopleEach, { count: doc.people.length })}</span>
+            <span>{money(summary.sameShare)}</span>
+          </div>
+        ) : null}
         <Dashed double />
 
         <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
-          {lines.length === 0
-            ? r.nothingToSettle
-            : lines.length === 1
-              ? r.settleUpOne
-              : fmt(r.settleUp, { count: lines.length })}
+          {lines.length === 0 ? r.nothingToSettle : r.settleUp}
         </div>
         {hint ? (
           <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
             {hint}
           </div>
         ) : null}
+        {/* Someone paying one person: one line. Someone paying several: their name once, then a branch per person. */}
         <div className="mt-1.5 flex flex-col gap-2">
-          {lines.map((l) => {
-            const leader = (
-              <Leader
-                bold
-                left={
-                  <>
-                    <span style={{ color: RED }}>{name(l.from)}</span> →{" "}
-                    <span style={{ color: GREEN }}>{name(l.to)}</span>
-                  </>
-                }
-                right={
-                  <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
-                    {plain(l.amount)}
-                    {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
-                  </span>
-                }
-              />
-            );
-            if (onLine && !l.paid) {
-              return (
-                <button
-                  key={`${l.from}-${l.to}-open`}
-                  type="button"
-                  onClick={() => onLine(l)}
-                  aria-label={`${name(l.from)} → ${name(l.to)} ${plain(l.amount)}`}
-                  className="-mx-1.5 block rounded-md bg-[#f1ecdd] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#e9e2cc]"
-                >
-                  {leader}
-                </button>
+          {groups.map((group) => {
+            const branched = group.length > 1;
+            const lineFor = (l: (typeof lines)[number], i: number) => {
+              const leader = (
+                <Leader
+                  bold
+                  left={
+                    branched ? (
+                      <span style={{ color: GREEN }}>{name(l.to)}</span>
+                    ) : (
+                      <>
+                        <span style={{ color: RED }}>{name(l.from)}</span>{" "}
+                        <span style={{ fontWeight: 400 }}>{r.pays}</span>{" "}
+                        <span style={{ color: GREEN }}>{name(l.to)}</span>
+                      </>
+                    )
+                  }
+                  right={
+                    <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
+                      {plain(l.amount)}
+                      {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
+                    </span>
+                  }
+                />
               );
-            }
-            return (
-              <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
-                {leader}
-                {l.paid ? (
+              const node =
+                onLine && !l.paid ? (
+                  <button
+                    key={`${l.from}-${l.to}-open`}
+                    type="button"
+                    onClick={() => onLine(l)}
+                    aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
+                    className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f1ecdd] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#e9e2cc]"
+                  >
+                    {leader}
+                  </button>
+                ) : (
+                  <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+                    {leader}
+                    {l.paid ? (
+                      <span
+                        className="absolute"
+                        style={{
+                          right: 58,
+                          top: -2,
+                          transform: "rotate(-8deg)",
+                          border: "2px solid #c2412b",
+                          color: "#c2412b",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: "0.12em",
+                          padding: "0 4px",
+                          background: "#fffdf6",
+                        }}
+                      >
+                        {r.paidStamp}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              if (!branched) return node;
+              // a thin tree line: down from the payer's name, then across to this person
+              const last = i === group.length - 1;
+              return (
+                <div key={`${l.from}-${l.to}-branch`} className="relative" style={{ paddingLeft: 18 }}>
                   <span
+                    aria-hidden
                     className="absolute"
                     style={{
-                      right: 58,
-                      top: -2,
-                      transform: "rotate(-8deg)",
-                      border: "2px solid #c2412b",
-                      color: "#c2412b",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.12em",
-                      padding: "0 4px",
-                      background: "#fffdf6",
+                      left: 5,
+                      top: -6,
+                      height: last ? "calc(50% + 6px)" : "calc(100% + 6px)",
+                      borderLeft: `1.5px solid ${TREE}`,
                     }}
-                  >
-                    {r.paidStamp}
-                  </span>
-                ) : null}
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute"
+                    style={{ left: 5, top: "50%", width: 9, borderTop: `1.5px solid ${TREE}` }}
+                  />
+                  {node}
+                </div>
+              );
+            };
+            if (!branched) return lineFor(group[0], 0);
+            return (
+              <div key={group[0].from} className="flex flex-col gap-1">
+                <div style={{ fontWeight: 600 }}>
+                  <span style={{ color: RED }}>{name(group[0].from)}</span>{" "}
+                  <span style={{ fontWeight: 400 }}>{r.pays}</span>
+                </div>
+                {group.map(lineFor)}
               </div>
             );
           })}

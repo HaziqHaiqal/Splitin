@@ -137,40 +137,47 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
 
 /* ───────────── receipt helpers ───────────── */
 
-/** "HAZIQ 40.00 · OTHERS 26.67 · NOT IMANUL" for bills that aren't an even split for everyone. */
-export function itemNote(
+export type SplitWords = { each: string; about: string; others: string; not: string };
+
+/**
+ * How one bill is split, in a few plain words for the receipt:
+ * "25.00 EACH", "ABOUT 33.33 EACH" (a sen left over), "HAZIQ 40.00 · OTHERS ABOUT 26.67 EACH",
+ * "30.00 EACH · NOT IMANUL". Amounts within 1 sen of each other count as the same share.
+ */
+export function itemSplitText(
   item: Item,
   people: readonly Person[],
   format: (minor: number) => string,
-  words: { others: string; not: string },
-): string | null {
+  words: SplitWords,
+): string {
   const shares = itemShares(item);
   const included = people.filter((p) => item.participants.includes(p.id));
   const excluded = people.filter((p) => !item.participants.includes(p.id));
-  const values = included.map((p) => shares[p.id] ?? 0);
-  const evenForEveryone =
-    excluded.length === 0 && Object.keys(item.overrides).length === 0 && Math.max(...values) - Math.min(...values) <= 1;
-  if (evenForEveryone) return null;
+  const value = (p: Person) => shares[p.id] ?? 0;
 
-  // Treat amounts within 1 sen of each other as the same group (rounding leftovers).
-  const counts = new Map<number, number>();
-  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  // the share most people pay (needs at least two people to count as "each")
   let common: number | null = null;
   let best = 1;
-  for (const [v] of counts) {
-    const near = values.filter((x) => Math.abs(x - v) <= 1).length;
+  for (const p of included) {
+    const near = included.filter((q) => Math.abs(value(q) - value(p)) <= 1).length;
     if (near > best) {
       best = near;
-      common = v;
+      common = value(p);
     }
   }
+  const inGroup = (p: Person) => common !== null && Math.abs(value(p) - common) <= 1;
+  const group = included.filter(inGroup);
+  const others = included.filter((p) => !inGroup(p));
 
-  const parts: string[] = [];
-  for (const p of included) {
-    const v = shares[p.id] ?? 0;
-    if (common === null || Math.abs(v - common) > 1) parts.push(`${p.name.toUpperCase()} ${format(v)}`);
+  const parts = others.map((p) => `${p.name.toUpperCase()} ${format(value(p))}`);
+  if (group.length > 0) {
+    const sum = group.reduce((s, p) => s + value(p), 0);
+    const exact = group.every((p) => value(p) === value(group[0]));
+    const amount = exact ? value(group[0]) : Math.round(sum / group.length);
+    parts.push(
+      `${others.length > 0 ? `${words.others} ` : ""}${exact ? "" : `${words.about} `}${format(amount)} ${words.each}`,
+    );
   }
-  if (common !== null) parts.push(`${words.others} ${format(common)}`);
   if (excluded.length > 0) parts.push(`${words.not} ${excluded.map((p) => p.name.toUpperCase()).join(", ")}`);
   return parts.join(" · ");
 }
