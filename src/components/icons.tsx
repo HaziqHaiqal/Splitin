@@ -110,3 +110,9 @@ export const HelpIcon = (p: IconProps) => (
     <path d="M12 17h.01" />
   </svg>
 );
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2.5, size: 14, ...p })}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);

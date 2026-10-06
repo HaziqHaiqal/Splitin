@@ -9,7 +9,7 @@ export function Expired({ t }: { t: Dictionary }) {
       data-paper
       className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[18px] bg-paper-bg px-5 pb-[22px] text-ink md:max-w-[900px] md:px-6"
     >
-      <Header theme={false} />
+      <Header />
       {/* phone: receipt, text, button stacked · desktop: text + button left, receipt right */}
       <div className="flex flex-1 flex-col gap-[18px] md:grid md:flex-none md:grid-cols-[minmax(0,1fr)_350px] md:gap-x-12 md:gap-y-8 md:pt-20">
         <div className="relative mt-[30px] md:col-start-2 md:row-span-2 md:row-start-1 md:mt-0 md:self-center">

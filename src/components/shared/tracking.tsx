@@ -69,7 +69,7 @@ export function Tracking({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[14px] bg-bg px-4 pb-[22px] text-ink md:max-w-[980px] md:px-6 md:pb-10 xl:px-8">
-      <Header theme={false} />
+      <Header />
       <div className="flex flex-1 flex-col gap-[14px] md:grid md:grid-cols-[minmax(0,1fr)_350px] md:items-start md:gap-6 md:pt-6 xl:grid-cols-[minmax(0,1fr)_390px] xl:gap-10">
         <div className="flex flex-1 flex-col gap-[14px]">
           <div className="px-1">

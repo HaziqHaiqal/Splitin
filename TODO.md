@@ -10,7 +10,6 @@
 - [ ] Drop the unused `bills.last_activity_at` column and its index `bills_last_activity_at_idx`.
 - [ ] Add browser tests (Playwright) to the repository. Today only the money maths and bill logic have tests.
 - [ ] Make the phone address-bar colour follow the theme. It is always dark now, even in light mode.
-- [ ] Shared-link pages show only the language switch. Decide whether they also get the theme switch and the "How to use" guide.
 
 ## Phase 2
 

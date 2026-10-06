@@ -60,7 +60,7 @@ export function ReceiptScreen() {
             disabled={pending}
             aria-label={t.receipt.share}
             title={t.receipt.share}
-            className="-mr-2 inline-flex size-10 items-center justify-center rounded-full text-ink transition-colors hover:bg-chip disabled:opacity-50"
+            className="inline-flex size-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-chip disabled:opacity-50"
           >
             <ShareIcon size={21} />
           </button>

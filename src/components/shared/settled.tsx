@@ -32,7 +32,7 @@ export function Settled({
       data-paper
       className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-4 bg-paper-bg px-5 pb-[22px] text-ink md:max-w-[900px] md:px-6"
     >
-      <Header theme={false} />
+      <Header />
       {/* phone: title, receipt, buttons stacked · desktop: text + buttons left, receipt right */}
       <div className="flex flex-1 flex-col gap-4 md:grid md:flex-none md:grid-cols-[minmax(0,1fr)_350px] md:gap-x-12 md:gap-y-8 md:pt-20">
         <div className="px-0.5 md:col-start-1 md:row-start-1 md:self-end">

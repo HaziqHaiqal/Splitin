@@ -48,7 +48,7 @@ export function ReceiptView({
 
   return (
     <div data-paper className="mx-auto flex min-h-dvh w-full max-w-[460px] flex-col bg-paper-bg px-5 pb-8 text-ink">
-      {back ? <TopBar back={back} title={t.receipt.title} /> : <Header theme={false} />}
+      {back ? <TopBar back={back} title={t.receipt.title} /> : <Header />}
       <Receipt
         doc={bill.doc}
         payments={bill.payments}

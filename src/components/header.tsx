@@ -2,14 +2,14 @@
 
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { Fragment, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { setLocale } from "@/app/actions";
 import type { Locale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { useHydrated } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { HelpButton } from "./help/how-to";
-import { BackIcon, MoonIcon, SunIcon } from "./icons";
+import { BackIcon, CheckIcon, ChevronDownIcon, MoonIcon, SunIcon } from "./icons";
 
 export function Logo() {
   return (
@@ -24,35 +24,78 @@ const LANGUAGES: { code: Locale; label: string; name: string }[] = [
   { code: "ms", label: "BM", name: "Bahasa Melayu" },
 ];
 
-/** Plain "EN | BM": the language in use is dark, the other one is grey until tapped. */
+/**
+ * "EN ⌄": a small button with the language in use; it opens a menu listing each language in its own
+ * words, with a tick on the current one. Closes on a pick, a tap outside, or Escape.
+ */
 export function LanguageToggle() {
   const { locale } = useI18n();
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const current = LANGUAGES.find((l) => l.code === locale) ?? LANGUAGES[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
   return (
-    <div role="group" aria-label="Language" className={cn("flex items-center text-[13px]", pending && "opacity-60")}>
-      {LANGUAGES.map((l, i) => {
-        const active = l.code === locale;
-        return (
-          <Fragment key={l.code}>
-            {i > 0 ? <span aria-hidden className="h-3 w-px bg-dash" /> : null}
-            <button
-              type="button"
-              title={l.name}
-              aria-pressed={active}
-              disabled={pending}
-              onClick={() => {
-                if (!active) start(() => setLocale(l.code));
-              }}
-              className={cn(
-                "h-9 px-2 transition-colors",
-                active ? "font-extrabold text-ink" : "font-semibold text-faint hover:text-ink",
-              )}
-            >
-              {l.label}
-            </button>
-          </Fragment>
-        );
-      })}
+    <div ref={box} className="relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Language: ${current.name}`}
+        disabled={pending}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex h-9 items-center gap-1 rounded-full pr-2 pl-2.5 text-[13px] font-extrabold text-ink transition-colors hover:bg-chip",
+          (open || pending) && "bg-chip",
+          pending && "opacity-60",
+        )}
+      >
+        {current.label}
+        <ChevronDownIcon className={cn("text-muted transition-transform", open && "rotate-180")} />
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Language"
+          className="absolute top-full right-0 z-40 mt-1.5 min-w-[184px] rounded-2xl border border-border bg-sheet p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
+        >
+          {LANGUAGES.map((l) => {
+            const active = l.code === locale;
+            return (
+              <button
+                key={l.code}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                onClick={() => {
+                  setOpen(false);
+                  if (!active) start(() => setLocale(l.code));
+                }}
+                className="flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-ink transition-colors hover:bg-chip"
+              >
+                {l.name}
+                {active ? <CheckIcon size={15} className="text-green-ink" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -87,7 +130,7 @@ export function ThemeToggle() {
  * controls line up with the content; the hairline bar behind it spans the whole window.
  * A spacer keeps the page content below it.
  */
-export function Header({ theme = true }: { theme?: boolean }) {
+export function Header() {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-14 max-w-[inherit] items-center justify-between bg-inherit px-[inherit] md:h-16">
@@ -98,9 +141,9 @@ export function Header({ theme = true }: { theme?: boolean }) {
         <Logo />
         {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
         <div className="-mr-2 flex items-center gap-0.5">
-          {theme ? <HelpButton /> : null}
+          <HelpButton />
           <LanguageToggle />
-          {theme ? <ThemeToggle /> : null}
+          <ThemeToggle />
         </div>
       </header>
       <div aria-hidden className="h-16 shrink-0 md:h-20" />
@@ -125,7 +168,7 @@ export function TopBar({
     "-ml-1.5 flex h-10 items-center gap-1 justify-self-start pr-2 text-[15px] font-bold text-ink no-underline";
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[1fr_auto_1fr] items-center bg-inherit px-[inherit] md:h-16">
+      <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 bg-inherit px-[inherit] md:h-16">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
@@ -141,8 +184,13 @@ export function TopBar({
             {back.label}
           </button>
         )}
-        <h1 className="m-0 text-[16px] font-extrabold">{title}</h1>
-        <div className="flex justify-self-end">{action}</div>
+        <h1 className="m-0 truncate text-center text-[16px] font-extrabold">{title}</h1>
+        {/* same language and theme controls as every other page, then the page's own action */}
+        <div className="-mr-2 flex items-center gap-0.5 justify-self-end">
+          <LanguageToggle />
+          <ThemeToggle />
+          {action}
+        </div>
       </header>
       <div aria-hidden className="h-16 shrink-0 md:h-20" />
     </>
