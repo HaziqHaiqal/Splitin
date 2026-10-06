@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
-import { BackIcon, CheckIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
+import { CheckIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
 import { PaperStub, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
@@ -151,26 +150,13 @@ export function BillsHome() {
     </>
   );
 
-  const backToPayments = draft?.billId ? (
-    <Link
-      href={`/bill/${draft.billId}`}
-      className="-ml-1 inline-flex items-center gap-0.5 self-start text-[13.5px] font-bold text-green-ink no-underline"
-    >
-      <BackIcon size={16} />
-      {t.home.backToPayments}
-    </Link>
-  ) : null;
-
   const side = !hasPeople ? (
     start
   ) : (
     <>
-      <div className="flex flex-col gap-2">
-        {backToPayments}
-        <div className="flex items-center justify-between gap-2">
-          <TitleEditor title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
-          <ClearButton onClick={clearAll} />
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <TitleEditor title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
+        <ClearButton onClick={clearAll} />
       </div>
       {peopleChips(false)}
       {formOpen ? (
@@ -235,7 +221,6 @@ export function BillsHome() {
         phoneTop={
           hasPeople ? (
             <div className="flex flex-col gap-2 px-1">
-              {backToPayments}
               <div className="flex items-center justify-between gap-2">
                 <TitleEditor small title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
                 <ClearButton onClick={clearAll} />

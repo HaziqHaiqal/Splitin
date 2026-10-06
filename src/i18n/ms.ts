@@ -24,7 +24,6 @@ export const ms: Dictionary = {
     startDesc: "Tambah siapa yang berkongsi dan bilnya. Resit dicetak sambil anda isi. Tanpa daftar.",
     stubHint: "Tambah orang untuk mula cetak",
     nextBill: "Tambah bil",
-    backToPayments: "Siapa dah bayar",
     namesPlaceholder: "Najmi, Afiq, Imanul",
     namesLabel: "Nama",
     people: "Orang",

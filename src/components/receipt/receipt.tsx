@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { forwardRef, Fragment, useId, type ReactNode } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -411,7 +412,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             <Barcode />
             {billId ? (
               <div className="text-center" style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
-                {host}/bill/{billId}
+                <Link href={`/bill/${billId}`} className="underline underline-offset-2" style={{ color: "inherit" }}>
+                  {host}/bill/{billId}
+                </Link>
                 {expiresAt
                   ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}`
                   : ""}

@@ -22,7 +22,6 @@ export const en = {
     startDesc: "Add who's splitting and the bills. Your receipt prints as you go. No sign-up.",
     stubHint: "Add people to start printing",
     nextBill: "Add bill",
-    backToPayments: "Who's paid",
     namesPlaceholder: "Najmi, Afiq, Imanul",
     namesLabel: "Names",
     people: "People",
