@@ -11,6 +11,8 @@ type I18n = {
   /** "118.45" for receipt columns */
   plain: (minor: number) => string;
   date: (iso: string, opts?: Intl.DateTimeFormatOptions) => string;
+  /** "4:13 PM": always 12-hour with AM / PM, in every language. */
+  time: (iso: string) => string;
   monthName: (offset?: number) => string;
 };
 
@@ -25,6 +27,8 @@ export function I18nProvider({ locale, children }: { locale: Locale; children: R
       money: (minor) => `RM ${plainFormat.format(minor / 100)}`,
       plain: (minor) => plainFormat.format(minor / 100),
       date: (iso, opts) => new Intl.DateTimeFormat(intlLocale(locale), opts).format(new Date(iso)),
+      time: (iso) =>
+        new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(iso)),
       monthName: (offset = 0) => {
         const d = new Date();
         d.setDate(1);

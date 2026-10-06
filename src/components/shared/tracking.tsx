@@ -32,7 +32,7 @@ export function Tracking({
   ownerToken: string;
   onViewReceipt: () => void;
 }) {
-  const { t, money, locale, date } = useI18n();
+  const { t, money, locale, time } = useI18n();
   const toast = useToast();
   const draft = useDraft();
   const [pending, start] = useTransition();
@@ -43,7 +43,6 @@ export function Tracking({
   const totalToSettle = settled + owing;
   const lines = summary.done.length + summary.remaining.length;
   const url = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}` : "";
-  const time = (iso: string) => date(iso, { hour: "numeric", minute: "2-digit" });
 
   const markPaid = (line: PlanLine) =>
     start(async () => {

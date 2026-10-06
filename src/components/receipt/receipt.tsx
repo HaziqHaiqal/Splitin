@@ -99,12 +99,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   { doc, payments = [], billId, expiresAt, sharedBy, onLine, hint },
   ref,
 ) {
-  const { t, plain, money, date } = useI18n();
+  const { t, plain, money, date, time } = useI18n();
   const r = t.receipt;
   const summary = summarize(doc, payments);
   const name = (id: string) => doc.people.find((p) => p.id === id)?.name.toUpperCase() ?? "?";
   const created = date(doc.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" });
-  const createdTime = date(doc.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false });
+  const createdTime = time(doc.createdAt);
 
   // Each bill: name, who paid and total in columns, then how it's split, in plain words underneath.
   const splitWords = { each: r.each, about: r.about, others: r.others, not: r.not };
