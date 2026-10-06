@@ -119,8 +119,7 @@ export const ms: Dictionary = {
   track: {
     paidLabel: "Dibayar",
     progress: "{done} daripada {total} dibayar",
-    waitingAmount: "Menunggu · {amount}",
-    paidPill: "DIBAYAR",
+    waiting: "Menunggu",
     markUnpaid: "Tanda belum bayar",
     unmarked: "{from} → {to} belum bayar semula",
     of: "daripada",

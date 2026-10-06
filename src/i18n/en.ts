@@ -117,8 +117,7 @@ export const en = {
   track: {
     paidLabel: "Paid",
     progress: "{done} of {total} paid",
-    waitingAmount: "Waiting · {amount}",
-    paidPill: "PAID",
+    waiting: "Waiting",
     markUnpaid: "Mark unpaid",
     unmarked: "{from} → {to} is unpaid again",
     of: "of",

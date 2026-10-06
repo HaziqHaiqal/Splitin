@@ -58,7 +58,6 @@ export function Tracking({
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
 
-  const small = "h-[34px] shrink-0 rounded-lg px-3 text-[12.5px] font-bold disabled:opacity-60";
   const rows = [...summary.done.map((l) => ({ l, done: true })), ...summary.remaining.map((l) => ({ l, done: false }))];
 
   const side = (
@@ -85,53 +84,59 @@ export function Tracking({
       </div>
       <div className="rounded-2xl border border-border bg-card px-4">
         {rows.map(({ l, done }, i) => (
-          <div
-            key={done ? l.paymentId : `${l.from}-${l.to}`}
-            className={cn(
-              "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3",
-              i > 0 && "border-t border-line",
-            )}
-          >
-            <span className="min-w-0">
-              <b className="flex items-center gap-2 text-[14.5px]">
-                {nameOf(l.from)} → {nameOf(l.to)}
+          <div key={done ? l.paymentId : `${l.from}-${l.to}`} className={cn("py-3.5", i > 0 && "border-t border-line")}>
+            <div className="flex items-center gap-2.5">
+              <div className="min-w-0 flex-1">
+                <b className="block text-[15px]">
+                  {nameOf(l.from)} → {nameOf(l.to)}
+                </b>
+                <span className="mt-0.5 block text-[12px] text-muted">
+                  {done
+                    ? l.markedBy === "owner"
+                      ? fmt(t.track.youMarked, { time: time(l.paidAt!) })
+                      : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })
+                    : t.track.waiting}
+                </span>
+              </div>
+              <span className="relative text-[15px] font-extrabold tabular">
+                <span className={cn(done && "text-faint line-through")}>{money(l.amount)}</span>
                 {done ? (
-                  <span className="inline-flex h-[18px] items-center rounded-full bg-green-soft px-1.5 text-[10px] font-bold tracking-[0.04em] text-green-soft-ink">
-                    {t.track.paidPill}
+                  <span
+                    className="absolute right-[calc(100%-16px)] bottom-[calc(100%-9px)] border-[2.5px] border-stamp bg-card/70 px-1.5 font-mono text-[14px] font-bold tracking-[0.12em] text-stamp"
+                    style={{ transform: `rotate(${i % 2 ? 6 : -10}deg)` }}
+                  >
+                    {t.receipt.paidStamp}
                   </span>
                 ) : null}
-              </b>
-              <span className="block text-[12px] text-muted">
-                {done
-                  ? l.markedBy === "owner"
-                    ? fmt(t.track.youMarked, { time: time(l.paidAt!) })
-                    : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })
-                  : fmt(t.track.waitingAmount, { amount: money(l.amount) })}
               </span>
-            </span>
+            </div>
             {done ? (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => markUnpaid(l)}
-                className={cn(small, "border border-border bg-card text-ink")}
+                className="mt-3 h-[38px] rounded-xl bg-chip px-4 text-[13px] font-bold text-ink disabled:opacity-60"
               >
                 {t.track.markUnpaid}
               </button>
             ) : (
-              <span className="flex gap-1.5">
-                <button type="button" onClick={() => remind(l)} className={cn(small, "bg-chip text-ink")}>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => remind(l)}
+                  className="h-[42px] flex-1 rounded-xl bg-chip text-[14px] font-bold text-ink"
+                >
                   {fmt(t.track.remind, { name: nameOf(l.from) })}
                 </button>
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => markPaid(l)}
-                  className={cn(small, "bg-green text-white")}
+                  className="h-[42px] flex-1 rounded-xl bg-green-soft text-[14px] font-bold text-green-soft-ink disabled:opacity-70"
                 >
                   {t.track.markPaid}
                 </button>
-              </span>
+              </div>
             )}
           </div>
         ))}
