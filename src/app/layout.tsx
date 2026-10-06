@@ -29,7 +29,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0e131b",
+  // the light page colour; ThemeColor in providers.tsx switches it when the theme changes
+  themeColor: "#fbfbfa",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
