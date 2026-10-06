@@ -415,9 +415,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 <Link href={`/bill/${billId}`} className="underline underline-offset-2" style={{ color: "inherit" }}>
                   {host}/bill/{billId}
                 </Link>
-                {expiresAt
-                  ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}`
-                  : ""}
+                {expiresAt ? (
+                  <div style={{ marginTop: 2 }}>
+                    {fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <div className="text-center" style={{ fontWeight: 600, marginTop: 6 }}>
