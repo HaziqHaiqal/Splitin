@@ -136,7 +136,7 @@ export const ms: Dictionary = {
     remind: "Ingatkan {name}",
     markPaid: "Tanda dah bayar",
     viewReceipt: "Lihat resit",
-    editBills: "Ubah bil (kemas kini pautan ini)",
+    editBills: "Ubah bil",
     remindMessage: "Hai {from}, peringatan untuk {title}: sila bayar {to} {amount}.",
   },
   settled: {

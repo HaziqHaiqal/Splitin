@@ -134,7 +134,7 @@ export const en = {
     remind: "Remind {name}",
     markPaid: "Mark paid",
     viewReceipt: "View receipt",
-    editBills: "Edit bills (updates this link)",
+    editBills: "Edit bills",
     remindMessage: "Hi {from}, a gentle reminder for {title}: please pay {to} {amount}.",
   },
   settled: {
