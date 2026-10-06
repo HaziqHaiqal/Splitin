@@ -31,6 +31,7 @@ export const en = {
     you: "(you)",
     addPerson: "+ Add",
     addPersonLabel: "Add person",
+    personPlaceholder: "Name",
     bills: "Bills",
     firstBill: "Add your first bill",
     firstBillHint: "Electricity, water, wifi, dinner…",

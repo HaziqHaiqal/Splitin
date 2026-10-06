@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
 import { Header } from "@/components/header";
-import { ArrowRightIcon, PencilIcon, PlusIcon, ResetIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon, PencilIcon, PlusIcon, ResetIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -297,34 +297,78 @@ function BillRow({
   );
 }
 
+/**
+ * "+ Add" is a real button. Tapping it turns the chip into a focused name box with a green tick, so it's
+ * obvious where to type. Enter (or the tick) adds and keeps the box open for the next name; a
+ * comma-separated list adds everyone at once; Escape or tapping away with nothing typed closes it.
+ */
 function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   const { t } = useI18n();
+  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const cancelled = useRef(false);
   const commit = () => {
     if (value.trim()) onAdd(value);
     setValue("");
   };
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commit();
-    }
-  };
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          cancelled.current = false;
+          setEditing(true);
+        }}
+        className="inline-flex h-10 items-center rounded-full border-[1.5px] border-dashed border-dash px-[14px] text-[14px] font-semibold text-green-ink transition-colors hover:border-green"
+      >
+        {t.home.addPerson}
+      </button>
+    );
+  }
   return (
-    <label className="inline-flex h-10 items-center rounded-full border-[1.5px] border-dashed border-dash px-[14px]">
-      <span className="sr-only">{t.home.addPersonLabel}</span>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        commit();
+      }}
+      className="inline-flex h-10 items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-[14px] shadow-[0_0_0_3px_var(--green-soft)]"
+    >
+      <label htmlFor="add-person" className="sr-only">
+        {t.home.addPersonLabel}
+      </label>
       <input
+        id="add-person"
+        autoFocus
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={commit}
-        placeholder={t.home.addPerson}
+        onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+          if (e.key === "Escape") {
+            cancelled.current = true;
+            setValue("");
+            setEditing(false);
+          }
+        }}
+        onBlur={() => {
+          if (!cancelled.current) commit();
+          setEditing(false);
+        }}
+        placeholder={t.home.personPlaceholder}
         enterKeyHint="done"
         autoCapitalize="words"
-        className="w-16 bg-transparent text-[14px] font-semibold text-ink outline-none placeholder:text-green-ink focus:w-28"
+        autoComplete="off"
+        className="w-28 bg-transparent text-[14px] font-semibold text-ink outline-none"
       />
-    </label>
+      {/* mousedown is cancelled so the box keeps focus and the tap goes to submit */}
+      <button
+        type="submit"
+        aria-label={t.common.add}
+        onMouseDown={(e) => e.preventDefault()}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-green text-white"
+      >
+        <CheckIcon size={14} />
+      </button>
+    </form>
   );
 }
 

@@ -33,6 +33,7 @@ export const ms: Dictionary = {
     you: "(anda)",
     addPerson: "+ Tambah",
     addPersonLabel: "Tambah orang",
+    personPlaceholder: "Nama",
     bills: "Bil",
     firstBill: "Tambah bil pertama",
     firstBillHint: "Elektrik, air, wifi, makan…",
