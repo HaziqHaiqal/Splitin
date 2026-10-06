@@ -10,11 +10,9 @@ type SheetProps = {
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   children: ReactNode;
-  /** Desktop only: a wider pop-up for side-by-side content. */
   wide?: boolean;
 };
 
-/** Phone: bottom sheet as designed. Desktop: a centred dialog with the same contents. */
 export function Sheet(props: SheetProps) {
   const desktop = useIsDesktop();
   return desktop ? <Modal {...props} /> : <BottomSheet {...props} />;
@@ -46,7 +44,6 @@ function Modal({ open, onOpenChange, title, children, wide }: SheetProps) {
     if (!dialog) return;
     if (open && !dialog.open) {
       dialog.showModal();
-      // the browser focuses the first control; on a button that reads as "already selected", so focus the pop-up itself
       if (document.activeElement instanceof HTMLButtonElement) dialog.focus();
     }
     if (!open && dialog.open) dialog.close();

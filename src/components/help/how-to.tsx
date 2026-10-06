@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 const NAMES = ["Haziq", "Najmi", "Afiq", "Imanul"];
 
-/** The round "?" in the header plus the step-by-step guide it opens. */
 export function HelpButton() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -25,7 +24,6 @@ export function HelpButton() {
     setOpen(true);
   };
 
-  // ← and → move between steps while the guide is open; the desktop pop-up starts on Next.
   useEffect(() => {
     if (!open) return;
     nextRef.current?.focus();
@@ -49,9 +47,7 @@ export function HelpButton() {
         <HelpIcon size={19} />
       </button>
       <Sheet open={open} onOpenChange={setOpen} title={t.help.title} wide>
-        {/* phone: stacked · desktop: words and buttons left, the try-it panel right */}
         <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:grid-rows-[auto_1fr_auto] md:gap-x-7 md:gap-y-5">
-          {/* tap a bar to jump straight to that step */}
           <div className="-my-[5px] flex gap-1.5 md:col-start-1 md:row-start-1" aria-hidden>
             {steps.map((s, i) => (
               <span
@@ -69,7 +65,6 @@ export function HelpButton() {
               </span>
             ))}
           </div>
-          {/* every step's words share one cell, so the sheet is as tall as the longest and never jumps */}
           <div className="grid md:col-start-1 md:row-start-2">
             {steps.map((s, i) => (
               <div
@@ -127,7 +122,6 @@ const mini = "rounded-xl bg-card shadow-[0_1px_2px_rgba(28,31,29,0.08)]";
 const press = "transition-transform active:scale-95";
 const dashed = "rounded-full border-[1.5px] border-dashed border-green-ink font-bold text-green-ink";
 
-/** True for a moment after `flash()`: the "Copied" blink. */
 function useFlash(): [boolean, () => void] {
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -160,7 +154,6 @@ function Paper({ children, className }: { children: ReactNode; className?: strin
   );
 }
 
-/** Each step is a small working copy of the real screen, so people learn by tapping. */
 function Visual({ step, onJump }: { step: number; onJump: (step: number) => void }) {
   switch (step) {
     case 0:
@@ -231,14 +224,12 @@ function PeopleDemo() {
   );
 }
 
-// who paid and how much, in the order they print; the bill names come from the guide wording (help.demoBills)
 const BILLS: [string, number][] = [
   ["AFIQ", 20160],
   ["HAZIQ", 18000],
   ["HAZIQ", 9220],
 ];
 
-/** The printer: printed bills, plus the next one as a dashed line until "Print it" adds it. */
 function BillsDemo() {
   const { t, plain } = useI18n();
   const [count, setCount] = useState(1);
@@ -298,7 +289,6 @@ function SplitDemo() {
   const [on, setOn] = useState(NAMES.slice(0, 3));
   const [fixed, setFixed] = useState<string | null>(NAMES[0]);
 
-  // One typed amount at a time, and only while someone else is left to take the rest.
   const pinned = fixed !== null && on.length > 1 && on.includes(fixed) ? fixed : null;
   const split = splitItem(SPLIT_TOTAL, on, pinned ? { [pinned]: SPLIT_FIXED } : {});
   const shares: Record<string, number> = split.ok ? split.shares : {};
@@ -381,7 +371,6 @@ function ReceiptDemo() {
       }}
       className="w-[236px] cursor-pointer"
     >
-      {/* the printer slot the paper comes out of */}
       <div className="h-1.5 rounded-full bg-[#37352f]/75" />
       <div className="overflow-hidden px-2 pb-2">
         <Paper key={run} className="animate-print">
@@ -439,7 +428,6 @@ function ShareDemo() {
     <div className="flex items-center gap-4">
       <div className="flex w-[112px] justify-center">
         {sent ? (
-          // how it lands in the group chat: the picture, the link, two blue ticks
           <div className="animate-pop rounded-xl rounded-tr-[3px] bg-[#d9fdd3] p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
             <Thumb className="w-[92px] shadow-none" />
             <div className="mt-1 flex items-center justify-between px-0.5 font-mono text-[9px]">

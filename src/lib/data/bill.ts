@@ -15,7 +15,6 @@ export type SharedBill = {
   expiresAt: string;
 };
 
-/** Loads a shared bill, or null when it never existed or is older than 30 days. */
 export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
   if (!ID.test(id)) return null;
   const client = db();
@@ -49,10 +48,6 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
   };
 });
 
-/**
- * For a link getBill found nothing for: true when it was a real receipt that's past its 30 days, either still
- * waiting for the daily clean-up or already deleted by it (the clean-up keeps deleted ids in `expired_bills`).
- */
 export const linkExpired = cache(async (id: string): Promise<boolean> => {
   if (!ID.test(id)) return false;
   const client = db();
@@ -61,6 +56,5 @@ export const linkExpired = cache(async (id: string): Promise<boolean> => {
     client.from("expired_bills").select("id").eq("id", id).maybeSingle(),
   ]);
   if (old.error) throw old.error;
-  // without the expired_bills table the link just shows as not found, whose wording mentions the 30 days too
   return Boolean(old.data || (!gone.error && gone.data));
 });

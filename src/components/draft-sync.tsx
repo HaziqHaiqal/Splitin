@@ -6,7 +6,6 @@ import { useI18n } from "@/i18n/client";
 import { getOwnerToken, type Draft } from "@/lib/store";
 import { useToast } from "./toast";
 
-/** Once a bill is shared, keep the server copy in step with edits made on this device. */
 export function useDraftSync(draft: Draft | null | undefined) {
   const { t } = useI18n();
   const toast = useToast();
@@ -14,7 +13,7 @@ export function useDraftSync(draft: Draft | null | undefined) {
 
   useEffect(() => {
     if (!draft?.billId) {
-      last.current = null; // cleared or not shared: the next shared bill starts fresh
+      last.current = null;
       return;
     }
     const json = JSON.stringify(draft.doc);

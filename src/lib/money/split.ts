@@ -1,13 +1,9 @@
-// All amounts are integers in the currency's minor unit (sen for MYR).
-// Every function here returns allocations that sum *exactly* to the total.
-
 export type Allocation = Record<string, number>;
 
 function assertInt(n: number, label: string) {
   if (!Number.isSafeInteger(n)) throw new Error(`${label} must be an integer, got ${n}`);
 }
 
-/** Split `total` evenly; leftover minor units go one-by-one in `ids` order. */
 export function splitEqual(total: number, ids: readonly string[]): Allocation {
   assertInt(total, "total");
   if (ids.length === 0) throw new Error("splitEqual needs at least one participant");
@@ -24,10 +20,6 @@ export function splitEqual(total: number, ids: readonly string[]): Allocation {
   return out;
 }
 
-/**
- * Split `total` proportionally to `weights` using the largest-remainder method.
- * Ties are broken by key order so results are deterministic.
- */
 export function splitByWeights(total: number, weights: Readonly<Record<string, number>>): Allocation {
   assertInt(total, "total");
   const entries = Object.entries(weights).filter(([, w]) => w > 0);
@@ -63,12 +55,9 @@ export type Item = {
 };
 
 export type Extras = {
-  /** e.g. 10 for a 10% service charge */
   servicePct?: number | null;
-  /** e.g. 6 for 6% SST, applied on subtotal + service charge */
   taxPct?: number | null;
   discountMinor?: number | null;
-  /** The printed total on the receipt; any difference is spread proportionally. */
   receiptTotalMinor?: number | null;
 };
 
@@ -78,12 +67,9 @@ export type ItemizedResult = {
   service: number;
   tax: number;
   discount: number;
-  /** receiptTotal − computed total (rounding adjustments etc.) */
   adjustment: number;
   total: number;
-  /** each person's item subtotal before extras */
   subtotals: Allocation;
-  /** each person's final share, sums exactly to `total` */
   shares: Allocation;
 };
 
@@ -146,7 +132,6 @@ export type SplitError =
   | "unassigned_items"
   | "nothing_to_split";
 
-/** Single entry point used by both the client preview and the server action. */
 export function computeSplit(input: SplitInput): SplitResult {
   switch (input.mode) {
     case "equal": {

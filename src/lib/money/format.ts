@@ -29,7 +29,6 @@ export function isCurrency(code: string): code is CurrencyCode {
 
 const digitsCache = new Map<string, number>();
 
-/** Number of minor-unit digits, e.g. MYR → 2, JPY → 0. */
 export function currencyDigits(currency: string): number {
   let digits = digitsCache.get(currency);
   if (digits === undefined) {
@@ -55,17 +54,12 @@ export function formatMoney(minor: number, currency: string, locale = "en", opts
   }).format(value);
 }
 
-/** Plain number without currency symbol, for input fields. */
 export function toInputValue(minor: number, currency: string): string {
   if (!minor) return "";
   const digits = currencyDigits(currency);
   return (minor / 10 ** digits).toFixed(digits);
 }
 
-/**
- * Parse user input like "12", "12.5", "1,234.50" into minor units without floating-point error.
- * Returns null for empty or invalid input.
- */
 export function parseMoney(input: string, currency: string): number | null {
   const digits = currencyDigits(currency);
   const cleaned = input.replace(/[\s,]/g, "");

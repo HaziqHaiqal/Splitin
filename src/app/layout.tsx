@@ -29,7 +29,6 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  // the light page colour; ThemeColor in providers.tsx switches it when the theme changes
   themeColor: "#fbfbfa",
 };
 

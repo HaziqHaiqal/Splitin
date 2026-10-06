@@ -13,11 +13,6 @@ import { useDraft } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { SharedBillData } from "./shared-bill";
 
-/**
- * The owner's view of a shared link: how much has been paid, and every payment with Remind / Mark paid, or Mark
- * unpaid once someone has marked it (a friend can mark by mistake). The printer shows the receipt with its PAID
- * stamps. On a phone the payments come first and the receipt is one tap away.
- */
 export function Tracking({
   bill,
   summary,

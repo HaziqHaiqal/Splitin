@@ -1,7 +1,5 @@
 import { simplifyDebts, splitEqual, type Allocation, type Transfer } from "@/lib/money";
 
-/* ───────────── shapes stored in the shared bill (jsonb) ───────────── */
-
 export type Person = {
   id: string;
   name: string;
@@ -15,9 +13,7 @@ export type Item = {
   name: string;
   amountMinor: number;
   paidBy: string;
-  /** people sharing this bill */
   participants: string[];
-  /** amounts someone typed by hand; everyone else splits the rest equally */
   overrides: Record<string, number>;
 };
 
@@ -37,8 +33,6 @@ export type Payment = {
   markedBy: "payer" | "owner";
   createdAt: string;
 };
-
-/* ───────────── per-bill split ───────────── */
 
 export type ItemSplit =
   { ok: true; shares: Allocation } | { ok: false; error: "empty" | "over" | "under"; diff: number };
@@ -67,13 +61,10 @@ export function itemShares(item: Item): Allocation {
   return result.ok ? result.shares : {};
 }
 
-/* ───────────── whole-bill summary ───────────── */
-
 export type PersonSummary = {
   id: string;
   share: number;
   paid: number;
-  /** paid − share, before any payments are marked */
   net: number;
 };
 
@@ -82,11 +73,8 @@ export type PlanLine = Transfer & { paymentId?: string; markedBy?: Payment["mark
 export type BillSummary = {
   total: number;
   people: PersonSummary[];
-  /** everyone owes the same share */
   sameShare: number | null;
-  /** balances after marked payments */
   balances: Allocation;
-  /** payments already marked, then what is still to pay */
   done: PlanLine[];
   remaining: PlanLine[];
 };
@@ -135,15 +123,8 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
   };
 }
 
-/* ───────────── receipt helpers ───────────── */
-
 export type SplitWords = { each: string; about: string; others: string; not: string };
 
-/**
- * How one bill is split, in a few plain words for the receipt:
- * "25.00 EACH", "ABOUT 33.33 EACH" (a sen left over), "HAZIQ 40.00 · OTHERS ABOUT 26.67 EACH",
- * "30.00 EACH · NOT IMANUL". Amounts within 1 sen of each other count as the same share.
- */
 export function itemSplitText(
   item: Item,
   people: readonly Person[],
@@ -155,7 +136,6 @@ export function itemSplitText(
   const excluded = people.filter((p) => !item.participants.includes(p.id));
   const value = (p: Person) => shares[p.id] ?? 0;
 
-  // the share most people pay (needs at least two people to count as "each")
   let common: number | null = null;
   let best = 1;
   for (const p of included) {
@@ -182,11 +162,6 @@ export function itemSplitText(
   return parts.join(" · ");
 }
 
-/**
- * What each person pays when a bill is shared equally by everyone, or null when it isn't
- * (someone is left out or has a typed amount). `exact` is false when the amount doesn't divide
- * evenly, so some people pay one sen more than others: RM240.90 / 4 = 60.23, 60.23, 60.22, 60.22.
- */
 export function evenShare(item: Item, peopleCount: number): { amount: number; exact: boolean } | null {
   if (item.participants.length !== peopleCount || Object.keys(item.overrides).length > 0) return null;
   const values = Object.values(itemShares(item));

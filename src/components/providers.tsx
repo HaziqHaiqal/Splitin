@@ -6,10 +6,8 @@ import { I18nProvider } from "@/i18n/client";
 import type { Locale } from "@/i18n";
 import { ToastProvider } from "./toast";
 
-/** The page colour of each theme, for the phone's address bar. */
 const BAR = { light: "#fbfbfa", dark: "#0e131b" };
 
-/** Keeps the phone's address bar the same colour as the page when the theme changes. */
 function ThemeColor() {
   const { resolvedTheme } = useTheme();
   useEffect(() => {

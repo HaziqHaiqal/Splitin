@@ -23,11 +23,6 @@ function randomId(length: number) {
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-/**
- * Actions answer with a result instead of throwing. A thrown action replaces the whole page with
- * the framework's "This page couldn't load" screen; this way the screen that called it shows its
- * own message, and the real reason (for example a missing Supabase key) goes to the server log.
- */
 async function guard<T>(run: () => Promise<Result<T>>): Promise<Result<T>> {
   try {
     return await run();
@@ -54,7 +49,6 @@ export async function setLocale(locale: string) {
   refresh();
 }
 
-/** Saves a new shared bill and returns its link id plus the secret that lets this device edit it. */
 export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ownerToken: string }>> {
   return guard(async () => {
     const parsed = billDocSchema.safeParse(doc);
@@ -87,7 +81,6 @@ export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ow
   });
 }
 
-/** Owner-only: replace the people and bills of a shared bill. */
 export async function saveBill(id: string, ownerToken: string, doc: BillDoc): Promise<Result> {
   return guard(async () => {
     const parsed = billDocSchema.safeParse(doc);
@@ -124,11 +117,6 @@ async function loadPayments(id: string): Promise<Payment[]> {
   }));
 }
 
-/**
- * Mark a payment as paid. The owner can mark any of the bill's payments. Anyone else (the person
- * paying, from the link) can only mark a payment that is still open in the settle-up plan, for
- * exactly its amount. There are no logins, so this is the closest we get to "only the payer".
- */
 export async function addPayment(
   id: string,
   input: z.input<typeof paymentSchema>,
@@ -170,7 +158,6 @@ export async function addPayment(
 
 const UNDO_WINDOW_MS = 15 * 60_000;
 
-/** Undo a paid mark. The owner can undo any; anyone else only a payer's own mark from the last 15 minutes (the Undo button). */
 export async function removePayment(id: string, paymentId: string, ownerToken?: string): Promise<Result> {
   return guard(async () => {
     if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };

@@ -14,7 +14,6 @@ const GREEN = "#2f7552";
 export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
-    // overlaps the paper by 1px so no hairline seam shows between the teeth and the paper in the picture
     <svg
       width="100%"
       height="8"
@@ -55,7 +54,6 @@ function Barcode() {
   );
 }
 
-/** The big rotated rubber stamp across a receipt: SETTLED, EXPIRED. */
 export function BigStamp({ children }: { children: ReactNode }) {
   return (
     <div
@@ -72,7 +70,6 @@ export function BigStamp({ children }: { children: ReactNode }) {
   );
 }
 
-/** The payment tree lines, the same colour as the dotted leaders. */
 const TREE = "#c8c7c3";
 
 const BY_COL = 70;
@@ -104,30 +101,17 @@ export type ReceiptProps = {
   payments?: Payment[];
   billId?: string | null;
   expiresAt?: string | null;
-  /** "SHARED BY HAZIQ · 05/10/2026" instead of time + number */
   sharedBy?: string | null;
-  /** Makes each unpaid payment under WHO PAYS WHO tappable (the shared link, for friends). */
   onLine?: (line: PlanLine) => void;
-  /** A short grey line under WHO PAYS WHO explaining the tap. */
   hint?: string;
-  /**
-   * "draft": while a bill is being added on the home page, the paper shows only the people and the bills so far,
-   * plus a dashed preview of the bill being typed. "full" (default): the finished receipt.
-   */
   variant?: "draft" | "full";
-  /** Draft: the names line under the title. Its key changes when people are added, so it prints again. */
   people?: { key: number; fresh?: boolean } | null;
-  /** Draft: the bill being typed, drawn as a dashed line that is not printed yet. */
   preview?: Item | null;
-  /** The bill printed most recently: it slides out of the printer and glows for a moment. */
   freshItemId?: string | null;
-  /** Makes each bill line tappable (to edit it). */
   onItem?: (item: Item) => void;
-  /** A big rubber stamp across the paper: SETTLED. */
   bigStamp?: string;
 };
 
-/** The thermal-receipt look. Paper colours stay the same in dark mode. */
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt(
   {
     doc,
@@ -154,13 +138,10 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const created = date(doc.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" });
   const createdTime = time(doc.createdAt);
 
-  // Each bill: name, who paid and total in columns, then how it's split, in plain words underneath.
   const splitWords = { each: r.each, about: r.about, others: r.others, not: r.not };
   const rows = doc.items.map((item) => ({ item, detail: itemSplitText(item, doc.people, plain, splitWords) }));
   const previewDetail = preview && preview.amountMinor > 0 ? itemSplitText(preview, doc.people, plain, splitWords) : "";
 
-  // One bill: name, who paid and total in columns, then how it's split in plain words underneath (kept inside the
-  // ITEM column, wrapping only between "·" parts so "NOT AFIQ" never splits).
   const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
     const body = (
       <>
@@ -216,7 +197,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     ...summary.done.map((l) => ({ ...l, paid: true })),
     ...summary.remaining.map((l) => ({ ...l, paid: false })),
   ];
-  // one group per payer, in the order people were added
   const groups = doc.people.map((p) => lines.filter((l) => l.from === p.id)).filter((g) => g.length > 0);
   const receivers = [...new Set(lines.map((l) => l.to))]
     .map((id) => doc.people.find((p) => p.id === id))
@@ -310,7 +290,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 {hint}
               </div>
             ) : null}
-            {/* Someone paying one person: one line. Someone paying several: their name once, then a branch per person. */}
             <div className="mt-1.5 flex flex-col gap-2">
               {groups.map((group) => {
                 const branched = group.length > 1;
@@ -373,7 +352,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                       </div>
                     );
                   if (!branched) return node;
-                  // a thin tree line: down from the payer's name, then across to this person
                   const last = i === group.length - 1;
                   return (
                     <div key={`${l.from}-${l.to}-branch`} className="relative" style={{ paddingLeft: 18 }}>

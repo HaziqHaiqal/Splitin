@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { browserClient } from "@/lib/supabase/browser";
 
-/** Re-fetch the shared bill when someone else changes it, or when the tab comes back. */
 export function useBillLive(billId: string) {
   const router = useRouter();
 

@@ -19,12 +19,6 @@ import { PersonSheet } from "./person-sheet";
 
 type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: number };
 
-/**
- * The home page is a receipt printer. Add who's splitting and the names print; add a bill and a dashed preview
- * line shows it before "Print it" puts it on the paper. Once the form closes, the paper prints the total and who
- * pays who, ready to share. Desktop: everything you fill in on the left, the printer on the right. Phone: the
- * printer fills the screen, the form sits in a panel at the bottom.
- */
 export function BillsHome() {
   const { t, money, monthName } = useI18n();
   const toast = useToast();
@@ -43,7 +37,6 @@ export function BillsHome() {
   const [preview, setPreview] = useState<Item | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const [peopleKey, setPeopleKey] = useState(0);
-  // the names line glows only right after people are added, not every time the form opens
   const [peopleFresh, setPeopleFresh] = useState(false);
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
@@ -72,7 +65,6 @@ export function BillsHome() {
     setPeopleFresh(true);
   };
 
-  // Start over: wipe the people, bills and title on this device. A link that was already shared keeps working.
   const clearAll = () => {
     if (!draft) return;
     const previous = draft;
@@ -320,7 +312,6 @@ function TitleEditor({
   );
 }
 
-/** Quiet "start over" beside the title. It can be undone from the toast, so it asks no question. */
 function ClearButton({ onClick }: { onClick: () => void }) {
   const { t } = useI18n();
   return (
@@ -330,17 +321,11 @@ function ClearButton({ onClick }: { onClick: () => void }) {
       className="-mr-2.5 flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold whitespace-nowrap text-muted transition-colors hover:bg-chip hover:text-owe"
     >
       <ResetIcon size={15} />
-      {/* very small phones: icon only, so the title keeps its room */}
       <span className="max-[359px]:sr-only">{t.home.clearAll}</span>
     </button>
   );
 }
 
-/**
- * "+ Add" is a real button. Tapping it turns the chip into a focused name box with a green tick, so it's
- * obvious where to type. Enter (or the tick) adds and keeps the box open for the next name; a
- * comma-separated list adds everyone at once; Escape or tapping away with nothing typed closes it.
- */
 function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
@@ -398,7 +383,6 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
         autoComplete="off"
         className="w-28 bg-transparent text-[14px] font-semibold text-ink outline-none"
       />
-      {/* mousedown is cancelled so the box keeps focus and the tap goes to submit */}
       <button
         type="submit"
         aria-label={t.common.add}
@@ -411,7 +395,6 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   );
 }
 
-/** Step 1 before anyone is added: one box that takes a single name or a pasted list. */
 function NamesForm({ onAdd }: { onAdd: (text: string) => void }) {
   const { t } = useI18n();
   const [value, setValue] = useState("");

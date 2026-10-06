@@ -6,12 +6,9 @@ import { getDictionary, intlLocale, type Dictionary, type Locale } from "./index
 type I18n = {
   locale: Locale;
   t: Dictionary;
-  /** "RM 118.45" */
   money: (minor: number) => string;
-  /** "118.45" for receipt columns */
   plain: (minor: number) => string;
   date: (iso: string, opts?: Intl.DateTimeFormatOptions) => string;
-  /** "4:13 PM": always 12-hour with AM / PM, in every language. */
   time: (iso: string) => string;
   monthName: (offset?: number) => string;
 };

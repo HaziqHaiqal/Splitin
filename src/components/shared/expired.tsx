@@ -2,7 +2,6 @@ import { FadedPaper, PrinterPage } from "@/components/receipt/printer";
 import type { Dictionary } from "@/i18n";
 import { StartOverButton, StartOverMessage } from "./start-over";
 
-/** A link past its 30 days: a faded receipt under an EXPIRED stamp. On phones the message sits under it, centred. */
 export function Expired({ t }: { t: Dictionary }) {
   return (
     <PrinterPage

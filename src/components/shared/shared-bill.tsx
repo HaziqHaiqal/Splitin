@@ -17,10 +17,6 @@ export type SharedBillData = {
   expiresAt: string;
 };
 
-/**
- * Owner (the browser that shared it): tracking page, or the settled page once everyone has paid.
- * Everyone else: just the receipt, which already shows who pays who, where, and what is paid.
- */
 export function SharedBill({ bill }: { bill: SharedBillData }) {
   useBillLive(bill.id);
   const hydrated = useHydrated();

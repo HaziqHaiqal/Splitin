@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Dictionary } from "@/i18n";
 import { cn } from "@/lib/utils";
 
-/** "Make a new split": back to the home screen from a link with nothing to show. */
 export function StartOverButton({ t, className }: { t: Dictionary; className?: string }) {
   return (
     <Link
@@ -17,7 +16,6 @@ export function StartOverButton({ t, className }: { t: Dictionary; className?: s
   );
 }
 
-/** Under the paper when a link has nothing to show: what happened and a way to start over, centred. */
 export function StartOverMessage({ t, title, desc }: { t: Dictionary; title: string; desc: string }) {
   return (
     <div className="flex flex-col items-center px-5 text-center md:px-1">

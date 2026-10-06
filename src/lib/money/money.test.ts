@@ -42,7 +42,6 @@ describe("splitByWeights", () => {
 });
 
 describe("computeItemized", () => {
-  // Nasi lemak 12.00 (a), teh tarik 2 × 3.50 (b), shared satay 18.00 (a,b,c)
   const items = [
     { name: "Nasi lemak", unitPriceMinor: 1200, qty: 1, assignees: ["a"] },
     { name: "Teh tarik", unitPriceMinor: 350, qty: 2, assignees: ["b"] },
@@ -53,7 +52,7 @@ describe("computeItemized", () => {
     const r = computeItemized(items, { servicePct: 10, taxPct: 6 });
     expect(r.subtotal).toBe(3700);
     expect(r.service).toBe(370);
-    expect(r.tax).toBe(244); // 6% of 4070 = 244.2
+    expect(r.tax).toBe(244);
     expect(r.total).toBe(4314);
     expect(sum(r.shares)).toBe(r.total);
     expect(r.subtotals).toEqual({ a: 1800, b: 1300, c: 600 });
@@ -107,12 +106,10 @@ describe("computeSplit", () => {
 describe("balances and settle-up", () => {
   const members = ["ali", "abu", "siti", "mei"];
   const expenses = [
-    // Ali paid 120 split 4 ways
     {
       payers: [{ memberId: "ali", amountMinor: 12000 }],
       splits: members.map((m) => ({ memberId: m, amountMinor: 3000 })),
     },
-    // Siti paid 45 for Abu and herself
     {
       payers: [{ memberId: "siti", amountMinor: 4500 }],
       splits: [
@@ -120,7 +117,6 @@ describe("balances and settle-up", () => {
         { memberId: "siti", amountMinor: 2250 },
       ],
     },
-    // Two payers
     {
       payers: [
         { memberId: "mei", amountMinor: 5000 },

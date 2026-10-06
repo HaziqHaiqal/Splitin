@@ -13,11 +13,6 @@ import { cn, newId } from "@/lib/utils";
 const cleanMoney = (v: string) => v.replace(/[^\d.,]/g, "");
 const parse = (v: string) => parseMoney(v, "MYR");
 
-/**
- * Add or edit one bill, inline. While adding, every change is reported through `onPreview`, so the printer can show
- * the bill as a dashed line before it is printed. "Print it" (or Enter) saves it.
- * Desktop shows it as a card next to the printer; phones put it in the bottom panel (`bare`).
- */
 export function BillForm({
   item,
   doc,
@@ -32,7 +27,6 @@ export function BillForm({
   item: Item | null;
   doc: BillDoc;
   update: (fn: (doc: BillDoc) => BillDoc) => void;
-  /** No bills yet: titled "Add the first bill". */
   first: boolean;
   bare?: boolean;
   autoFocus?: boolean;
@@ -68,7 +62,6 @@ export function BillForm({
   const fixedSum = included.reduce((s, id) => s + (liveOverrides[id] ?? 0), 0);
   const cleanOverrides = Object.fromEntries(Object.entries(liveOverrides).filter(([id]) => included.includes(id)));
 
-  // "Everyone except Najmi shares the rest (RM 150.00) equally: RM 50.00 each."
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
   const list = (ids: string[]) =>
     new Intl.ListFormat(intlLocale(locale), { type: "conjunction" }).format(ids.map(nameOf));
@@ -89,7 +82,6 @@ export function BillForm({
   const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
   const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy);
 
-  // the dashed line on the paper: a new bill appears at the end, an edited one is redrawn in its own place
   const previewKey = JSON.stringify([name, amountMinor, paidBy, included, cleanOverrides, split.ok]);
   useEffect(() => {
     const typing = isEdit || name.trim() !== "" || amountMinor > 0;
@@ -105,7 +97,6 @@ export function BillForm({
           }
         : null,
     );
-    // previewKey stands for every value the preview is built from
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewKey, isEdit]);
   useEffect(() => () => onPreview(null), [onPreview]);
@@ -177,7 +168,6 @@ export function BillForm({
     });
   };
 
-  // "Split equally · RM 45.00 each" while everyone shares it equally
   const shares = split.ok ? Object.values(split.shares) : [];
   const evenEach = shares.length > 0 ? Math.round(amountMinor / shares.length) : 0;
   const exact = shares.length > 0 && shares.every((v) => v === shares[0]);
@@ -197,7 +187,6 @@ export function BillForm({
       }}
       className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
     >
-      {/* the title, and a round × to close the form (only once there are bills to go back to) */}
       <div className="flex min-h-9 items-center justify-between gap-3">
         <span className="text-[16px] font-extrabold tracking-[-0.01em]">
           {isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle}
@@ -239,7 +228,6 @@ export function BillForm({
 
       <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
         <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-        {/* phones: one row that scrolls sideways instead of wrapping onto more lines */}
         <div className={cn("flex gap-1.5", bare ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
           {doc.people.map((p) => {
             const on = paidBy === p.id;

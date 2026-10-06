@@ -2,10 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
-/** The width where the app switches to its desktop layout. */
 const DESKTOP = "(min-width: 768px)";
 
-/** True on desktop-width screens. Always false on the server and during the first render. */
 export function useIsDesktop() {
   return useSyncExternalStore(
     (cb) => {

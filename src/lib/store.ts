@@ -3,8 +3,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import type { BillDoc } from "@/lib/bill";
 
-/* ───────── tiny localStorage store with change notifications ───────── */
-
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void) {
@@ -28,13 +26,10 @@ function write(key: string, value: string | null) {
   try {
     if (value === null) window.localStorage.removeItem(key);
     else window.localStorage.setItem(key, value);
-  } catch {
-    // private mode / storage full: the app keeps working for this visit
-  }
+  } catch {}
   listeners.forEach((l) => l());
 }
 
-/** `undefined` while server-rendering / hydrating, then the stored string or null. */
 function useStored(key: string): string | null | undefined {
   return useSyncExternalStore(
     subscribe,
@@ -51,8 +46,6 @@ export function useHydrated() {
     () => false,
   );
 }
-
-/* ───────── the bill being edited on this device ───────── */
 
 export type Draft = { doc: BillDoc; billId: string | null };
 
@@ -72,7 +65,6 @@ function parseDraft(raw: string | null | undefined): Draft | null {
   }
 }
 
-/** `undefined` until hydrated; `null` when nothing has been started on this device. */
 export function useDraft(): Draft | null | undefined {
   const raw = useStored(DRAFT_KEY);
   return useMemo(() => (raw === undefined ? undefined : parseDraft(raw)), [raw]);
@@ -86,8 +78,6 @@ export function updateDraft(fallbackTitle: string, fn: (draft: Draft) => Draft) 
   const current = parseDraft(read(DRAFT_KEY)) ?? emptyDraft(fallbackTitle);
   saveDraft(fn(current));
 }
-
-/* ───────── per shared bill: owner secret and "which one are you" ───────── */
 
 const ownerKey = (billId: string) => `splitin:owner:${billId}`;
 

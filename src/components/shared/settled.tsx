@@ -9,10 +9,6 @@ import type { BillSummary } from "@/lib/bill";
 import { saveDraft } from "@/lib/store";
 import type { SharedBillData } from "./shared-bill";
 
-/**
- * The owner's view once every payment is marked: the receipt gets a big SETTLED stamp. On phones the message and
- * buttons sit under the receipt, centred; nothing to fill in, so no panel.
- */
 export function Settled({
   bill,
   summary,

@@ -13,10 +13,6 @@ export type LedgerSettlement = {
 
 export type Transfer = { from: string; to: string; amount: number };
 
-/**
- * Net position per member: positive = is owed money, negative = owes money.
- * Always sums to zero when every expense's payers and splits sum to the same total.
- */
 export function computeBalances(
   memberIds: readonly string[],
   expenses: readonly LedgerExpense[],
@@ -39,10 +35,6 @@ export function computeBalances(
   return balances;
 }
 
-/**
- * Greedy settle-up: repeatedly match the largest creditor with the largest debtor.
- * Produces at most n − 1 transfers and is deterministic for equal balances.
- */
 export function simplifyDebts(balances: Readonly<Allocation>): Transfer[] {
   const order = Object.keys(balances);
   const rank = (id: string) => order.indexOf(id);

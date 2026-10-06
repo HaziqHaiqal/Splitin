@@ -9,10 +9,6 @@ import { BigStamp, Zigzag } from "./receipt";
 const INK = "#37352f";
 const MUTED = "#6b6a65";
 
-/**
- * The little receipt printer: a dark slot with the paper coming out of it. The paper's top edge tucks under the
- * slot, so its torn top only shows in the shared picture.
- */
 export function Printer({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[400px]">
@@ -22,7 +18,6 @@ export function Printer({ children }: { children: ReactNode }) {
   );
 }
 
-/** The blank stub the printer shows before anyone is added. */
 export function PaperStub({ text }: { text: string }) {
   return (
     <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.10))" }}>
@@ -40,7 +35,6 @@ export function PaperStub({ text }: { text: string }) {
   );
 }
 
-/** What the printer gives for a link that leads nowhere: a short error slip with a big 404. */
 export function ErrorSlip({ title, hint }: { title: string; hint: string }) {
   return (
     <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.10))" }}>
@@ -63,7 +57,6 @@ export function ErrorSlip({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-/** A receipt with its details gone (an expired link): grey bars instead of text, under a big stamp. */
 export function FadedPaper({ stamp }: { stamp: string }) {
   const bar = (width: string, height = 9) => <div style={{ width, height, background: "#ecebe7" }} />;
   return (
@@ -87,12 +80,6 @@ export function FadedPaper({ stamp }: { stamp: string }) {
   );
 }
 
-/**
- * The page frame shared by every screen of the app.
- * Desktop: the page's own content on the left, the printer in a tray down the right, full height.
- * Phone: the printer tray fills the screen (or the page's content does, with `phoneSide`), with an optional
- * panel or row of buttons pinned to the bottom.
- */
 export function PrinterPage({
   side,
   paper,
@@ -106,26 +93,16 @@ export function PrinterPage({
   follow,
   header,
 }: {
-  /** Desktop left column; on phones too when `phoneSide` is set. */
   side: ReactNode;
-  /** What comes out of the printer. */
   paper: ReactNode;
-  /** Desktop: under the paper in the tray (a Share button). */
   below?: ReactNode;
-  /** Phone: a slim row above the printer (the title). */
   phoneTop?: ReactNode;
-  /** Phone: content under the paper, scrolling with it (a message that doesn't need a panel). */
   phoneBelow?: ReactNode;
-  /** Phone: centre the printer and what's below it in the space under the header (pages with no panel). */
   phoneCenter?: boolean;
-  /** Phone: a white panel pinned to the bottom (a form). */
   panel?: ReactNode;
-  /** Phone: buttons pinned to the bottom. */
   dock?: ReactNode;
   phoneSide?: boolean;
-  /** Phone: when this changes, scroll so the newest printed line is in view above the panel. */
   follow?: string;
-  /** Replaces the usual logo header (the owner receipt view has a back bar). */
   header?: ReactNode;
 }) {
   const desktop = useIsDesktop();
@@ -148,8 +125,6 @@ export function PrinterPage({
   if (desktop) {
     return (
       <div className="min-h-dvh bg-bg text-ink">
-        {/* exactly the header's height: the header leaves a little gap under itself for normal pages, which here
-            would show as a strip of page colour above the printer tray */}
         <div className="h-16 overflow-hidden bg-bg px-6">{header ?? <Header />}</div>
         <div className="grid grid-cols-[minmax(0,1fr)_400px] lg:grid-cols-[minmax(0,1fr)_460px]">
           <main className="min-w-0 px-8 pt-8 pb-16 lg:px-12">
@@ -165,7 +140,6 @@ export function PrinterPage({
   }
 
   return (
-    // overflow-x-clip: a big stamp slams in oversized; letting it poke past the edge would widen the page for good
     <div className={cn("min-h-dvh overflow-x-clip text-ink", phoneSide ? "bg-bg" : "bg-tray")}>
       <div className="h-14 overflow-hidden bg-bg px-4">{header ?? <Header />}</div>
       {phoneSide ? (

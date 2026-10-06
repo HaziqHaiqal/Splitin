@@ -23,7 +23,6 @@ export async function generateMetadata({ params }: PageProps<"/bill/[id]">): Pro
 export default async function BillPage({ params }: PageProps<"/bill/[id]">) {
   const { id } = await params;
   const [bill, { t }] = await Promise.all([getBill(id), getI18n()]);
-  // rendered here rather than with notFound(), which makes Next redraw the whole page in the browser
   if (!bill) return (await linkExpired(id)) ? <Expired t={t} /> : <NotFound t={t} />;
   return (
     <SharedBill

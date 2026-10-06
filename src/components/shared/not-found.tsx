@@ -3,11 +3,6 @@ import { ErrorSlip, Printer } from "@/components/receipt/printer";
 import type { Dictionary } from "@/i18n";
 import { StartOverMessage } from "./start-over";
 
-/**
- * A link that never led to a receipt (mistyped, cut short) or any unknown page: one column on the printer tray,
- * the same on every screen size, centred in the space under the header. The printer's error slip on top, then the
- * message and a way to start over.
- */
 export function NotFound({ t }: { t: Dictionary }) {
   return (
     <div className="min-h-dvh bg-tray text-ink">

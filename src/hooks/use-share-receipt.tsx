@@ -7,10 +7,6 @@ import { useI18n } from "@/i18n/client";
 import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 
-/**
- * Sharing the receipt on the home page. The first share saves the bill and creates its link; after that it only
- * reopens the share panel. `receiptRef` goes on the printed receipt, which becomes the shared picture.
- */
 export function useShareReceipt(draft: Draft | null | undefined) {
   const { t } = useI18n();
   const toast = useToast();

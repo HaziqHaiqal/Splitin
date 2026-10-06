@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Soft avatar colours — identical in light and dark mode. */
 export const AVATAR_COLORS = [
   { bg: "#dcfce7", fg: "#166534" },
   { bg: "#e5eef9", fg: "#2c5d93" },
@@ -25,7 +24,6 @@ export function initial(name: string) {
   return name.trim().charAt(0).toUpperCase() || "?";
 }
 
-/** Split pasted text like "Ali, Abu & Siti" into clean names. */
 export function parseNames(input: string): string[] {
   return input
     .split(/[,\n;&]|\s+and\s+|\s+dan\s+/i)

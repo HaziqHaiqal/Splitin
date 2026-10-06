@@ -12,11 +12,6 @@ import { useI18n } from "@/i18n/client";
 import { summarize, type PlanLine } from "@/lib/bill";
 import type { SharedBillData } from "./shared-bill";
 
-/**
- * A shared bill's receipt in the printer. Friends land here and tap their payment on the paper to mark it paid;
- * on desktop the left side explains that and lists who to pay, with Copy for each account number.
- * The owner opens it from their payments list on a phone (with a way back) and marks payments there instead.
- */
 export function ReceiptView({
   bill,
   sharedBy,
@@ -35,7 +30,6 @@ export function ReceiptView({
   const friend = !back;
   const summary = summarize(bill.doc, bill.payments);
 
-  // people who get paid and have bank details, for the "Pay to" card
   const receivers = [...new Set([...summary.remaining, ...summary.done].map((l) => l.to))]
     .map((id) => bill.doc.people.find((p) => p.id === id))
     .filter((p) => p?.bank && p.accountNo);

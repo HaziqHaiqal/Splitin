@@ -24,10 +24,6 @@ const LANGUAGES: { code: Locale; label: string; name: string }[] = [
   { code: "ms", label: "BM", name: "Bahasa Melayu" },
 ];
 
-/**
- * "EN ⌄": a small button with the language in use; it opens a menu listing each language in its own
- * words, with a tick on the current one. Closes on a pick, a tap outside, or Escape.
- */
 export function LanguageToggle() {
   const { locale } = useI18n();
   const [pending, start] = useTransition();
@@ -100,7 +96,6 @@ export function LanguageToggle() {
   );
 }
 
-/** One quiet icon: the moon switches to dark, the sun switches back to light. */
 export function ThemeToggle() {
   const { t } = useI18n();
   const { resolvedTheme, setTheme } = useTheme();
@@ -116,20 +111,12 @@ export function ThemeToggle() {
       onClick={() => setTheme(dark ? "light" : "dark")}
       className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-chip hover:text-ink"
     >
-      {/* picked by CSS, so the right icon shows before the page finishes loading */}
       <SunIcon size={19} className="hidden dark:block" />
       <MoonIcon size={19} className="dark:hidden" />
     </button>
   );
 }
 
-/**
- * Pinned to the top of the window. It is `fixed`, not `sticky`, so the iPhone's rubber-band
- * bounce (dragging past the top of the page) cannot pull it down with the content.
- * It copies its page column's width, side padding and background (`inherit`), so the logo and
- * controls line up with the content; the hairline bar behind it spans the whole window.
- * A spacer keeps the page content below it.
- */
 export function Header() {
   return (
     <>
@@ -139,7 +126,6 @@ export function Header() {
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
         />
         <Logo />
-        {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
         <div className="-mr-2 flex items-center gap-0.5">
           <HelpButton />
           <LanguageToggle />
@@ -151,10 +137,6 @@ export function Header() {
   );
 }
 
-/**
- * The fixed top bar of a sub-page (the receipt): back on the left, the page name in the middle and
- * an optional action on the right. Pinned and sized like `Header`, with the same spacer below.
- */
 export function TopBar({
   back,
   title,
@@ -185,7 +167,6 @@ export function TopBar({
           </button>
         )}
         <h1 className="m-0 truncate text-center text-[16px] font-extrabold">{title}</h1>
-        {/* only the page's own action here, so the title stays centred; language and theme live on the main pages */}
         <div className="-mr-2 flex items-center justify-self-end">{action}</div>
       </header>
       <div aria-hidden className="h-16 shrink-0 md:h-20" />

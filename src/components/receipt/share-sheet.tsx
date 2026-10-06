@@ -8,15 +8,10 @@ import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 
-/** The app's dark background. The cream paper and its torn top and bottom edges stand out on it. */
 const BACKDROP = "#0e131b";
 const MARGIN = 28;
 const SCALE = 2;
 
-/**
- * The receipt as a PNG: captured on a transparent background, so the gaps between the torn-edge
- * teeth stay empty, then laid on a dark backdrop with a margin all round.
- */
 async function receiptPicture(node: HTMLElement): Promise<Blob | null> {
   const paper = await domToCanvas(node, { scale: SCALE, backgroundColor: null, style: { filter: "none" } });
   const pad = MARGIN * SCALE;
@@ -31,10 +26,6 @@ async function receiptPicture(node: HTMLElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }
 
-/**
- * "Receipt_20261006-0148_GagYTBLfty.png": the date and time printed on the receipt (local time),
- * then the link id. No colons or spaces, so it is a safe file name everywhere.
- */
 export function receiptFileName(createdAt: string, billId: string | null) {
   const d = new Date(createdAt);
   const two = (n: number) => String(n).padStart(2, "0");
@@ -54,7 +45,6 @@ export function ShareSheet({
   onOpenChange: (open: boolean) => void;
   billId: string | null;
   title: string;
-  /** When the bill was made; the saved picture is named after it. */
   createdAt: string;
   receiptRef: RefObject<HTMLDivElement | null>;
 }) {
@@ -98,13 +88,11 @@ export function ShareSheet({
     try {
       return navigator.clipboard.write([new ClipboardItem({ "image/png": image.blob })]);
     } catch {
-      return null; // browser can't put pictures on the clipboard; Save image still works
+      return null;
     }
   };
 
   const sendWhatsApp = async () => {
-    // Phones: the phone's own share menu is the only way a web page can attach the picture,
-    // and WhatsApp is in that menu. Computers have no WhatsApp there, so they skip it.
     const phone = window.matchMedia("(pointer: coarse)").matches;
     if (phone && file && navigator.canShare?.({ files: [file] })) {
       try {
@@ -114,8 +102,6 @@ export function ShareSheet({
         if ((error as Error).name === "AbortError") return;
       }
     }
-    // Open WhatsApp itself with the message and link, and leave the picture on the clipboard
-    // to paste into the chat. Both start inside the click so the browser blocks neither.
     const copying = copyPicture();
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
     try {
@@ -123,9 +109,7 @@ export function ShareSheet({
         await copying;
         setPasteHint(true);
       }
-    } catch {
-      // not copied; the message and link still went through
-    }
+    } catch {}
   };
 
   const saveImage = () => {
@@ -149,9 +133,7 @@ export function ShareSheet({
     if (navigator.share) {
       try {
         await navigator.share({ title, text: fmt(t.share.message, { title }), url });
-      } catch {
-        // dismissed
-      }
+      } catch {}
     } else {
       await copyLink();
     }
