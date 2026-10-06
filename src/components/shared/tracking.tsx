@@ -102,8 +102,8 @@ export function Tracking({
                 <span className={cn(done && "text-faint line-through")}>{money(l.amount)}</span>
                 {done ? (
                   <span
-                    className="absolute right-[calc(100%-16px)] bottom-[calc(100%-9px)] border-[2.5px] border-stamp bg-card/70 px-1.5 font-mono text-[14px] font-bold tracking-[0.12em] text-stamp"
-                    style={{ transform: `rotate(${i % 2 ? 6 : -10}deg)` }}
+                    className="absolute top-1/2 right-[calc(100%-12px)] border-[2.5px] border-stamp bg-card/70 px-1.5 font-mono text-[14px] font-bold tracking-[0.12em] text-stamp"
+                    style={{ transform: `translateY(-62%) rotate(${i % 2 ? 6 : -10}deg)` }}
                   >
                     {t.receipt.paidStamp}
                   </span>
