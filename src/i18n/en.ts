@@ -82,7 +82,7 @@ export const en = {
     defaultTitle: "Bills · {month}",
     sharedBy: "SHARED BY {name}",
     item: "ITEM",
-    by: "BY",
+    by: "PAID BY",
     each: "EACH",
     about: "ABOUT",
     total: "TOTAL",

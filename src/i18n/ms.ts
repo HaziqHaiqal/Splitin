@@ -84,7 +84,7 @@ export const ms: Dictionary = {
     defaultTitle: "Bil · {month}",
     sharedBy: "DIKONGSI OLEH {name}",
     item: "ITEM",
-    by: "OLEH",
+    by: "DIBAYAR",
     each: "SEORANG",
     about: "KIRA-KIRA",
     total: "JUMLAH",
