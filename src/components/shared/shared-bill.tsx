@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/i18n/client";
 import { summarize, type BillDoc, type Payment } from "@/lib/bill";
 import { useHydrated, useOwnerToken } from "@/lib/store";
-import { useBillLive } from "@/lib/use-bill-live";
+import { useBillLive } from "@/hooks/use-bill-live";
 import { ReceiptView } from "./receipt-view";
 import { Settled } from "./settled";
 import { Tracking } from "./tracking";

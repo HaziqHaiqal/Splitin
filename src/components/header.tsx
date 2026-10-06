@@ -168,7 +168,7 @@ export function TopBar({
     "-ml-1.5 flex h-10 items-center gap-1 justify-self-start pr-2 text-[15px] font-bold text-ink no-underline";
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 bg-inherit px-[inherit] md:h-16">
+      <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[1fr_auto_1fr] items-center gap-2 bg-inherit px-[inherit] md:h-16">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
@@ -185,12 +185,8 @@ export function TopBar({
           </button>
         )}
         <h1 className="m-0 truncate text-center text-[16px] font-extrabold">{title}</h1>
-        {/* same language and theme controls as every other page, then the page's own action */}
-        <div className="-mr-2 flex items-center gap-0.5 justify-self-end">
-          <LanguageToggle />
-          <ThemeToggle />
-          {action}
-        </div>
+        {/* only the page's own action here, so the title stays centred; language and theme live on the main pages */}
+        <div className="-mr-2 flex items-center justify-self-end">{action}</div>
       </header>
       <div aria-hidden className="h-16 shrink-0 md:h-20" />
     </>

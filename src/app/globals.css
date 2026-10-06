@@ -3,34 +3,40 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #f6f7f5;
+  /* Light theme "Calm paper" (chosen by the user): warm white page, soft charcoal text instead of black,
+     muted green and red. One warm temperature everywhere, the receipt paper included. */
+  --bg: #fbfbfa;
   --card: #ffffff;
-  --chip: #f1f3f0;
-  --line: #eceeeb;
-  --border: #e3e6e2;
-  --ink: #1c1f1d;
-  --muted: #667069;
-  --faint: #8a938c;
-  --green: #169545;
-  --green-ink: #168841;
-  --green-soft: #dcfce7;
-  --green-soft-ink: #166534;
-  --owe: #b4472a;
-  --bar: #1c1f1d;
-  --bar-ink: #ffffff;
-  --bar-muted: #b7bfb9;
-  --bar-border: transparent;
-  --paper-bg: #e9ebe7;
-  --dash: #b9c0ba;
+  --chip: #f1f1ef;
+  --line: #ededeb;
+  --border: #e3e2e0;
+  --ink: #37352f;
+  --muted: #6b6a65;
+  --faint: #9b9a96;
+  --green: #2f7552;
+  --green-ink: #2f7552;
+  --green-soft: #e5f0ea;
+  --green-soft-ink: #24593f;
+  --owe: #b5413b;
+  --bar: #ffffff;
+  --bar-ink: #37352f;
+  --bar-muted: #6b6a65;
+  --bar-border: #e3e2e0;
+  --paper-bg: #fbfbfa;
+  --dash: #c8c7c3;
   --sheet: #ffffff;
-  --overlay: rgb(28 31 29 / 0.4);
-  --handle: #dfe2de;
-  --disabled: #dfe2de;
-  --disabled-ink: #8a938c;
-  --field: #f6f7f5;
+  --overlay: rgb(55 53 47 / 0.35);
+  --handle: #e3e2e0;
+  --disabled: #ededeb;
+  --disabled-ink: #9b9a96;
+  --field: #f7f7f5;
   --amber-soft: #fff6e0;
   --amber-ink: #8a5a00;
-  --stamp: #c2412b;
+  --stamp: #b5413b;
+  /* the area the receipt printer sits in, and the printer slot itself */
+  --tray: #ecebe7;
+  --slot: #3d3b35;
+  --slot-edge: #24231f;
 }
 
 .dark {
@@ -61,6 +67,9 @@
   --field: #0e131b;
   --amber-soft: #3a2e12;
   --amber-ink: #f6c76b;
+  --tray: #131a24;
+  --slot: #05080c;
+  --slot-edge: #000000;
   --stamp: #f2876a;
 }
 
@@ -93,6 +102,8 @@
   --color-amber-soft: var(--amber-soft);
   --color-amber-ink: var(--amber-ink);
   --color-stamp: var(--stamp);
+  --color-tray: var(--tray);
+  --color-slot: var(--slot);
   --font-sans: var(--font-jakarta);
   --font-mono: var(--font-plex-mono);
 }
@@ -104,6 +115,26 @@
   --animate-print: print 1s steps(14, end) both;
   --animate-stamp: stamp 0.34s cubic-bezier(0.2, 1.4, 0.5, 1) both;
   --animate-nudge: nudge 1.8s ease-in-out infinite;
+  --animate-printed: printed 3.2s ease-out both;
+
+  @keyframes printed {
+    0% {
+      opacity: 0;
+      transform: translateY(-6px);
+      background-color: #fff1b8;
+    }
+    12% {
+      opacity: 1;
+      transform: none;
+      background-color: #fff1b8;
+    }
+    65% {
+      background-color: #fff1b8;
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
 
   @keyframes pop {
     from {
@@ -144,7 +175,8 @@
   .animate-rise,
   .animate-print,
   .animate-stamp,
-  .animate-nudge {
+  .animate-nudge,
+  .animate-printed {
     animation: none;
   }
 }

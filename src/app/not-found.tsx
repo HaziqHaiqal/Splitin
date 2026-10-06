@@ -1,7 +1,7 @@
-import { Expired } from "@/components/shared/expired";
+import { NotFound } from "@/components/shared/not-found";
 import { getI18n } from "@/i18n/server";
 
-export default async function NotFound() {
+export default async function NotFoundPage() {
   const { t } = await getI18n();
-  return <Expired t={t} />;
+  return <NotFound t={t} />;
 }

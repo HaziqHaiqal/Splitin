@@ -1,37 +1,50 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
-import { Header } from "@/components/header";
-import { ArrowRightIcon, CheckIcon, PencilIcon, PlusIcon, ResetIcon } from "@/components/icons";
+import { CheckIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
+import { PaperStub, PrinterPage } from "@/components/receipt/printer";
+import { Receipt } from "@/components/receipt/receipt";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
+import { useShareReceipt } from "@/hooks/use-share-receipt";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { evenShare, type BillDoc, type Item, type Person } from "@/lib/bill";
+import type { BillDoc, Item } from "@/lib/bill";
 import { emptyDraft, saveDraft, updateDraft, useDraft } from "@/lib/store";
 import { cn, newId, parseNames } from "@/lib/utils";
-import { BillSheet } from "./bill-sheet";
+import { BillForm } from "./bill-form";
 import { PersonSheet } from "./person-sheet";
 
+type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: number };
+
+/**
+ * The home page is a receipt printer. Add who's splitting and the names print; add a bill and a dashed preview
+ * line shows it before "Print it" puts it on the paper. Once the form closes, the paper prints the total and who
+ * pays who, ready to share. Desktop: everything you fill in on the left, the printer on the right. Phone: the
+ * printer fills the screen, the form sits in a panel at the bottom.
+ */
 export function BillsHome() {
   const { t, money, monthName } = useI18n();
   const toast = useToast();
   const draft = useDraft();
   useDraftSync(draft);
+  const desktop = useIsDesktop();
   const defaultTitle = fmt(t.receipt.defaultTitle, { month: monthName() });
+  const { share, pending, receiptRef, sheet } = useShareReceipt(draft);
 
   const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({
     open: false,
     id: null,
     key: 0,
   });
-  const [billSheet, setBillSheet] = useState<{ open: boolean; id: string | null; key: number }>({
-    open: false,
-    id: null,
-    key: 0,
-  });
+  const [form, setForm] = useState<FormState>({ mode: "closed", editId: null, key: 0 });
+  const [preview, setPreview] = useState<Item | null>(null);
+  const [freshId, setFreshId] = useState<string | null>(null);
+  const [peopleKey, setPeopleKey] = useState(0);
+  // the names line glows only right after people are added, not every time the form opens
+  const [peopleFresh, setPeopleFresh] = useState(false);
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
 
@@ -55,6 +68,8 @@ export function BillsHome() {
       }
       return { ...d, people };
     });
+    setPeopleKey((k) => k + 1);
+    setPeopleFresh(true);
   };
 
   // Start over: wipe the people, bills and title on this device. A link that was already shared keeps working.
@@ -62,133 +77,186 @@ export function BillsHome() {
     if (!draft) return;
     const previous = draft;
     saveDraft(null);
+    setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
     toast({ message: t.home.cleared, action: { label: t.common.undo, onClick: () => saveDraft(previous) } });
   };
 
-  const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
-  const total = doc.items.reduce((s, i) => s + i.amountMinor, 0);
-
-  const openPerson = (id: string) => setPersonSheet((s) => ({ open: true, id, key: s.key + 1 }));
-  const openBill = (id: string | null) => setBillSheet((s) => ({ open: true, id, key: s.key + 1 }));
-
   const hasPeople = doc.people.length > 0;
   const hasBills = doc.items.length > 0;
+  const formOpen = hasPeople && (form.mode !== "closed" || !hasBills);
+  const editing = form.mode === "edit" ? (doc.items.find((i) => i.id === form.editId) ?? null) : null;
+  const total = doc.items.reduce((s, i) => s + i.amountMinor, 0);
+  const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
-  // One column, top to bottom, the same on phone and desktop: people, then bills. The three numbered
-  // steps are on screen from the first visit and just fill in; once there is a bill, step 3 becomes
-  // the total bar along the bottom, whose "See receipt" opens the receipt page.
-  return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[640px] flex-col bg-bg px-4 pb-8 text-ink md:px-6 md:pb-12">
-      <Header />
-      <main className="flex flex-col gap-9 pt-3 md:gap-12 md:pt-6">
-        <div className="flex items-center justify-between gap-2">
-          {hasPeople ? (
-            <>
-              <TitleEditor title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
-              <ClearButton onClick={clearAll} />
-            </>
-          ) : (
-            <h1 className="m-0 text-[28px] leading-[1.12] font-extrabold tracking-[-0.025em] whitespace-pre-line md:text-[44px] md:leading-[1.05] md:tracking-[-0.03em]">
-              {t.home.headline}
-            </h1>
+  const openPerson = (id: string) => setPersonSheet((s) => ({ open: true, id, key: s.key + 1 }));
+  const openAdd = () => setForm((f) => ({ mode: "add", editId: null, key: f.key + 1 }));
+  const openEdit = (item: Item) => setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
+  const closeForm = () => setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
+  const printed = (id: string) => {
+    setFreshId(id);
+    setPeopleFresh(false);
+    closeForm();
+  };
+
+  const billForm = (bare: boolean) => (
+    <BillForm
+      key={form.key}
+      item={editing}
+      doc={doc}
+      update={update}
+      first={!hasBills}
+      bare={bare}
+      autoFocus={desktop && hasBills}
+      onPrinted={printed}
+      onCancel={hasBills ? closeForm : undefined}
+      onPreview={setPreview}
+    />
+  );
+
+  const peopleChips = (compact: boolean) => (
+    <div className={cn("flex gap-1.5", compact ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
+      {doc.people.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => openPerson(p.id)}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-chip pr-3 pl-1 font-bold text-ink",
+            compact ? "h-8 text-[12.5px]" : "h-9 text-[13.5px]",
           )}
-        </div>
+        >
+          <Avatar name={p.name} color={p.color} size={compact ? 24 : 28} />
+          {p.name}
+        </button>
+      ))}
+      <AddPersonChip onAdd={addPeople} />
+    </div>
+  );
 
-        <section className="flex flex-col gap-3.5">
-          <StepHeader n={1} title={t.home.step1} meta={hasPeople ? String(doc.people.length) : undefined} />
-          {hasPeople ? (
-            <div className="flex flex-wrap gap-2">
-              {doc.people.map((p, index) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => openPerson(p.id)}
-                  className="inline-flex h-10 items-center gap-2 rounded-full bg-chip pr-[14px] pl-[5px] text-[14px] font-bold text-ink"
-                >
-                  <Avatar name={p.name} color={p.color} size={30} />
-                  {p.name}
-                  {!hasBills && index === 0 ? ` ${t.home.you}` : ""}
-                </button>
-              ))}
-              <AddPersonChip onAdd={addPeople} />
-            </div>
-          ) : (
-            <NamesForm onAdd={addPeople} />
-          )}
-        </section>
+  const paper = !hasPeople ? (
+    <PaperStub text={t.home.stubHint} />
+  ) : formOpen ? (
+    <Receipt doc={doc} variant="draft" people={{ key: peopleKey, fresh: peopleFresh }} preview={preview} />
+  ) : (
+    <Receipt
+      ref={receiptRef}
+      doc={doc}
+      billId={draft?.billId}
+      freshItemId={freshId}
+      onItem={desktop ? undefined : openEdit}
+    />
+  );
 
-        <section className={cn("flex flex-col gap-3.5", !hasPeople && "opacity-55")}>
-          <StepHeader
-            n={2}
-            title={t.home.step2}
-            locked={!hasPeople}
-            meta={hasBills ? fmt(t.home.tapToEdit, { count: doc.items.length }) : undefined}
-          />
-          {!hasPeople ? (
-            <p className="m-0 text-[14px] text-muted">{t.home.step2Desc}</p>
-          ) : hasBills ? (
-            <div>
-              {doc.items.map((item) => (
-                <BillRow
-                  key={item.id}
-                  item={item}
-                  payer={nameOf(item.paidBy)}
-                  peopleCount={doc.people.length}
-                  onClick={() => openBill(item.id)}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={() => openBill(null)}
-                className="flex h-[56px] w-full items-center gap-2 border-t border-line text-left text-[15px] font-bold text-green-ink"
-              >
-                <PlusIcon />
-                {t.home.addBill}
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => openBill(null)}
-                className="flex h-14 items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-[#9fcbb2] text-[15px] font-bold text-green-ink dark:border-[#2f6b4b]"
-              >
-                <PlusIcon />
-                {t.home.firstBill}
-              </button>
-              <p className="m-0 text-[13px] text-muted">{t.home.firstBillHint}</p>
-            </>
-          )}
-        </section>
+  const start = (
+    <>
+      <h1 className="m-0 text-[30px] leading-[1.1] font-extrabold tracking-[-0.03em] whitespace-pre-line md:text-[40px]">
+        {t.home.startTitle}
+      </h1>
+      <p className="m-0 max-w-[44ch] text-[14px] leading-[1.5] text-muted">{t.home.startDesc}</p>
+      <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.home.step1}</span>
+      <NamesForm onAdd={addPeople} />
+    </>
+  );
 
-        {hasBills ? null : (
-          <section className="flex flex-col gap-3.5 opacity-55">
-            <StepHeader n={3} title={t.home.step3} locked />
-            <p className="m-0 text-[14px] text-muted">{t.home.step3Desc}</p>
-          </section>
-        )}
-      </main>
-
-      {hasBills ? (
-        <div className="sticky bottom-[max(16px,env(safe-area-inset-bottom))] z-20 mt-auto pt-10">
-          <div className="flex items-center justify-between gap-3 rounded-[20px] border border-bar-border bg-bar py-[14px] pr-[14px] pl-[18px] text-bar-ink">
-            <div className="min-w-0">
-              <div className="text-[12px] text-bar-muted">{fmt(t.home.totalPeople, { count: doc.people.length })}</div>
-              <div className="text-[22px] font-extrabold tabular">{money(total)}</div>
-            </div>
-            <Link
-              href="/receipt"
-              className="flex h-[50px] shrink-0 items-center gap-2 rounded-[14px] bg-green px-[18px] text-[15px] font-bold text-white no-underline"
-            >
-              {t.home.seeReceipt}
-              <ArrowRightIcon />
-            </Link>
-          </div>
-        </div>
+  const side = !hasPeople ? (
+    start
+  ) : (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <TitleEditor title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
+        <ClearButton onClick={clearAll} />
+      </div>
+      {peopleChips(false)}
+      {formOpen ? (
+        billForm(false)
       ) : (
-        <div className="mt-auto pt-12 text-center text-[12px] text-muted">{t.home.expiryNote}</div>
+        <>
+          <div className="rounded-2xl border border-border bg-card px-4 py-1">
+            {doc.items.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => openEdit(item)}
+                className={cn(
+                  "flex min-h-[52px] w-full items-center justify-between gap-3 text-left",
+                  i > 0 && "border-t border-line",
+                )}
+              >
+                <span className="min-w-0 truncate">
+                  <b className="text-[14.5px]">{item.name}</b>
+                  <span className="text-[13px] text-muted"> · {nameOf(item.paidBy)}</span>
+                </span>
+                <b className="shrink-0 text-[14.5px] tabular">{money(item.amountMinor)}</b>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={openAdd}
+              className="inline-flex h-[42px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-[14px] font-bold text-ink"
+            >
+              <PlusIcon size={16} />
+              {t.home.nextBill}
+            </button>
+            <span className="text-[14px] text-muted">
+              {t.home.total} <b className="text-[19px] text-ink tabular">{money(total)}</b>
+            </span>
+          </div>
+        </>
       )}
+    </>
+  );
 
+  const shareButton = (
+    <button
+      type="button"
+      onClick={share}
+      disabled={pending}
+      className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-green px-6 text-[15px] font-bold text-white disabled:opacity-60"
+    >
+      <ShareIcon size={18} />
+      {t.receipt.share}
+    </button>
+  );
+
+  return (
+    <>
+      <PrinterPage
+        side={side}
+        paper={paper}
+        below={hasBills && !formOpen ? shareButton : undefined}
+        phoneTop={
+          hasPeople ? (
+            <div className="flex flex-col gap-2 px-1">
+              <div className="flex items-center justify-between gap-2">
+                <TitleEditor small title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
+                <ClearButton onClick={clearAll} />
+              </div>
+              {peopleChips(true)}
+            </div>
+          ) : undefined
+        }
+        panel={!hasPeople ? <div className="flex flex-col gap-3">{start}</div> : formOpen ? billForm(true) : undefined}
+        dock={
+          hasBills && !formOpen ? (
+            <div className="grid grid-cols-[1fr_1.3fr] gap-2">
+              <button
+                type="button"
+                onClick={openAdd}
+                className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(55,53,47,0.10)]"
+              >
+                <PlusIcon size={16} />
+                {t.home.nextBill}
+              </button>
+              {shareButton}
+            </div>
+          ) : undefined
+        }
+        follow={
+          formOpen ? `${doc.people.length}:${doc.items.length}:${preview ? JSON.stringify(preview) : ""}` : undefined
+        }
+      />
       <PersonSheet
         key={`p-${personSheet.key}`}
         open={personSheet.open}
@@ -197,19 +265,20 @@ export function BillsHome() {
         doc={doc}
         update={update}
       />
-      <BillSheet
-        key={`b-${billSheet.key}`}
-        open={billSheet.open}
-        onOpenChange={(open) => setBillSheet((s) => ({ ...s, open }))}
-        item={doc.items.find((i) => i.id === billSheet.id) ?? null}
-        doc={doc}
-        update={update}
-      />
-    </div>
+      {sheet}
+    </>
   );
 }
 
-function TitleEditor({ title, onChange }: { title: string; onChange: (title: string) => void }) {
+function TitleEditor({
+  title,
+  onChange,
+  small = false,
+}: {
+  title: string;
+  onChange: (title: string) => void;
+  small?: boolean;
+}) {
   const { t } = useI18n();
   const [value, setValue] = useState<string | null>(null);
   const commit = () => {
@@ -217,7 +286,9 @@ function TitleEditor({ title, onChange }: { title: string; onChange: (title: str
     if (next && next !== title) onChange(next);
     setValue(null);
   };
-  const text = "text-[24px] font-extrabold tracking-[-0.02em] md:text-[32px] md:tracking-[-0.025em]";
+  const text = small
+    ? "text-[18px] font-extrabold tracking-[-0.015em]"
+    : "text-[30px] font-extrabold tracking-[-0.025em]";
   if (value !== null) {
     return (
       <input
@@ -265,38 +336,6 @@ function ClearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function BillRow({
-  item,
-  payer,
-  peopleCount,
-  onClick,
-}: {
-  item: Item;
-  payer: string;
-  peopleCount: number;
-  onClick: () => void;
-}) {
-  const { t, money } = useI18n();
-  const each = evenShare(item, peopleCount);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex min-h-16 w-full items-center justify-between gap-2.5 border-t border-line text-left text-ink"
-    >
-      <span className="min-w-0">
-        <span className="block truncate text-[16px] font-bold">{item.name}</span>
-        <span className="mt-0.5 block text-[13px] text-muted">
-          {each === null
-            ? fmt(t.home.billUneven, { name: payer })
-            : fmt(each.exact ? t.home.billEach : t.home.billAbout, { name: payer, amount: money(each.amount) })}
-        </span>
-      </span>
-      <span className="shrink-0 text-[16px] font-extrabold tabular">{money(item.amountMinor)}</span>
-    </button>
-  );
-}
-
 /**
  * "+ Add" is a real button. Tapping it turns the chip into a focused name box with a green tick, so it's
  * obvious where to type. Enter (or the tick) adds and keeps the box open for the next name; a
@@ -319,7 +358,7 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
           cancelled.current = false;
           setEditing(true);
         }}
-        className="inline-flex h-10 items-center rounded-full border-[1.5px] border-dashed border-dash px-[14px] text-[14px] font-semibold text-green-ink transition-colors hover:border-green"
+        className="inline-flex h-9 shrink-0 items-center rounded-full border-[1.5px] border-dashed border-dash px-[14px] text-[14px] font-semibold whitespace-nowrap text-green-ink transition-colors hover:border-green"
       >
         {t.home.addPerson}
       </button>
@@ -331,7 +370,7 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
         e.preventDefault();
         commit();
       }}
-      className="inline-flex h-10 items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-[14px] shadow-[0_0_0_3px_var(--green-soft)]"
+      className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-[14px] shadow-[0_0_0_3px_var(--green-soft)]"
     >
       <label htmlFor="add-person" className="sr-only">
         {t.home.addPersonLabel}
@@ -401,27 +440,7 @@ function NamesForm({ onAdd }: { onAdd: (text: string) => void }) {
           {t.common.add}
         </button>
       </form>
-      <p className="m-0 text-[13px] text-muted">{t.home.step1Hint}</p>
+      <p className="m-0 text-[12.5px] text-muted">{t.home.step1Hint}</p>
     </>
   );
 }
-
-/** The numbered heading a step keeps in every state; grey until the step before it is done. */
-function StepHeader({ n, title, meta, locked = false }: { n: number; title: string; meta?: string; locked?: boolean }) {
-  return (
-    <div className="flex min-h-9 items-center gap-2.5">
-      <span
-        className={cn(
-          "inline-flex size-[26px] shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold",
-          locked ? "bg-disabled text-muted" : "bg-green text-white",
-        )}
-      >
-        {n}
-      </span>
-      <h2 className="m-0 text-[17px] font-extrabold md:text-[19px]">{title}</h2>
-      {meta ? <span className="ml-auto text-[13px] whitespace-nowrap text-muted">{meta}</span> : null}
-    </div>
-  );
-}
-
-export type { Person };

@@ -4,7 +4,6 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { ArrowRightIcon, BackIcon, CheckIcon, HelpIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
-import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
 import { cn } from "@/lib/utils";
@@ -152,7 +151,7 @@ function Paper({ children, className }: { children: ReactNode; className?: strin
   return (
     <div
       className={cn(
-        "bg-[#fffdf6] px-3 py-2.5 font-mono text-[10px] leading-[1.55] text-[#26231f] shadow-[0_2px_6px_rgba(0,0,0,0.12)]",
+        "bg-[#ffffff] px-3 py-2.5 font-mono text-[10px] leading-[1.55] text-[#37352f] shadow-[0_2px_6px_rgba(0,0,0,0.12)]",
         className,
       )}
     >
@@ -232,50 +231,61 @@ function PeopleDemo() {
   );
 }
 
-// who paid and how much; the names are the first quick picks from the add-bill sheet
+// who paid and how much, in the order they print; the bill names come from the guide wording (help.demoBills)
 const BILLS: [string, number][] = [
-  ["Afiq", 20160],
-  ["Haziq", 18000],
-  ["Haziq", 9220],
+  ["AFIQ", 20160],
+  ["HAZIQ", 18000],
+  ["HAZIQ", 9220],
 ];
 
+/** The printer: printed bills, plus the next one as a dashed line until "Print it" adds it. */
 function BillsDemo() {
-  const { t, money } = useI18n();
+  const { t, plain } = useI18n();
   const [count, setCount] = useState(1);
   const full = count === BILLS.length;
-  const shown = BILLS.slice(0, count);
+  const line = (i: number) => (
+    <>
+      <span className="truncate">
+        {t.help.demoBills[i].toUpperCase()} · {BILLS[i][0]}
+      </span>
+      <span>{plain(BILLS[i][1])}</span>
+    </>
+  );
   return (
-    <div className={cn(mini, "w-full max-w-[300px] px-3 pt-1 pb-2")}>
-      {shown.map(([payer, amount], i) => (
-        <div
-          key={i}
-          className={cn(
-            "flex animate-rise items-center justify-between py-1.5 leading-[1.35]",
-            i > 0 && "border-t border-line",
-          )}
-        >
-          <span>
-            <span className="block text-[13px] font-bold text-ink">{t.bill.quick[i]}</span>
-            <span className="block text-[11px] text-muted">
-              {fmt(t.home.billEach, { name: payer, amount: money(amount / NAMES.length) })}
-            </span>
-          </span>
-          <span className="text-[13px] font-extrabold text-ink tabular">{money(amount)}</span>
+    <div className="flex w-full max-w-[250px] flex-col items-center gap-3">
+      <div className="w-full">
+        <div className="h-1.5 rounded-full bg-[#37352f]/75" />
+        <div className="px-2">
+          <Paper className="flex flex-col gap-0.5">
+            <div className="text-center text-[12px] font-bold tracking-[0.3em]">SPLITIN</div>
+            <div className="my-1 border-t border-dashed border-[#37352f]" />
+            {BILLS.slice(0, count).map((_, i) => (
+              <div
+                key={i}
+                className={cn("-mx-1 flex justify-between gap-2 rounded px-1", i === count - 1 && "animate-printed")}
+              >
+                {line(i)}
+              </div>
+            ))}
+            {!full ? (
+              <div className="-mx-1 flex justify-between gap-2 rounded border border-dashed border-[#c8c7c3] px-1 text-[#9b9a96]">
+                {line(count)}
+              </div>
+            ) : null}
+          </Paper>
         </div>
-      ))}
-      <div className="flex items-center justify-between border-t border-line pt-2">
-        <button
-          type="button"
-          onClick={() => setCount(full ? 1 : count + 1)}
-          className={cn(press, dashed, "h-7 px-2.5 text-[12px]", count === 1 && "animate-nudge")}
-        >
-          {full ? t.help.replay : `+ ${t.home.addBill}`}
-        </button>
-        <span className="text-[13px] font-extrabold text-ink tabular">
-          <span className="mr-1.5 text-[11px] font-semibold text-muted">{t.home.total}</span>
-          {money(shown.reduce((sum, b) => sum + b[1], 0))}
-        </span>
       </div>
+      <button
+        type="button"
+        onClick={() => setCount(full ? 1 : count + 1)}
+        className={cn(
+          press,
+          "h-8 rounded-lg px-3.5 text-[12px] font-bold",
+          full ? "bg-card text-ink shadow-[0_1px_2px_rgba(28,31,29,0.08)]" : "animate-nudge bg-green text-white",
+        )}
+      >
+        {full ? t.help.replay : `${t.bill.printIt} ↵`}
+      </button>
     </div>
   );
 }
@@ -372,17 +382,30 @@ function ReceiptDemo() {
       className="w-[236px] cursor-pointer"
     >
       {/* the printer slot the paper comes out of */}
-      <div className="h-1.5 rounded-full bg-[#26231f]/75" />
+      <div className="h-1.5 rounded-full bg-[#37352f]/75" />
       <div className="overflow-hidden px-2 pb-2">
         <Paper key={run} className="animate-print">
           <div className="text-center text-[12px] font-bold tracking-[0.3em]">SPLITIN</div>
-          <div className="my-1 border-t border-dashed border-[#26231f]" />
+          <div className="my-1 border-t border-dashed border-[#37352f]" />
+          <div className="flex justify-between text-[13px] font-bold">
+            <span>{r.total}</span>
+            <span>{plain(BILLS.reduce((sum, [, amount]) => sum + amount, 0))}</span>
+          </div>
+          <div className="my-1 border-t border-dashed border-[#37352f]" />
           <div className="font-bold tracking-[0.06em]">{r.settleUp}</div>
-          {pays.map(([from, to, amount]) => (
-            <div key={from + to} className="flex justify-between">
-              <span>
-                <span style={{ color: "#b4472a" }}>{from}</span> {r.pays} <span style={{ color: "#176b46" }}>{to}</span>
-              </span>
+          <div className="flex justify-between">
+            <span>
+              <span style={{ color: "#b5413b" }}>{pays[0][0]}</span> {r.pays}{" "}
+              <span style={{ color: "#2f7552" }}>{pays[0][1]}</span>
+            </span>
+            <span>{plain(pays[0][2])}</span>
+          </div>
+          <div>
+            <span style={{ color: "#b5413b" }}>{pays[1][0]}</span> {r.pays}
+          </div>
+          {pays.slice(1).map(([, to, amount]) => (
+            <div key={to} className="ml-1 flex justify-between border-l border-[#c8c7c3] pl-2">
+              <span style={{ color: "#2f7552" }}>{to}</span>
               <span>{plain(amount)}</span>
             </div>
           ))}
@@ -396,13 +419,13 @@ function Thumb({ className }: { className?: string }) {
   return (
     <Paper className={className}>
       <div className="text-center text-[8px] font-bold tracking-[0.2em]">SPLITIN</div>
-      <div className="my-1 border-t border-dashed border-[#26231f]" />
-      <div className="my-1 h-1 w-[90%] bg-[#d8d3c8]" />
-      <div className="my-1 h-1 w-[70%] bg-[#d8d3c8]" />
-      <div className="my-1 h-1 w-[80%] bg-[#d8d3c8]" />
-      <div className="my-1 border-t border-dashed border-[#26231f]" />
-      <div className="my-1 h-1.5 w-full bg-[#b9b3a8]" />
-      <div className="my-1 h-1 w-[60%] bg-[#d8d3c8]" />
+      <div className="my-1 border-t border-dashed border-[#37352f]" />
+      <div className="my-1 h-1 w-[90%] bg-[#e6e5e2]" />
+      <div className="my-1 h-1 w-[70%] bg-[#e6e5e2]" />
+      <div className="my-1 h-1 w-[80%] bg-[#e6e5e2]" />
+      <div className="my-1 border-t border-dashed border-[#37352f]" />
+      <div className="my-1 h-1.5 w-full bg-[#cfcecb]" />
+      <div className="my-1 h-1 w-[60%] bg-[#e6e5e2]" />
     </Paper>
   );
 }
@@ -458,22 +481,22 @@ function PayDemo() {
     <div className="flex w-full max-w-[280px] flex-col items-center">
       <Paper className="relative w-full">
         <div className="font-bold tracking-[0.06em]">{t.receipt.settleUp}</div>
-        <div className="font-sans text-[10px] font-semibold text-[#6d675e]">{t.friend.tapHint}</div>
+        <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{t.friend.tapHint}</div>
         <button
           type="button"
           onClick={() => setPaid(!paid)}
           className={cn(
             press,
             "relative -mx-1 mt-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5 text-left font-mono",
-            paid ? "" : "animate-nudge bg-[#f1ecdd]",
+            paid ? "" : "animate-nudge bg-[#f3f2ef]",
           )}
         >
-          <span style={{ color: "#b4472a" }}>NAJMI</span> {t.receipt.pays}{" "}
-          <span style={{ color: "#176b46" }}>HAZIQ</span>
-          <span className="flex-1 border-b border-dotted border-[#b5afa4]" />
-          <span className={paid ? "text-[#8a8478] line-through" : ""}>{plain(11845)}</span>
+          <span style={{ color: "#b5413b" }}>NAJMI</span> {t.receipt.pays}{" "}
+          <span style={{ color: "#2f7552" }}>HAZIQ</span>
+          <span className="flex-1 border-b border-dotted border-[#c8c7c3]" />
+          <span className={paid ? "text-[#9b9a96] line-through" : ""}>{plain(11845)}</span>
           {paid ? (
-            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#c2412b] bg-[#fffdf6] px-1 text-[9px] font-bold tracking-[0.12em] text-[#c2412b]">
+            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#b5413b] bg-[#ffffff] px-1 text-[9px] font-bold tracking-[0.12em] text-[#b5413b]">
               {t.receipt.paidStamp}
             </span>
           ) : null}

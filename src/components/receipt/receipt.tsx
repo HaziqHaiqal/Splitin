@@ -1,14 +1,15 @@
 "use client";
 
-import { forwardRef, Fragment, useId } from "react";
+import { forwardRef, Fragment, useId, type ReactNode } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { itemSplitText, summarize, type BillDoc, type Payment, type PlanLine } from "@/lib/bill";
+import { cn } from "@/lib/utils";
+import { itemSplitText, summarize, type BillDoc, type Item, type Payment, type PlanLine } from "@/lib/bill";
 
-const INK = "#26231f";
-const MUTED = "#6d675e";
-const RED = "#b4472a";
-const GREEN = "#176b46";
+const INK = "#37352f";
+const MUTED = "#6b6a65";
+const RED = "#b5413b";
+const GREEN = "#2f7552";
 
 export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -23,7 +24,7 @@ export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
     >
       <defs>
         <pattern id={`zz${id}`} width="10" height="8" patternUnits="userSpaceOnUse">
-          <path d={edge === "top" ? "M0 8 L5 0 L10 8 Z" : "M0 0 L5 8 L10 0 Z"} fill="#fffdf6" />
+          <path d={edge === "top" ? "M0 8 L5 0 L10 8 Z" : "M0 0 L5 8 L10 0 Z"} fill="#ffffff" />
         </pattern>
       </defs>
       <rect width="100%" height="8" fill={`url(#zz${id})`} />
@@ -54,8 +55,25 @@ function Barcode() {
   );
 }
 
+/** The big rotated rubber stamp across a receipt: SETTLED, EXPIRED. */
+export function BigStamp({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="pointer-events-none absolute top-[38%] left-1/2 animate-stamp border-4 px-4 py-0.5 font-mono text-[30px] font-bold tracking-[0.14em] whitespace-nowrap"
+      style={{
+        borderColor: "#b5413b",
+        color: "#b5413b",
+        background: "rgba(255,255,255,0.65)",
+        transform: "translate(-50%, -50%) rotate(-12deg)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** The payment tree lines, the same colour as the dotted leaders. */
-const TREE = "#b5afa4";
+const TREE = "#c8c7c3";
 
 const BY_COL = 70;
 const TOTAL_COL = 66;
@@ -75,7 +93,7 @@ function Leader({ left, right, bold }: { left: React.ReactNode; right: React.Rea
   return (
     <div className="flex gap-1.5" style={{ fontWeight: bold ? 600 : undefined }}>
       <span>{left}</span>
-      <span className="flex-1" style={{ borderBottom: "1.5px dotted #b5afa4", marginBottom: 5 }} />
+      <span className="flex-1" style={{ borderBottom: "1.5px dotted #c8c7c3", marginBottom: 5 }} />
       <span>{right}</span>
     </div>
   );
@@ -92,13 +110,43 @@ export type ReceiptProps = {
   onLine?: (line: PlanLine) => void;
   /** A short grey line under WHO PAYS WHO explaining the tap. */
   hint?: string;
+  /**
+   * "draft": while a bill is being added on the home page, the paper shows only the people and the bills so far,
+   * plus a dashed preview of the bill being typed. "full" (default): the finished receipt.
+   */
+  variant?: "draft" | "full";
+  /** Draft: the names line under the title. Its key changes when people are added, so it prints again. */
+  people?: { key: number; fresh?: boolean } | null;
+  /** Draft: the bill being typed, drawn as a dashed line that is not printed yet. */
+  preview?: Item | null;
+  /** The bill printed most recently: it slides out of the printer and glows for a moment. */
+  freshItemId?: string | null;
+  /** Makes each bill line tappable (to edit it). */
+  onItem?: (item: Item) => void;
+  /** A big rubber stamp across the paper: SETTLED. */
+  bigStamp?: string;
 };
 
 /** The thermal-receipt look. Paper colours stay the same in dark mode. */
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt(
-  { doc, payments = [], billId, expiresAt, sharedBy, onLine, hint },
+  {
+    doc,
+    payments = [],
+    billId,
+    expiresAt,
+    sharedBy,
+    onLine,
+    hint,
+    variant = "full",
+    people,
+    preview,
+    freshItemId,
+    onItem,
+    bigStamp,
+  },
   ref,
 ) {
+  const draft = variant === "draft";
   const { t, plain, money, date, time } = useI18n();
   const r = t.receipt;
   const summary = summarize(doc, payments);
@@ -109,6 +157,60 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   // Each bill: name, who paid and total in columns, then how it's split, in plain words underneath.
   const splitWords = { each: r.each, about: r.about, others: r.others, not: r.not };
   const rows = doc.items.map((item) => ({ item, detail: itemSplitText(item, doc.people, plain, splitWords) }));
+  const previewDetail = preview && preview.amountMinor > 0 ? itemSplitText(preview, doc.people, plain, splitWords) : "";
+
+  // One bill: name, who paid and total in columns, then how it's split in plain words underneath (kept inside the
+  // ITEM column, wrapping only between "·" parts so "NOT AFIQ" never splits).
+  const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
+    const body = (
+      <>
+        <span
+          className="grid"
+          style={{ gridTemplateColumns: `minmax(0,1fr) ${BY_COL}px ${TOTAL_COL}px`, columnGap: COL_GAP }}
+        >
+          <span className="truncate">{item.name.trim() ? item.name.toUpperCase() : "…"}</span>
+          <span className="truncate">{name(item.paidBy)}</span>
+          <span style={{ textAlign: "right" }}>{item.amountMinor > 0 ? plain(item.amountMinor) : "–"}</span>
+        </span>
+        {detail ? (
+          <span
+            className="block"
+            style={{
+              color: MUTED,
+              fontSize: 11.5,
+              lineHeight: 1.45,
+              paddingLeft: 10,
+              paddingRight: BY_COL + TOTAL_COL + COL_GAP * 2,
+            }}
+          >
+            {detail.split(" · ").map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 ? " · " : ""}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
+          </span>
+        ) : null}
+      </>
+    );
+    const shape = cn(
+      "-mx-1.5 block w-[calc(100%+12px)] rounded px-1.5 py-1 text-left font-mono",
+      kind === "fresh" && "animate-printed",
+      kind === "ghost" && "border-[1.5px] border-dashed opacity-60",
+    );
+    if (onItem && kind !== "ghost") {
+      return (
+        <button key={item.id} type="button" onClick={() => onItem(item)} className={cn(shape, "hover:bg-[#f3f2ef]")}>
+          {body}
+        </button>
+      );
+    }
+    return (
+      <span key={item.id} className={shape} style={kind === "ghost" ? { borderColor: "#c8c7c3" } : undefined}>
+        {body}
+      </span>
+    );
+  };
 
   const lines = [
     ...summary.done.map((l) => ({ ...l, paid: true })),
@@ -122,11 +224,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const host = typeof window === "undefined" ? "" : window.location.host;
 
   return (
-    <div ref={ref} style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.12))" }}>
+    <div ref={ref} className="relative" style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.12))" }}>
       <Zigzag edge="top" />
       <div
         className="flex flex-col gap-0.5 font-mono"
-        style={{ background: "#fffdf6", padding: "18px 18px 20px", fontSize: 12.5, lineHeight: 1.6, color: INK }}
+        style={{ background: "#ffffff", padding: "18px 18px 20px", fontSize: 12.5, lineHeight: 1.6, color: INK }}
       >
         <div
           className="text-center"
@@ -137,207 +239,214 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         <div className="text-center" style={{ fontWeight: 600 }}>
           {doc.title.toUpperCase()}
         </div>
-        <div className="text-center" style={{ color: MUTED, fontSize: 11.5 }}>
-          {sharedBy
-            ? `${fmt(r.sharedBy, { name: sharedBy.toUpperCase() })} · ${created}`
-            : `${created} ${createdTime}${billId ? ` · ${r.no} ${billId.toUpperCase()}` : ""}`}
-        </div>
-        <Dashed />
-
-        {/* the split line stays inside the ITEM column: its right padding is the BY + TOTAL columns and their gaps */}
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: `minmax(0,1fr) ${BY_COL}px ${TOTAL_COL}px`, columnGap: COL_GAP, rowGap: 2 }}
-        >
-          <span style={{ color: MUTED, fontSize: 11 }}>{r.item}</span>
-          <span style={{ color: MUTED, fontSize: 11 }}>{r.by}</span>
-          <span style={{ color: MUTED, fontSize: 11, textAlign: "right" }}>{r.total}</span>
-          {rows.map(({ item, detail }) => (
-            <div key={item.id} className="contents">
-              <span className="truncate" style={{ marginTop: 4 }}>
-                {item.name.toUpperCase()}
-              </span>
-              <span className="truncate" style={{ marginTop: 4 }}>
-                {name(item.paidBy)}
-              </span>
-              <span style={{ marginTop: 4, textAlign: "right" }}>{plain(item.amountMinor)}</span>
-              <span
-                className="col-span-3"
-                style={{
-                  color: MUTED,
-                  fontSize: 11.5,
-                  lineHeight: 1.45,
-                  paddingLeft: 10,
-                  paddingRight: BY_COL + TOTAL_COL + COL_GAP * 2,
-                }}
-              >
-                {/* each "·" part stays on one line, so a wrap never splits "NOT OEABGG" or "ERGTRG 90.00" */}
-                {detail.split(" · ").map((part, i) => (
-                  <Fragment key={i}>
-                    {i > 0 ? " · " : ""}
-                    <span className="whitespace-nowrap">{part}</span>
-                  </Fragment>
-                ))}
-              </span>
-            </div>
-          ))}
-        </div>
-        <Dashed />
-        <div className="flex justify-between" style={{ fontSize: 16, fontWeight: 700 }}>
-          <span>{r.total}</span>
-          <span>{money(summary.total)}</span>
-        </div>
-
-        {summary.sameShare !== null ? (
-          <div className="flex justify-between" style={{ fontWeight: 600 }}>
-            <span>{fmt(r.peopleEach, { count: doc.people.length })}</span>
-            <span>{money(summary.sameShare)}</span>
+        {draft ? null : (
+          <div className="text-center" style={{ color: MUTED, fontSize: 11.5 }}>
+            {sharedBy
+              ? `${fmt(r.sharedBy, { name: sharedBy.toUpperCase() })} · ${created}`
+              : `${created} ${createdTime}${billId ? ` · ${r.no} ${billId.toUpperCase()}` : ""}`}
           </div>
-        ) : null}
-        <Dashed double />
-
-        <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
-          {lines.length === 0 ? r.nothingToSettle : r.settleUp}
-        </div>
-        {hint ? (
-          <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
-            {hint}
-          </div>
-        ) : null}
-        {/* Someone paying one person: one line. Someone paying several: their name once, then a branch per person. */}
-        <div className="mt-1.5 flex flex-col gap-2">
-          {groups.map((group) => {
-            const branched = group.length > 1;
-            const lineFor = (l: (typeof lines)[number], i: number) => {
-              const leader = (
-                <Leader
-                  bold
-                  left={
-                    branched ? (
-                      <span style={{ color: GREEN }}>{name(l.to)}</span>
-                    ) : (
-                      <>
-                        <span style={{ color: RED }}>{name(l.from)}</span>{" "}
-                        <span style={{ fontWeight: 400 }}>{r.pays}</span>{" "}
-                        <span style={{ color: GREEN }}>{name(l.to)}</span>
-                      </>
-                    )
-                  }
-                  right={
-                    <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
-                      {plain(l.amount)}
-                      {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
-                    </span>
-                  }
-                />
-              );
-              const node =
-                onLine && !l.paid ? (
-                  <button
-                    key={`${l.from}-${l.to}-open`}
-                    type="button"
-                    onClick={() => onLine(l)}
-                    aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
-                    className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f1ecdd] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#e9e2cc]"
-                  >
-                    {leader}
-                  </button>
-                ) : (
-                  <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
-                    {leader}
-                    {l.paid ? (
-                      <span
-                        className="absolute"
-                        style={{
-                          right: 58,
-                          top: -2,
-                          transform: "rotate(-8deg)",
-                          border: "2px solid #c2412b",
-                          color: "#c2412b",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: "0.12em",
-                          padding: "0 4px",
-                          background: "#fffdf6",
-                        }}
-                      >
-                        {r.paidStamp}
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              if (!branched) return node;
-              // a thin tree line: down from the payer's name, then across to this person
-              const last = i === group.length - 1;
-              return (
-                <div key={`${l.from}-${l.to}-branch`} className="relative" style={{ paddingLeft: 18 }}>
-                  <span
-                    aria-hidden
-                    className="absolute"
-                    style={{
-                      left: 5,
-                      top: -6,
-                      height: last ? "calc(50% + 6px)" : "calc(100% + 6px)",
-                      borderLeft: `1.5px solid ${TREE}`,
-                    }}
-                  />
-                  <span
-                    aria-hidden
-                    className="absolute"
-                    style={{ left: 5, top: "50%", width: 9, borderTop: `1.5px solid ${TREE}` }}
-                  />
-                  {node}
-                </div>
-              );
-            };
-            if (!branched) return lineFor(group[0], 0);
-            return (
-              <div key={group[0].from} className="flex flex-col gap-1">
-                <div style={{ fontWeight: 600 }}>
-                  <span style={{ color: RED }}>{name(group[0].from)}</span>{" "}
-                  <span style={{ fontWeight: 400 }}>{r.pays}</span>
-                </div>
-                {group.map(lineFor)}
-              </div>
-            );
-          })}
-        </div>
-
-        {receivers.length > 0 ? (
+        )}
+        {draft && people && doc.people.length > 0 ? (
           <>
             <Dashed />
-            <div style={{ color: MUTED, fontSize: 11 }}>{r.payTo}</div>
-            <div className="grid" style={{ gridTemplateColumns: "64px minmax(0,1fr)", columnGap: 8, rowGap: 6 }}>
-              {receivers.map((p) => (
-                <div key={p!.id} className="contents">
-                  <span className="truncate" style={{ fontWeight: 700 }}>
-                    {p!.name.toUpperCase()}
-                  </span>
-                  <span>
-                    {p!.bank!.toUpperCase()}
-                    <br />
-                    {p!.accountNo}
-                  </span>
-                </div>
-              ))}
+            <div key={people.key} className={cn("-mx-1.5 rounded px-1.5", people.fresh && "animate-printed")}>
+              {doc.people.map((p) => p.name.toUpperCase()).join(" · ")}
             </div>
           </>
         ) : null}
-        <div style={{ borderTop: `1.5px dashed ${INK}`, margin: "12px 0" }} />
-        <Barcode />
-        {billId ? (
-          <div className="text-center" style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
-            {host}/bill/{billId}
-            {expiresAt
-              ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}`
-              : ""}
+        {draft && rows.length === 0 && !preview ? null : <Dashed />}
+
+        {draft && rows.length === 0 && !preview ? null : (
+          <div className="flex flex-col gap-0.5">
+            <span
+              className="grid"
+              style={{
+                gridTemplateColumns: `minmax(0,1fr) ${BY_COL}px ${TOTAL_COL}px`,
+                columnGap: COL_GAP,
+                color: MUTED,
+                fontSize: 11,
+              }}
+            >
+              <span>{r.item}</span>
+              <span>{r.by}</span>
+              <span style={{ textAlign: "right" }}>{r.total}</span>
+            </span>
+            {rows.map(({ item, detail }) =>
+              preview?.id === item.id
+                ? billLine(preview, previewDetail, "ghost")
+                : billLine(item, detail, item.id === freshItemId ? "fresh" : "plain"),
+            )}
+            {preview && !doc.items.some((i) => i.id === preview.id) ? billLine(preview, previewDetail, "ghost") : null}
           </div>
-        ) : null}
-        <div className="text-center" style={{ fontWeight: 600, marginTop: 6 }}>
-          {r.thanks}
-        </div>
+        )}
+        {draft ? (
+          <>
+            <div style={{ borderTop: `1.5px dashed ${INK}`, margin: "12px 0 8px" }} />
+            <div className="text-center" style={{ fontWeight: 600 }}>
+              {r.thanks}
+            </div>
+          </>
+        ) : (
+          <>
+            <Dashed />
+            <div className="flex justify-between" style={{ fontSize: 16, fontWeight: 700 }}>
+              <span>{r.total}</span>
+              <span>{money(summary.total)}</span>
+            </div>
+
+            {summary.sameShare !== null ? (
+              <div className="flex justify-between" style={{ fontWeight: 600 }}>
+                <span>{fmt(r.peopleEach, { count: doc.people.length })}</span>
+                <span>{money(summary.sameShare)}</span>
+              </div>
+            ) : null}
+            <Dashed double />
+
+            <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
+              {lines.length === 0 ? r.nothingToSettle : r.settleUp}
+            </div>
+            {hint ? (
+              <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
+                {hint}
+              </div>
+            ) : null}
+            {/* Someone paying one person: one line. Someone paying several: their name once, then a branch per person. */}
+            <div className="mt-1.5 flex flex-col gap-2">
+              {groups.map((group) => {
+                const branched = group.length > 1;
+                const lineFor = (l: (typeof lines)[number], i: number) => {
+                  const leader = (
+                    <Leader
+                      bold
+                      left={
+                        branched ? (
+                          <span style={{ color: GREEN }}>{name(l.to)}</span>
+                        ) : (
+                          <>
+                            <span style={{ color: RED }}>{name(l.from)}</span>{" "}
+                            <span style={{ fontWeight: 400 }}>{r.pays}</span>{" "}
+                            <span style={{ color: GREEN }}>{name(l.to)}</span>
+                          </>
+                        )
+                      }
+                      right={
+                        <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
+                          {plain(l.amount)}
+                          {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
+                        </span>
+                      }
+                    />
+                  );
+                  const node =
+                    onLine && !l.paid ? (
+                      <button
+                        key={`${l.from}-${l.to}-open`}
+                        type="button"
+                        onClick={() => onLine(l)}
+                        aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
+                        className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f3f2ef] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#ebeae6]"
+                      >
+                        {leader}
+                      </button>
+                    ) : (
+                      <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+                        {leader}
+                        {l.paid ? (
+                          <span
+                            className="absolute"
+                            style={{
+                              right: 58,
+                              top: -2,
+                              transform: "rotate(-8deg)",
+                              border: "2px solid #b5413b",
+                              color: "#b5413b",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              letterSpacing: "0.12em",
+                              padding: "0 4px",
+                              background: "#ffffff",
+                            }}
+                          >
+                            {r.paidStamp}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  if (!branched) return node;
+                  // a thin tree line: down from the payer's name, then across to this person
+                  const last = i === group.length - 1;
+                  return (
+                    <div key={`${l.from}-${l.to}-branch`} className="relative" style={{ paddingLeft: 18 }}>
+                      <span
+                        aria-hidden
+                        className="absolute"
+                        style={{
+                          left: 5,
+                          top: -6,
+                          height: last ? "calc(50% + 6px)" : "calc(100% + 6px)",
+                          borderLeft: `1.5px solid ${TREE}`,
+                        }}
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute"
+                        style={{ left: 5, top: "50%", width: 9, borderTop: `1.5px solid ${TREE}` }}
+                      />
+                      {node}
+                    </div>
+                  );
+                };
+                if (!branched) return lineFor(group[0], 0);
+                return (
+                  <div key={group[0].from} className="flex flex-col gap-1">
+                    <div style={{ fontWeight: 600 }}>
+                      <span style={{ color: RED }}>{name(group[0].from)}</span>{" "}
+                      <span style={{ fontWeight: 400 }}>{r.pays}</span>
+                    </div>
+                    {group.map(lineFor)}
+                  </div>
+                );
+              })}
+            </div>
+
+            {receivers.length > 0 ? (
+              <>
+                <Dashed />
+                <div style={{ color: MUTED, fontSize: 11 }}>{r.payTo}</div>
+                <div className="grid" style={{ gridTemplateColumns: "64px minmax(0,1fr)", columnGap: 8, rowGap: 6 }}>
+                  {receivers.map((p) => (
+                    <div key={p!.id} className="contents">
+                      <span className="truncate" style={{ fontWeight: 700 }}>
+                        {p!.name.toUpperCase()}
+                      </span>
+                      <span>
+                        {p!.bank!.toUpperCase()}
+                        <br />
+                        {p!.accountNo}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            <div style={{ borderTop: `1.5px dashed ${INK}`, margin: "12px 0" }} />
+            <Barcode />
+            {billId ? (
+              <div className="text-center" style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
+                {host}/bill/{billId}
+                {expiresAt
+                  ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}`
+                  : ""}
+              </div>
+            ) : null}
+            <div className="text-center" style={{ fontWeight: 600, marginTop: 6 }}>
+              {r.thanks}
+            </div>
+          </>
+        )}
       </div>
       <Zigzag edge="bottom" />
+      {bigStamp ? <BigStamp>{bigStamp}</BigStamp> : null}
     </div>
   );
 });

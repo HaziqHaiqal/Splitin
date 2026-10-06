@@ -31,7 +31,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toast ? (
           <div
             key={toast.key}
-            className="pointer-events-auto flex w-full max-w-[358px] items-center justify-between rounded-[14px] bg-[#1c1f1d] px-[14px] py-3 text-[14px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]"
+            className="pointer-events-auto flex w-full max-w-[358px] items-center justify-between rounded-[14px] bg-[#37352f] px-[14px] py-3 text-[14px] text-white shadow-[0_8px_20px_rgba(0,0,0,0.25)]"
           >
             <span>{toast.message}</span>
             {toast.action ? (
@@ -41,7 +41,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   toast.action?.onClick();
                   setToast(null);
                 }}
-                className="h-8 bg-transparent px-[10px] text-[14px] font-extrabold text-[#7fe0ae]"
+                className="h-8 bg-transparent px-[10px] text-[14px] font-extrabold text-[#4ade80]"
               >
                 {toast.action.label}
               </button>

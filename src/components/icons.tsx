@@ -116,3 +116,9 @@ export const ChevronDownIcon = (p: IconProps) => (
     <path d="m6 9 6 6 6-6" />
   </svg>
 );
+
+export const CloseIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2.4, size: 18, ...p })}>
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);

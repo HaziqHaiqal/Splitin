@@ -5,6 +5,7 @@ import { db } from "@/lib/supabase/server";
 
 export const KEEP_DAYS = 30;
 const DAY = 86_400_000;
+const ID = /^[A-Za-z0-9]{8,16}$/;
 
 export type SharedBill = {
   id: string;
@@ -16,7 +17,7 @@ export type SharedBill = {
 
 /** Loads a shared bill, or null when it never existed or is older than 30 days. */
 export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
-  if (!/^[A-Za-z0-9]{8,16}$/.test(id)) return null;
+  if (!ID.test(id)) return null;
   const client = db();
   const { data, error } = await client.from("bills").select("id, doc, created_at").eq("id", id).maybeSingle();
   if (error) throw error;
@@ -46,4 +47,20 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
     createdAt: data.created_at,
     expiresAt: new Date(created + KEEP_DAYS * DAY).toISOString(),
   };
+});
+
+/**
+ * For a link getBill found nothing for: true when it was a real receipt that's past its 30 days, either still
+ * waiting for the daily clean-up or already deleted by it (the clean-up keeps deleted ids in `expired_bills`).
+ */
+export const linkExpired = cache(async (id: string): Promise<boolean> => {
+  if (!ID.test(id)) return false;
+  const client = db();
+  const [old, gone] = await Promise.all([
+    client.from("bills").select("id").eq("id", id).maybeSingle(),
+    client.from("expired_bills").select("id").eq("id", id).maybeSingle(),
+  ]);
+  if (old.error) throw old.error;
+  // without the expired_bills table the link just shows as not found, whose wording mentions the 30 days too
+  return Boolean(old.data || (!gone.error && gone.data));
 });

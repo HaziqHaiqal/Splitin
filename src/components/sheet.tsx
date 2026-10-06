@@ -1,22 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Drawer } from "vaul";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { cn } from "@/lib/utils";
-
-const DESKTOP = "(min-width: 768px)";
-
-export function useIsDesktop() {
-  return useSyncExternalStore(
-    (cb) => {
-      const mq = window.matchMedia(DESKTOP);
-      mq.addEventListener("change", cb);
-      return () => mq.removeEventListener("change", cb);
-    },
-    () => window.matchMedia(DESKTOP).matches,
-    () => false,
-  );
-}
 
 type SheetProps = {
   open: boolean;

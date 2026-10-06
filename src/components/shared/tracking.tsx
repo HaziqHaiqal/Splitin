@@ -3,24 +3,21 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
-import { Header } from "@/components/header";
+import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useToast } from "@/components/toast";
-import { fmt, intlLocale } from "@/i18n";
+import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary, PlanLine } from "@/lib/bill";
 import { useDraft } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import type { SharedBillData } from "./shared-bill";
-import { Stamp } from "./stamp";
 
-const card = "rounded-[20px] bg-card shadow-[0_1px_2px_rgba(28,31,29,0.06)]";
-
-function relative(iso: string, locale: "en" | "ms") {
-  const days = Math.round((new Date(iso).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
-  const rtf = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" });
-  return rtf.format(days, "day");
-}
-
+/**
+ * The owner's view of a shared link: how much has been paid, and every payment with Remind / Mark paid, or Mark
+ * unpaid once someone has marked it (a friend can mark by mistake). The printer shows the receipt with its PAID
+ * stamps. On a phone the payments come first and the receipt is one tap away.
+ */
 export function Tracking({
   bill,
   summary,
@@ -32,16 +29,15 @@ export function Tracking({
   ownerToken: string;
   onViewReceipt: () => void;
 }) {
-  const { t, money, locale, time } = useI18n();
+  const { t, money, time } = useI18n();
   const toast = useToast();
   const draft = useDraft();
   const [pending, start] = useTransition();
   const nameOf = (id: string) => bill.doc.people.find((p) => p.id === id)?.name ?? "?";
 
-  const settled = summary.done.reduce((s, l) => s + l.amount, 0);
-  const owing = summary.remaining.reduce((s, l) => s + l.amount, 0);
-  const totalToSettle = settled + owing;
-  const lines = summary.done.length + summary.remaining.length;
+  const paid = summary.done.reduce((s, l) => s + l.amount, 0);
+  const all = paid + summary.remaining.reduce((s, l) => s + l.amount, 0);
+  const count = summary.done.length + summary.remaining.length;
   const url = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}` : "";
 
   const markPaid = (line: PlanLine) =>
@@ -67,119 +63,106 @@ export function Tracking({
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   };
 
-  return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[14px] bg-bg px-4 pb-[22px] text-ink md:max-w-[980px] md:px-6 md:pb-10 xl:px-8">
-      <Header />
-      <div className="flex flex-1 flex-col gap-[14px] md:grid md:grid-cols-[minmax(0,1fr)_350px] md:items-start md:gap-6 md:pt-6 xl:grid-cols-[minmax(0,1fr)_390px] xl:gap-10">
-        <div className="flex flex-1 flex-col gap-[14px]">
-          <div className="px-1">
-            <div className="text-[24px] font-extrabold tracking-[-0.02em]">{bill.doc.title}</div>
-            <div className="mt-0.5 text-[14px] text-muted">
-              {fmt(t.track.shared, { ago: relative(bill.createdAt, locale), done: summary.done.length, total: lines })}
-            </div>
-          </div>
+  const small = "h-[34px] shrink-0 rounded-lg px-3 text-[12.5px] font-bold disabled:opacity-60";
+  const rows = [...summary.done.map((l) => ({ l, done: true })), ...summary.remaining.map((l) => ({ l, done: false }))];
 
-          <div className={`${card} flex flex-col gap-2 p-4`}>
-            <div className="flex justify-between text-[14px]">
-              <span className="text-muted">{t.track.settled}</span>
-              <span className="font-extrabold tabular">
-                {money(settled)}{" "}
-                <span className="font-semibold text-muted">
-                  {t.track.of} {money(totalToSettle).replace("RM ", "")}
-                </span>
-              </span>
-            </div>
-            <div className="h-2 rounded bg-line">
-              <div
-                className="h-2 rounded bg-green"
-                style={{ width: `${totalToSettle ? Math.round((settled / totalToSettle) * 100) : 0}%` }}
-              />
-            </div>
-          </div>
-
-          <div className={`${card} px-4 py-1`}>
-            {summary.done.map((l, i) => (
-              <div key={l.paymentId} className={i > 0 ? "border-t border-line" : ""}>
-                <div className="relative flex min-h-[76px] items-center gap-2.5">
-                  <div className="flex-1">
-                    <div className="text-[15px] font-bold">
-                      {nameOf(l.from)} → {nameOf(l.to)}
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-muted">
-                      {l.markedBy === "owner"
-                        ? fmt(t.track.youMarked, { time: time(l.paidAt!) })
-                        : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })}
-                    </div>
-                  </div>
-                  <span className="text-[15px] font-extrabold text-faint tabular line-through">{money(l.amount)}</span>
-                  <Stamp rotate={i % 2 ? 6 : -10} className="absolute top-[18px] right-[70px] bg-card/70">
-                    {t.receipt.paidStamp}
-                  </Stamp>
-                </div>
-                {/* a friend can mark a payment by mistake (or untruthfully); the owner can always take it back */}
-                <div className="pb-[14px]">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => markUnpaid(l)}
-                    className="h-[38px] rounded-xl bg-chip px-4 text-[13px] font-bold text-ink disabled:opacity-60"
-                  >
-                    {t.track.markUnpaid}
-                  </button>
-                </div>
-              </div>
-            ))}
-            {summary.remaining.map((l, i) => (
-              <div key={`${l.from}-${l.to}`} className={summary.done.length + i > 0 ? "border-t border-line" : ""}>
-                <div className="flex min-h-[76px] items-center gap-2.5">
-                  <div className="flex-1">
-                    <div className="text-[15px] font-bold">
-                      {nameOf(l.from)} → {nameOf(l.to)}
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-muted">{t.track.waiting}</div>
-                  </div>
-                  <span className="text-[15px] font-extrabold tabular">{money(l.amount)}</span>
-                </div>
-                <div className="flex gap-2 pb-[14px]">
-                  <button
-                    type="button"
-                    onClick={() => remind(l)}
-                    className="h-[42px] flex-1 rounded-xl bg-chip text-[14px] font-bold text-ink"
-                  >
-                    {fmt(t.track.remind, { name: nameOf(l.from) })}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => markPaid(l)}
-                    className="h-[42px] flex-1 rounded-xl bg-green-soft text-[14px] font-bold text-green-soft-ink disabled:opacity-70"
-                  >
-                    {t.track.markPaid}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-auto flex flex-col gap-2.5">
-            {draft?.billId === bill.id ? (
-              <Link href="/" className="text-center text-[14px] font-bold text-green-ink no-underline">
-                {t.track.editBills}
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              onClick={onViewReceipt}
-              className="h-[52px] rounded-2xl border border-[#d9ddd8] bg-card text-[15px] font-bold text-ink md:hidden dark:border-border"
-            >
-              {t.track.viewReceipt}
-            </button>
-          </div>
+  const side = (
+    <>
+      <h1 className="m-0 text-[28px] font-extrabold tracking-[-0.025em]">{bill.doc.title}</h1>
+      <div>
+        <div className="flex items-baseline justify-between text-[13px]">
+          <span className="text-muted">
+            {t.track.paidLabel} · {fmt(t.track.progress, { done: summary.done.length, total: count })}
+          </span>
+          <b className="tabular">
+            {money(paid)}{" "}
+            <span className="font-semibold text-muted">
+              {t.track.of} {money(all)}
+            </span>
+          </b>
         </div>
-        <div className="hidden md:sticky md:top-[88px] md:block">
-          <Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />
+        <div className="mt-2 h-[7px] rounded bg-chip">
+          <div
+            className="h-[7px] rounded bg-green transition-[width]"
+            style={{ width: `${all ? Math.round((paid / all) * 100) : 0}%` }}
+          />
         </div>
       </div>
-    </div>
+      <div className="rounded-2xl border border-border bg-card px-4">
+        {rows.map(({ l, done }, i) => (
+          <div
+            key={done ? l.paymentId : `${l.from}-${l.to}`}
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3",
+              i > 0 && "border-t border-line",
+            )}
+          >
+            <span className="min-w-0">
+              <b className="flex items-center gap-2 text-[14.5px]">
+                {nameOf(l.from)} → {nameOf(l.to)}
+                {done ? (
+                  <span className="inline-flex h-[18px] items-center rounded-full bg-green-soft px-1.5 text-[10px] font-bold tracking-[0.04em] text-green-soft-ink">
+                    {t.track.paidPill}
+                  </span>
+                ) : null}
+              </b>
+              <span className="block text-[12px] text-muted">
+                {done
+                  ? l.markedBy === "owner"
+                    ? fmt(t.track.youMarked, { time: time(l.paidAt!) })
+                    : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })
+                  : fmt(t.track.waitingAmount, { amount: money(l.amount) })}
+              </span>
+            </span>
+            {done ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => markUnpaid(l)}
+                className={cn(small, "border border-border bg-card text-ink")}
+              >
+                {t.track.markUnpaid}
+              </button>
+            ) : (
+              <span className="flex gap-1.5">
+                <button type="button" onClick={() => remind(l)} className={cn(small, "bg-chip text-ink")}>
+                  {fmt(t.track.remind, { name: nameOf(l.from) })}
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => markPaid(l)}
+                  className={cn(small, "bg-green text-white")}
+                >
+                  {t.track.markPaid}
+                </button>
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      {draft?.billId === bill.id ? (
+        <Link href="/" className="text-[14px] font-bold text-green-ink no-underline">
+          {t.track.editBills}
+        </Link>
+      ) : null}
+    </>
+  );
+
+  return (
+    <PrinterPage
+      phoneSide
+      side={side}
+      paper={<Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />}
+      dock={
+        <button
+          type="button"
+          onClick={onViewReceipt}
+          className="h-12 w-full rounded-xl border border-border bg-card text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(55,53,47,0.10)]"
+        >
+          {t.track.viewReceipt}
+        </button>
+      }
+    />
   );
 }

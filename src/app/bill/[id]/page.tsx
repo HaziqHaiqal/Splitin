@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { Expired } from "@/components/shared/expired";
+import { NotFound } from "@/components/shared/not-found";
 import { SharedBill } from "@/components/shared/shared-bill";
 import { getI18n } from "@/i18n/server";
 import { summarize } from "@/lib/bill";
-import { getBill } from "@/lib/data/bill";
+import { getBill, linkExpired } from "@/lib/data/bill";
 
 export async function generateMetadata({ params }: PageProps<"/bill/[id]">): Promise<Metadata> {
   const { id } = await params;
   const [bill, { t }] = await Promise.all([getBill(id), getI18n()]);
-  if (!bill) return { title: t.expired.title, robots: { index: false } };
+  if (!bill) return { title: (await linkExpired(id)) ? t.expired.title : t.notFound.title, robots: { index: false } };
   const s = summarize(bill.doc, bill.payments);
   const description = `RM ${(s.total / 100).toFixed(2)} · ${bill.doc.people.length} · ${s.remaining.length}`;
   return {
@@ -22,7 +23,8 @@ export async function generateMetadata({ params }: PageProps<"/bill/[id]">): Pro
 export default async function BillPage({ params }: PageProps<"/bill/[id]">) {
   const { id } = await params;
   const [bill, { t }] = await Promise.all([getBill(id), getI18n()]);
-  if (!bill) return <Expired t={t} />;
+  // rendered here rather than with notFound(), which makes Next redraw the whole page in the browser
+  if (!bill) return (await linkExpired(id)) ? <Expired t={t} /> : <NotFound t={t} />;
   return (
     <SharedBill
       bill={{
