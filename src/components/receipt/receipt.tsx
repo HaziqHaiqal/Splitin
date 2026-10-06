@@ -223,7 +223,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
           <div className="text-center" style={{ color: MUTED, fontSize: 11.5 }}>
             {sharedBy
               ? `${fmt(r.sharedBy, { name: sharedBy.toUpperCase() })} · ${created}`
-              : `${created} ${createdTime}${billId ? ` · ${r.no} ${billId.toUpperCase()}` : ""}`}
+              : `${created} ${createdTime}`}
           </div>
         )}
         {draft && people && doc.people.length > 0 ? (
