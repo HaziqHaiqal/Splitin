@@ -8,7 +8,13 @@ import { ToastProvider } from "./toast";
 
 export function Providers({ locale, children }: { locale: Locale; children: ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" storageKey="splitin-theme" enableSystem={false} disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      storageKey="splitin-theme"
+      enableSystem={false}
+      disableTransitionOnChange
+    >
       <I18nProvider locale={locale}>
         <ToastProvider>{children}</ToastProvider>
       </I18nProvider>

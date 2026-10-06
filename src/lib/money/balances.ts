@@ -46,12 +46,8 @@ export function computeBalances(
 export function simplifyDebts(balances: Readonly<Allocation>): Transfer[] {
   const order = Object.keys(balances);
   const rank = (id: string) => order.indexOf(id);
-  const creditors = order
-    .filter((id) => balances[id] > 0)
-    .map((id) => ({ id, amount: balances[id] }));
-  const debtors = order
-    .filter((id) => balances[id] < 0)
-    .map((id) => ({ id, amount: -balances[id] }));
+  const creditors = order.filter((id) => balances[id] > 0).map((id) => ({ id, amount: balances[id] }));
+  const debtors = order.filter((id) => balances[id] < 0).map((id) => ({ id, amount: -balances[id] }));
 
   const byAmount = (a: { id: string; amount: number }, b: { id: string; amount: number }) =>
     b.amount - a.amount || rank(a.id) - rank(b.id);

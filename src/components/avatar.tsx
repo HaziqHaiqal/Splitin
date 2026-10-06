@@ -1,6 +1,16 @@
 import { avatarColor, cn, initial } from "@/lib/utils";
 
-export function Avatar({ name, color, size = 28, className }: { name: string; color: number; size?: number; className?: string }) {
+export function Avatar({
+  name,
+  color,
+  size = 28,
+  className,
+}: {
+  name: string;
+  color: number;
+  size?: number;
+  className?: string;
+}) {
   const c = avatarColor(color);
   return (
     <span

@@ -50,8 +50,7 @@ export function BillSheet({
   const hasOverrides = Object.keys(liveOverrides).some((id) => included.includes(id));
   const fixedSum = included.reduce((s, id) => s + (liveOverrides[id] ?? 0), 0);
 
-  const problem =
-    !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
+  const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
   const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy);
 
   const commitEditing = () => {
@@ -114,7 +113,8 @@ export function BillSheet({
     });
   };
 
-  const field = "h-[50px] w-full rounded-xl border border-border bg-card px-[14px] text-ink outline-none focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_4px_var(--green-soft)]";
+  const field =
+    "h-[50px] w-full rounded-xl border border-border bg-card px-[14px] text-ink outline-none focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_4px_var(--green-soft)]";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={isEdit ? t.bill.editTitle : t.bill.addTitle}>
@@ -128,7 +128,13 @@ export function BillSheet({
         <div className="flex gap-2.5">
           <label className="flex flex-[1.2] flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-muted">{t.bill.whatFor}</span>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className={cn(field, "text-[16px] font-semibold")} />
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={60}
+              className={cn(field, "text-[16px] font-semibold")}
+            />
           </label>
           <label className="flex flex-1 flex-col gap-1.5">
             <span className="text-[13px] font-semibold text-muted">{t.bill.amount}</span>
@@ -138,15 +144,20 @@ export function BillSheet({
               value={amount}
               onChange={(e) => setAmount(cleanMoney(e.target.value))}
               placeholder="0.00"
-              className={cn(field, "tabular text-[18px] font-extrabold")}
+              className={cn(field, "text-[18px] font-extrabold tabular")}
             />
           </label>
         </div>
 
         {!isEdit ? (
-          <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 [scrollbar-width:none]">
+          <div className="-mx-5 flex [scrollbar-width:none] gap-1.5 overflow-x-auto px-5">
             {t.bill.quick.map((q) => (
-              <button key={q} type="button" onClick={() => setName(q)} className="h-8 shrink-0 rounded-full bg-chip px-3 text-[13px] font-semibold text-ink">
+              <button
+                key={q}
+                type="button"
+                onClick={() => setName(q)}
+                className="h-8 shrink-0 rounded-full bg-chip px-3 text-[13px] font-semibold text-ink"
+              >
                 {q}
               </button>
             ))}
@@ -176,7 +187,9 @@ export function BillSheet({
 
         <div className="flex flex-col gap-0.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-[13px] font-semibold text-muted">{hasOverrides ? t.bill.split : t.bill.splitEqually}</span>
+            <span className="text-[13px] font-semibold text-muted">
+              {hasOverrides ? t.bill.split : t.bill.splitEqually}
+            </span>
             {hasOverrides ? (
               <button
                 type="button"
@@ -214,7 +227,9 @@ export function BillSheet({
                 </button>
                 <span className="min-w-0 flex-1">
                   <span className={cn("block truncate text-[15px] font-semibold", !on && "text-muted")}>{p.name}</span>
-                  {isSet ? <span className="block text-[12px] font-semibold text-green-ink">{t.bill.youSetThis}</span> : null}
+                  {isSet ? (
+                    <span className="block text-[12px] font-semibold text-green-ink">{t.bill.youSetThis}</span>
+                  ) : null}
                 </span>
                 {isEditing || isSet ? (
                   <input
@@ -229,7 +244,9 @@ export function BillSheet({
                         setEditing({ id: p.id, value: current, start: current });
                       }
                     }}
-                    onChange={(e) => setEditing({ id: p.id, value: cleanMoney(e.target.value), start: editing?.start ?? "" })}
+                    onChange={(e) =>
+                      setEditing({ id: p.id, value: cleanMoney(e.target.value), start: editing?.start ?? "" })
+                    }
                     onBlur={commitEditing}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -237,7 +254,7 @@ export function BillSheet({
                         commitEditing();
                       }
                     }}
-                    className="tabular h-10 w-24 rounded-[10px] border-[1.5px] border-green bg-card px-3 text-right text-[15px] font-extrabold text-ink shadow-[0_0_0_4px_var(--green-soft)] outline-none"
+                    className="h-10 w-24 rounded-[10px] border-[1.5px] border-green bg-card px-3 text-right text-[15px] font-extrabold text-ink tabular shadow-[0_0_0_4px_var(--green-soft)] outline-none"
                   />
                 ) : (
                   <button
@@ -248,7 +265,7 @@ export function BillSheet({
                       setEditing({ id: p.id, value: current, start: current });
                     }}
                     className={cn(
-                      "tabular h-[38px] min-w-24 rounded-[10px] border border-border bg-field px-3 text-right text-[15px] font-bold",
+                      "h-[38px] min-w-24 rounded-[10px] border border-border bg-field px-3 text-right text-[15px] font-bold tabular",
                       hasOverrides ? "text-muted" : "text-ink",
                     )}
                   >
@@ -267,11 +284,17 @@ export function BillSheet({
                   : t.bill.empty}
             </div>
           ) : hasOverrides ? (
-            <div className="mt-1 text-[12px] text-muted">{fmt(t.bill.restHint, { amount: money(Math.max(0, amountMinor - fixedSum)) })}</div>
+            <div className="mt-1 text-[12px] text-muted">
+              {fmt(t.bill.restHint, { amount: money(Math.max(0, amountMinor - fixedSum)) })}
+            </div>
           ) : null}
         </div>
 
-        <button type="submit" disabled={!canSave} className="h-[54px] rounded-2xl bg-green text-[16px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink">
+        <button
+          type="submit"
+          disabled={!canSave}
+          className="h-[54px] rounded-2xl bg-green text-[16px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
+        >
           {isEdit ? t.bill.saveChanges : t.bill.addButton}
         </button>
         {isEdit ? (

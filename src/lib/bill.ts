@@ -41,10 +41,13 @@ export type Payment = {
 /* ───────────── per-bill split ───────────── */
 
 export type ItemSplit =
-  | { ok: true; shares: Allocation }
-  | { ok: false; error: "empty" | "over" | "under"; diff: number };
+  { ok: true; shares: Allocation } | { ok: false; error: "empty" | "over" | "under"; diff: number };
 
-export function splitItem(amountMinor: number, participants: readonly string[], overrides: Readonly<Record<string, number>>): ItemSplit {
+export function splitItem(
+  amountMinor: number,
+  participants: readonly string[],
+  overrides: Readonly<Record<string, number>>,
+): ItemSplit {
   if (participants.length === 0) return { ok: false, error: "empty", diff: 0 };
   const fixed: Allocation = {};
   for (const id of participants) if (overrides[id] !== undefined) fixed[id] = overrides[id];
@@ -118,7 +121,14 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
     balances,
     done: payments
       .filter((p) => p.from in balances && p.to in balances)
-      .map((p) => ({ from: p.from, to: p.to, amount: p.amountMinor, paymentId: p.id, markedBy: p.markedBy, paidAt: p.createdAt })),
+      .map((p) => ({
+        from: p.from,
+        to: p.to,
+        amount: p.amountMinor,
+        paymentId: p.id,
+        markedBy: p.markedBy,
+        paidAt: p.createdAt,
+      })),
     remaining: simplifyDebts(balances).sort(
       (x, y) => ids.indexOf(x.from) - ids.indexOf(y.from) || ids.indexOf(x.to) - ids.indexOf(y.to),
     ),
@@ -128,7 +138,12 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
 /* ───────────── receipt helpers ───────────── */
 
 /** "HAZIQ 40.00 · OTHERS 26.67 · NOT IMANUL" for bills that aren't an even split for everyone. */
-export function itemNote(item: Item, people: readonly Person[], format: (minor: number) => string, words: { others: string; not: string }): string | null {
+export function itemNote(
+  item: Item,
+  people: readonly Person[],
+  format: (minor: number) => string,
+  words: { others: string; not: string },
+): string | null {
   const shares = itemShares(item);
   const included = people.filter((p) => item.participants.includes(p.id));
   const excluded = people.filter((p) => !item.participants.includes(p.id));

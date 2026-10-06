@@ -115,7 +115,8 @@ export const ms: Dictionary = {
   share: {
     title: "Kongsi resit",
     previewTitle: "Gambar resit + pautan",
-    previewDesc: "Bahagian semua orang, siapa bayar siapa dan butiran bank dalam satu gambar. Pautan membolehkan rakan tekan “Dah bayar”.",
+    previewDesc:
+      "Bahagian semua orang, siapa bayar siapa dan butiran bank dalam satu gambar. Pautan membolehkan rakan tekan “Dah bayar”.",
     whatsapp: "Hantar ke group WhatsApp",
     saveImage: "Simpan gambar",
     copyLink: "Salin pautan",

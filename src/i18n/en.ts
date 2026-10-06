@@ -20,8 +20,7 @@ export const en = {
     step1: "Who's splitting?",
     namesPlaceholder: "Najmi, Afiq, Imanul",
     namesLabel: "Names",
-    step1Hint:
-      "Paste a list with commas to add everyone at once. Don't forget yourself.",
+    step1Hint: "Paste a list with commas to add everyone at once. Don't forget yourself.",
     step2: "Add the bills",
     step2Desc: "Electricity, water, wifi, dinner… and who paid each one.",
     step3: "Get the receipt",
@@ -69,8 +68,7 @@ export const en = {
     tapToChange: "Tap an amount to change it",
     resetEqual: "Reset to equal",
     youSetThis: "You set this",
-    restHint:
-      "The rest ({amount}) is shared equally by the others. Untick someone to leave them out.",
+    restHint: "The rest ({amount}) is shared equally by the others. Untick someone to leave them out.",
     include: "Include {name}",
     amountOf: "{name}'s amount",
     over: "Over by {amount}",
@@ -141,8 +139,7 @@ export const en = {
     markPaid: "Mark paid",
     viewReceipt: "View receipt",
     editBills: "Edit bills (updates this link)",
-    remindMessage:
-      "Hi {from}, a gentle reminder for {title}: please pay {to} {amount}.",
+    remindMessage: "Hi {from}, a gentle reminder for {title}: please pay {to} {amount}.",
   },
   settled: {
     review: "Not paid after all? Change it",

@@ -24,7 +24,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={show}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[max(20px,env(safe-area-inset-bottom))]">
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[max(20px,env(safe-area-inset-bottom))]"
+      >
         {toast ? (
           <div
             key={toast.key}

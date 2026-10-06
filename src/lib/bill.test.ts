@@ -81,18 +81,39 @@ describe("receipt notes", () => {
   });
 
   it("describes typed amounts compactly", () => {
-    const item = { id: "4", name: "Barang dapur", amountMinor: 12000, paidBy: "n", participants: all, overrides: { h: 4000 } };
+    const item = {
+      id: "4",
+      name: "Barang dapur",
+      amountMinor: 12000,
+      paidBy: "n",
+      participants: all,
+      overrides: { h: 4000 },
+    };
     expect(itemNote(item, people, fmt, words)).toBe("HAZIQ 40.00 · OTHERS 26.67");
   });
 
   it("names people left out", () => {
-    const item = { id: "5", name: "Makan", amountMinor: 9000, paidBy: "h", participants: ["h", "n", "a"], overrides: {} };
+    const item = {
+      id: "5",
+      name: "Makan",
+      amountMinor: 9000,
+      paidBy: "h",
+      participants: ["h", "n", "a"],
+      overrides: {},
+    };
     expect(itemNote(item, people, fmt, words)).toBe("OTHERS 30.00 · NOT IMANUL");
   });
 });
 
 describe("evenShare", () => {
-  const bill = (amountMinor: number, overrides: Record<string, number> = {}, participants = all) => ({ id: "x", name: "Electricity", amountMinor, paidBy: "h", participants, overrides });
+  const bill = (amountMinor: number, overrides: Record<string, number> = {}, participants = all) => ({
+    id: "x",
+    name: "Electricity",
+    amountMinor,
+    paidBy: "h",
+    participants,
+    overrides,
+  });
 
   it("is exact when the amount divides evenly", () => {
     expect(evenShare(bill(10000), 4)).toEqual({ amount: 2500, exact: true });

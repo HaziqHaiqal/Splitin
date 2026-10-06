@@ -33,8 +33,7 @@ const digitsCache = new Map<string, number>();
 export function currencyDigits(currency: string): number {
   let digits = digitsCache.get(currency);
   if (digits === undefined) {
-    digits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions()
-      .maximumFractionDigits ?? 2;
+    digits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
     digitsCache.set(currency, digits);
   }
   return digits;
@@ -44,12 +43,7 @@ export function intlLocale(locale: string): string {
   return locale === "ms" ? "ms-MY" : "en-MY";
 }
 
-export function formatMoney(
-  minor: number,
-  currency: string,
-  locale = "en",
-  opts: { signed?: boolean } = {},
-): string {
+export function formatMoney(minor: number, currency: string, locale = "en", opts: { signed?: boolean } = {}): string {
   const digits = currencyDigits(currency);
   const value = minor / 10 ** digits;
   return new Intl.NumberFormat(intlLocale(locale), {

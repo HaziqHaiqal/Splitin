@@ -34,7 +34,11 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
   const sharerName = bill.doc.people[0]?.name ?? "";
 
   if (!ownerToken) return <ReceiptView bill={bill} sharedBy={sharerName} />;
-  if (view === "receipt") return <ReceiptView bill={bill} sharedBy={sharerName} back={{ label: t.receipt.back, onClick: () => setView("main") }} />;
-  if (view === "main" && summary.remaining.length === 0 && summary.done.length > 0) return <Settled bill={bill} summary={summary} onReview={() => setView("payments")} />;
+  if (view === "receipt")
+    return (
+      <ReceiptView bill={bill} sharedBy={sharerName} back={{ label: t.receipt.back, onClick: () => setView("main") }} />
+    );
+  if (view === "main" && summary.remaining.length === 0 && summary.done.length > 0)
+    return <Settled bill={bill} summary={summary} onReview={() => setView("payments")} />;
   return <Tracking bill={bill} summary={summary} ownerToken={ownerToken} onViewReceipt={() => setView("receipt")} />;
 }

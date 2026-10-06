@@ -55,17 +55,35 @@ export function HelpButton() {
           {/* tap a bar to jump straight to that step */}
           <div className="-my-[5px] flex gap-1.5 md:col-start-1 md:row-start-1" aria-hidden>
             {steps.map((s, i) => (
-              <span key={s.title} data-step={i} onClick={() => setStep(i)} className="group flex h-4 flex-1 cursor-pointer items-center">
-                <span className={cn("h-1.5 w-full rounded-full transition-colors group-hover:bg-green/70", i === step ? "bg-green" : i < step ? "bg-green/40" : "bg-chip")} />
+              <span
+                key={s.title}
+                data-step={i}
+                onClick={() => setStep(i)}
+                className="group flex h-4 flex-1 cursor-pointer items-center"
+              >
+                <span
+                  className={cn(
+                    "h-1.5 w-full rounded-full transition-colors group-hover:bg-green/70",
+                    i === step ? "bg-green" : i < step ? "bg-green/40" : "bg-chip",
+                  )}
+                />
               </span>
             ))}
           </div>
           {/* every step's words share one cell, so the sheet is as tall as the longest and never jumps */}
           <div className="grid md:col-start-1 md:row-start-2">
             {steps.map((s, i) => (
-              <div key={s.title} aria-hidden={i !== step} className={cn("col-start-1 row-start-1", i === step ? "animate-rise" : "invisible")}>
-                <div className="text-[18px] font-extrabold md:text-[22px] md:leading-[1.25] md:tracking-[-0.01em]">{s.title}</div>
-                <p className="mt-1.5 mb-0 text-[14px] leading-[1.5] text-muted md:mt-2.5 md:text-[15px] md:leading-[1.55]">{s.desc}</p>
+              <div
+                key={s.title}
+                aria-hidden={i !== step}
+                className={cn("col-start-1 row-start-1", i === step ? "animate-rise" : "invisible")}
+              >
+                <div className="text-[18px] font-extrabold md:text-[22px] md:leading-[1.25] md:tracking-[-0.01em]">
+                  {s.title}
+                </div>
+                <p className="mt-1.5 mb-0 text-[14px] leading-[1.5] text-muted md:mt-2.5 md:text-[15px] md:leading-[1.55]">
+                  {s.desc}
+                </p>
               </div>
             ))}
           </div>
@@ -73,7 +91,9 @@ export function HelpButton() {
             <div key={step} className="flex flex-1 animate-rise items-center justify-center px-4 lg:scale-[1.15]">
               <Visual step={step} onJump={setStep} />
             </div>
-            <div className="px-4 pb-3 text-center text-[12px] font-semibold text-green-soft-ink">{steps[step].hint}</div>
+            <div className="px-4 pb-3 text-center text-[12px] font-semibold text-green-soft-ink">
+              {steps[step].hint}
+            </div>
           </div>
           <div className="flex items-center justify-between border-t border-line pt-4 md:col-start-1 md:row-start-3">
             <button
@@ -129,7 +149,16 @@ function Chip({ name, color }: { name: string; color: number }) {
 }
 
 function Paper({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("bg-[#fffdf6] px-3 py-2.5 font-mono text-[10px] leading-[1.55] text-[#26231f] shadow-[0_2px_6px_rgba(0,0,0,0.12)]", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "bg-[#fffdf6] px-3 py-2.5 font-mono text-[10px] leading-[1.55] text-[#26231f] shadow-[0_2px_6px_rgba(0,0,0,0.12)]",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Each step is a small working copy of the real screen, so people learn by tapping. */
@@ -168,7 +197,12 @@ function Welcome({ onJump }: { onJump: (step: number) => void }) {
         {stops.map(([label, to], i) => (
           <Fragment key={label}>
             {i > 0 ? <ArrowRightIcon size={14} /> : null}
-            <button type="button" onClick={() => onJump(to)} style={{ animationDelay: `${150 + i * 140}ms` }} className={cn(mini, press, "animate-pop px-2.5 py-1.5 text-ink hover:text-green-ink")}>
+            <button
+              type="button"
+              onClick={() => onJump(to)}
+              style={{ animationDelay: `${150 + i * 140}ms` }}
+              className={cn(mini, press, "animate-pop px-2.5 py-1.5 text-ink hover:text-green-ink")}
+            >
               {label}
             </button>
           </Fragment>
@@ -187,7 +221,11 @@ function PeopleDemo() {
       {NAMES.slice(0, count).map((n, i) => (
         <Chip key={n} name={n} color={i} />
       ))}
-      <button type="button" onClick={() => setCount(full ? 1 : count + 1)} className={cn(press, dashed, "inline-flex h-8 items-center px-3 text-[13px]", count === 1 && "animate-nudge")}>
+      <button
+        type="button"
+        onClick={() => setCount(full ? 1 : count + 1)}
+        className={cn(press, dashed, "inline-flex h-8 items-center px-3 text-[13px]", count === 1 && "animate-nudge")}
+      >
         {full ? t.help.replay : t.home.addPerson}
       </button>
     </div>
@@ -209,19 +247,31 @@ function BillsDemo() {
   return (
     <div className={cn(mini, "w-full max-w-[300px] px-3 pt-1 pb-2")}>
       {shown.map(([payer, amount], i) => (
-        <div key={i} className={cn("flex animate-rise items-center justify-between py-1.5 leading-[1.35]", i > 0 && "border-t border-line")}>
+        <div
+          key={i}
+          className={cn(
+            "flex animate-rise items-center justify-between py-1.5 leading-[1.35]",
+            i > 0 && "border-t border-line",
+          )}
+        >
           <span>
             <span className="block text-[13px] font-bold text-ink">{t.bill.quick[i]}</span>
-            <span className="block text-[11px] text-muted">{fmt(t.home.billEach, { name: payer, amount: money(amount / NAMES.length) })}</span>
+            <span className="block text-[11px] text-muted">
+              {fmt(t.home.billEach, { name: payer, amount: money(amount / NAMES.length) })}
+            </span>
           </span>
-          <span className="tabular text-[13px] font-extrabold text-ink">{money(amount)}</span>
+          <span className="text-[13px] font-extrabold text-ink tabular">{money(amount)}</span>
         </div>
       ))}
       <div className="flex items-center justify-between border-t border-line pt-2">
-        <button type="button" onClick={() => setCount(full ? 1 : count + 1)} className={cn(press, dashed, "h-7 px-2.5 text-[12px]", count === 1 && "animate-nudge")}>
+        <button
+          type="button"
+          onClick={() => setCount(full ? 1 : count + 1)}
+          className={cn(press, dashed, "h-7 px-2.5 text-[12px]", count === 1 && "animate-nudge")}
+        >
           {full ? t.help.replay : `+ ${t.home.addBill}`}
         </button>
-        <span className="tabular text-[13px] font-extrabold text-ink">
+        <span className="text-[13px] font-extrabold text-ink tabular">
           <span className="mr-1.5 text-[11px] font-semibold text-muted">{t.home.total}</span>
           {money(shown.reduce((sum, b) => sum + b[1], 0))}
         </span>
@@ -256,14 +306,25 @@ function SplitDemo() {
     <div className={cn(mini, "flex w-full max-w-[280px] flex-col gap-1.5 p-3")}>
       <div className="flex items-baseline justify-between pb-0.5 text-[12px] font-bold text-muted">
         <span>Wifi</span>
-        <span className="tabular text-ink">{money(SPLIT_TOTAL)}</span>
+        <span className="text-ink tabular">{money(SPLIT_TOTAL)}</span>
       </div>
       {NAMES.map((name) => {
         const included = on.includes(name);
         return (
           <div key={name} className="flex items-center gap-2.5">
-            <button type="button" role="checkbox" aria-checked={included} onClick={() => toggle(name)} className="flex flex-1 items-center gap-2.5 text-left">
-              <span className={cn("inline-flex size-5 items-center justify-center rounded-md transition-colors", included ? "bg-green text-white" : "border-2 border-dash")}>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={included}
+              onClick={() => toggle(name)}
+              className="flex flex-1 items-center gap-2.5 text-left"
+            >
+              <span
+                className={cn(
+                  "inline-flex size-5 items-center justify-center rounded-md transition-colors",
+                  included ? "bg-green text-white" : "border-2 border-dash",
+                )}
+              >
                 {included ? <CheckIcon size={12} /> : null}
               </span>
               <span className={cn("text-[13px] font-semibold", included ? "text-ink" : "text-muted")}>{name}</span>
@@ -274,8 +335,10 @@ function SplitDemo() {
               onClick={() => pin(name)}
               className={cn(
                 press,
-                "tabular min-w-[68px] rounded-lg px-2 py-1 text-right text-[13px] font-bold",
-                pinned === name ? "border-[1.5px] border-green text-ink shadow-[0_0_0_3px_var(--green-soft)]" : "border border-border bg-field text-muted",
+                "min-w-[68px] rounded-lg px-2 py-1 text-right text-[13px] font-bold tabular",
+                pinned === name
+                  ? "border-[1.5px] border-green text-ink shadow-[0_0_0_3px_var(--green-soft)]"
+                  : "border border-border bg-field text-muted",
               )}
             >
               {included ? plain(shares[name] ?? 0) : "–"}
@@ -323,7 +386,9 @@ function ReceiptDemo() {
           {balances.map(([name, net]) => (
             <div key={name} className="flex justify-between font-semibold">
               <span>{name}</span>
-              <span style={{ color: net > 0 ? "#176b46" : "#b4472a" }}>{net > 0 ? `${r.collects} +${plain(net)}` : `${r.owes} −${plain(-net)}`}</span>
+              <span style={{ color: net > 0 ? "#176b46" : "#b4472a" }}>
+                {net > 0 ? `${r.collects} +${plain(net)}` : `${r.owes} −${plain(-net)}`}
+              </span>
             </div>
           ))}
           <div className="my-1 border-t-[3px] border-double border-[#26231f]" />
@@ -378,7 +443,16 @@ function ShareDemo() {
         )}
       </div>
       <div className="flex flex-col gap-2">
-        <button type="button" aria-pressed={sent} onClick={() => setSent(!sent)} className={cn(press, "flex h-9 items-center gap-2 rounded-xl bg-green px-3 text-[12px] font-bold text-white", !sent && "animate-nudge")}>
+        <button
+          type="button"
+          aria-pressed={sent}
+          onClick={() => setSent(!sent)}
+          className={cn(
+            press,
+            "flex h-9 items-center gap-2 rounded-xl bg-green px-3 text-[12px] font-bold text-white",
+            !sent && "animate-nudge",
+          )}
+        >
           {sent ? <CheckIcon size={15} /> : <SendIcon size={15} />}
           WhatsApp
         </button>
@@ -402,13 +476,19 @@ function PayDemo() {
         <button
           type="button"
           onClick={() => setPaid(!paid)}
-          className={cn(press, "relative mt-1 -mx-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5 text-left font-mono", paid ? "" : "animate-nudge bg-[#f1ecdd]")}
+          className={cn(
+            press,
+            "relative -mx-1 mt-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5 text-left font-mono",
+            paid ? "" : "animate-nudge bg-[#f1ecdd]",
+          )}
         >
           <span style={{ color: "#b4472a" }}>NAJMI</span> → <span style={{ color: "#176b46" }}>HAZIQ</span>
           <span className="flex-1 border-b border-dotted border-[#b5afa4]" />
           <span className={paid ? "text-[#8a8478] line-through" : ""}>{plain(11845)}</span>
           {paid ? (
-            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#c2412b] bg-[#fffdf6] px-1 text-[9px] font-bold tracking-[0.12em] text-[#c2412b]">{t.receipt.paidStamp}</span>
+            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#c2412b] bg-[#fffdf6] px-1 text-[9px] font-bold tracking-[0.12em] text-[#c2412b]">
+              {t.receipt.paidStamp}
+            </span>
           ) : null}
         </button>
       </Paper>

@@ -7,7 +7,6 @@
 - [ ] Check the link preview in WhatsApp using the live address. It cannot be tested on `localhost`.
 - [ ] Commit `.env.example`. `.gitignore` has `.env*`, which hides it; add `!.env.example`.
 - [ ] Remove the unused packages `sonner` and `nanoid`.
-- [ ] Fix the `format` script in `package.json`. It calls Prettier, which is not installed: add Prettier or remove the script.
 - [ ] Drop the unused `bills.last_activity_at` column and its index `bills_last_activity_at_idx`.
 - [ ] Add browser tests (Playwright) to the repository. Today only the money maths and bill logic have tests.
 - [ ] Make the phone address-bar colour follow the theme. It is always dark now, even in light mode.

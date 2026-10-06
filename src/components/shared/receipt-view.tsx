@@ -15,7 +15,15 @@ import type { SharedBillData } from "./shared-bill";
  * A shared bill's receipt. Friends land here and tap a payment on it to mark it paid; the owner
  * opens it from their tracking page (with a way back) and marks payments there instead.
  */
-export function ReceiptView({ bill, sharedBy, back }: { bill: SharedBillData; sharedBy: string; back?: { label: string; onClick: () => void } }) {
+export function ReceiptView({
+  bill,
+  sharedBy,
+  back,
+}: {
+  bill: SharedBillData;
+  sharedBy: string;
+  back?: { label: string; onClick: () => void };
+}) {
   const { t, money } = useI18n();
   const toast = useToast();
   const [line, setLine] = useState<PlanLine | null>(null);
@@ -58,11 +66,20 @@ export function ReceiptView({ bill, sharedBy, back }: { bill: SharedBillData; sh
         }
       />
       {friend ? (
-        <Sheet open={open} onOpenChange={setOpen} title={line ? fmt(t.friend.confirmTitle, { from: nameOf(line.from), to: nameOf(line.to) }) : ""}>
-          <div className="tabular text-[30px] font-extrabold tracking-[-0.02em]">{line ? money(line.amount) : ""}</div>
+        <Sheet
+          open={open}
+          onOpenChange={setOpen}
+          title={line ? fmt(t.friend.confirmTitle, { from: nameOf(line.from), to: nameOf(line.to) }) : ""}
+        >
+          <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{line ? money(line.amount) : ""}</div>
           <p className="m-0 text-[14px] text-muted">{t.friend.confirmDesc}</p>
           <div className="flex flex-col gap-1.5 pt-1">
-            <button type="button" disabled={pending} onClick={confirm} className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={confirm}
+              className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60"
+            >
               {t.track.markPaid}
             </button>
             <button type="button" onClick={() => setOpen(false)} className="h-11 text-[15px] font-bold text-muted">

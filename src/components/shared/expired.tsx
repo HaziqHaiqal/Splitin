@@ -5,7 +5,10 @@ import type { Dictionary } from "@/i18n";
 
 export function Expired({ t }: { t: Dictionary }) {
   return (
-    <div data-paper className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[18px] bg-paper-bg px-5 pb-[22px] text-ink md:max-w-[900px] md:px-6">
+    <div
+      data-paper
+      className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col gap-[18px] bg-paper-bg px-5 pb-[22px] text-ink md:max-w-[900px] md:px-6"
+    >
       <Header theme={false} />
       {/* phone: receipt, text, button stacked · desktop: text + button left, receipt right */}
       <div className="flex flex-1 flex-col gap-[18px] md:grid md:flex-none md:grid-cols-[minmax(0,1fr)_350px] md:gap-x-12 md:gap-y-8 md:pt-20">
@@ -28,11 +31,16 @@ export function Expired({ t }: { t: Dictionary }) {
           </div>
         </div>
         <div className="md:col-start-1 md:row-start-1 md:self-end">
-          <div className="text-[24px] font-extrabold tracking-[-0.02em] md:text-[44px] md:leading-[1.05]">{t.expired.title}</div>
+          <div className="text-[24px] font-extrabold tracking-[-0.02em] md:text-[44px] md:leading-[1.05]">
+            {t.expired.title}
+          </div>
           <div className="mt-2 text-[15px] leading-[1.5] text-muted md:mt-4 md:text-[17px]">{t.expired.desc}</div>
         </div>
         <div className="mt-auto md:col-start-1 md:row-start-2 md:mt-0 md:self-start">
-          <Link href="/" className="flex h-14 items-center justify-center rounded-2xl bg-green px-8 text-[16px] font-bold text-white no-underline md:inline-flex">
+          <Link
+            href="/"
+            className="flex h-14 items-center justify-center rounded-2xl bg-green px-8 text-[16px] font-bold text-white no-underline md:inline-flex"
+          >
             {t.expired.cta}
           </Link>
         </div>

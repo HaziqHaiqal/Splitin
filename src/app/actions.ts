@@ -62,7 +62,10 @@ export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ow
 
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-    const creatorHash = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY ?? "splitin").update(ip).digest("hex").slice(0, 32);
+    const creatorHash = createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY ?? "splitin")
+      .update(ip)
+      .digest("hex")
+      .slice(0, 32);
     const since = new Date(Date.now() - 3_600_000).toISOString();
     const { count } = await db()
       .from("bills")
@@ -90,7 +93,10 @@ export async function saveBill(id: string, ownerToken: string, doc: BillDoc): Pr
     const parsed = billDocSchema.safeParse(doc);
     if (!parsed.success) return { ok: false, error: "invalid" };
     if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
-    const { error } = await db().from("bills").update({ doc: parsed.data, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await db()
+      .from("bills")
+      .update({ doc: parsed.data, updated_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) return { ok: false, error: "db" };
     after(() => broadcastChange(id));
     return { ok: true, data: null };
@@ -104,7 +110,10 @@ const paymentSchema = z.object({
 });
 
 async function loadPayments(id: string): Promise<Payment[]> {
-  const { data } = await db().from("payments").select("id, from_person, to_person, amount_minor, marked_by, created_at").eq("bill_id", id);
+  const { data } = await db()
+    .from("payments")
+    .select("id, from_person, to_person, amount_minor, marked_by, created_at")
+    .eq("bill_id", id);
   return (data ?? []).map((r) => ({
     id: r.id,
     from: r.from_person,
@@ -138,7 +147,8 @@ export async function addPayment(
     if (!owner) {
       const open = summarize(doc, await loadPayments(id)).remaining;
       const { from, to, amountMinor } = parsed.data;
-      if (!open.some((l) => l.from === from && l.to === to && l.amount === amountMinor)) return { ok: false, error: "invalid" };
+      if (!open.some((l) => l.from === from && l.to === to && l.amount === amountMinor))
+        return { ok: false, error: "invalid" };
     }
 
     const { data, error } = await db()
@@ -165,8 +175,14 @@ export async function removePayment(id: string, paymentId: string, ownerToken?: 
   return guard(async () => {
     if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };
     if (!(await isOwner(id, ownerToken))) {
-      const { data: row } = await db().from("payments").select("marked_by, created_at").eq("id", paymentId).eq("bill_id", id).maybeSingle();
-      if (!row || row.marked_by !== "payer" || Date.now() - new Date(row.created_at).getTime() > UNDO_WINDOW_MS) return { ok: false, error: "forbidden" };
+      const { data: row } = await db()
+        .from("payments")
+        .select("marked_by, created_at")
+        .eq("id", paymentId)
+        .eq("bill_id", id)
+        .maybeSingle();
+      if (!row || row.marked_by !== "payer" || Date.now() - new Date(row.created_at).getTime() > UNDO_WINDOW_MS)
+        return { ok: false, error: "forbidden" };
     }
     const { error } = await db().from("payments").delete().eq("id", paymentId).eq("bill_id", id);
     if (error) return { ok: false, error: "db" };

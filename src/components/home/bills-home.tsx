@@ -22,8 +22,16 @@ export function BillsHome() {
   useDraftSync(draft);
   const defaultTitle = fmt(t.receipt.defaultTitle, { month: monthName() });
 
-  const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({ open: false, id: null, key: 0 });
-  const [billSheet, setBillSheet] = useState<{ open: boolean; id: string | null; key: number }>({ open: false, id: null, key: 0 });
+  const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({
+    open: false,
+    id: null,
+    key: 0,
+  });
+  const [billSheet, setBillSheet] = useState<{ open: boolean; id: string | null; key: number }>({
+    open: false,
+    id: null,
+    key: 0,
+  });
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
 
@@ -80,7 +88,9 @@ export function BillsHome() {
               <ClearButton onClick={clearAll} />
             </>
           ) : (
-            <h1 className="m-0 text-[28px] leading-[1.12] font-extrabold tracking-[-0.025em] whitespace-pre-line md:text-[44px] md:leading-[1.05] md:tracking-[-0.03em]">{t.home.headline}</h1>
+            <h1 className="m-0 text-[28px] leading-[1.12] font-extrabold tracking-[-0.025em] whitespace-pre-line md:text-[44px] md:leading-[1.05] md:tracking-[-0.03em]">
+              {t.home.headline}
+            </h1>
           )}
         </div>
 
@@ -108,15 +118,30 @@ export function BillsHome() {
         </section>
 
         <section className={cn("flex flex-col gap-3.5", !hasPeople && "opacity-55")}>
-          <StepHeader n={2} title={t.home.step2} locked={!hasPeople} meta={hasBills ? fmt(t.home.tapToEdit, { count: doc.items.length }) : undefined} />
+          <StepHeader
+            n={2}
+            title={t.home.step2}
+            locked={!hasPeople}
+            meta={hasBills ? fmt(t.home.tapToEdit, { count: doc.items.length }) : undefined}
+          />
           {!hasPeople ? (
             <p className="m-0 text-[14px] text-muted">{t.home.step2Desc}</p>
           ) : hasBills ? (
             <div>
               {doc.items.map((item) => (
-                <BillRow key={item.id} item={item} payer={nameOf(item.paidBy)} peopleCount={doc.people.length} onClick={() => openBill(item.id)} />
+                <BillRow
+                  key={item.id}
+                  item={item}
+                  payer={nameOf(item.paidBy)}
+                  peopleCount={doc.people.length}
+                  onClick={() => openBill(item.id)}
+                />
               ))}
-              <button type="button" onClick={() => openBill(null)} className="flex h-[56px] w-full items-center gap-2 border-t border-line text-left text-[15px] font-bold text-green-ink">
+              <button
+                type="button"
+                onClick={() => openBill(null)}
+                className="flex h-[56px] w-full items-center gap-2 border-t border-line text-left text-[15px] font-bold text-green-ink"
+              >
                 <PlusIcon />
                 {t.home.addBill}
               </button>
@@ -149,9 +174,12 @@ export function BillsHome() {
           <div className="flex items-center justify-between gap-3 rounded-[20px] border border-bar-border bg-bar py-[14px] pr-[14px] pl-[18px] text-bar-ink">
             <div className="min-w-0">
               <div className="text-[12px] text-bar-muted">{fmt(t.home.totalPeople, { count: doc.people.length })}</div>
-              <div className="tabular text-[22px] font-extrabold">{money(total)}</div>
+              <div className="text-[22px] font-extrabold tabular">{money(total)}</div>
             </div>
-            <Link href="/receipt" className="flex h-[50px] shrink-0 items-center gap-2 rounded-[14px] bg-green px-[18px] text-[15px] font-bold text-white no-underline">
+            <Link
+              href="/receipt"
+              className="flex h-[50px] shrink-0 items-center gap-2 rounded-[14px] bg-green px-[18px] text-[15px] font-bold text-white no-underline"
+            >
               {t.home.seeReceipt}
               <ArrowRightIcon />
             </Link>
@@ -209,7 +237,12 @@ function TitleEditor({ title, onChange }: { title: string; onChange: (title: str
     );
   }
   return (
-    <button type="button" onClick={() => setValue(title)} aria-label={t.home.editTitle} className={cn(text, "flex min-w-0 items-center gap-2 text-left text-ink")}>
+    <button
+      type="button"
+      onClick={() => setValue(title)}
+      aria-label={t.home.editTitle}
+      className={cn(text, "flex min-w-0 items-center gap-2 text-left text-ink")}
+    >
       <span className="truncate">{title}</span>
       <PencilIcon className="shrink-0 text-faint" />
     </button>
@@ -220,7 +253,11 @@ function TitleEditor({ title, onChange }: { title: string; onChange: (title: str
 function ClearButton({ onClick }: { onClick: () => void }) {
   const { t } = useI18n();
   return (
-    <button type="button" onClick={onClick} className="-mr-2.5 flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold whitespace-nowrap text-muted transition-colors hover:bg-chip hover:text-owe">
+    <button
+      type="button"
+      onClick={onClick}
+      className="-mr-2.5 flex h-9 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-semibold whitespace-nowrap text-muted transition-colors hover:bg-chip hover:text-owe"
+    >
       <ResetIcon size={15} />
       {/* very small phones: icon only, so the title keeps its room */}
       <span className="max-[359px]:sr-only">{t.home.clearAll}</span>
@@ -228,7 +265,17 @@ function ClearButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function BillRow({ item, payer, peopleCount, onClick }: { item: Item; payer: string; peopleCount: number; onClick: () => void }) {
+function BillRow({
+  item,
+  payer,
+  peopleCount,
+  onClick,
+}: {
+  item: Item;
+  payer: string;
+  peopleCount: number;
+  onClick: () => void;
+}) {
   const { t, money } = useI18n();
   const each = evenShare(item, peopleCount);
   return (
@@ -240,10 +287,12 @@ function BillRow({ item, payer, peopleCount, onClick }: { item: Item; payer: str
       <span className="min-w-0">
         <span className="block truncate text-[16px] font-bold">{item.name}</span>
         <span className="mt-0.5 block text-[13px] text-muted">
-          {each === null ? fmt(t.home.billUneven, { name: payer }) : fmt(each.exact ? t.home.billEach : t.home.billAbout, { name: payer, amount: money(each.amount) })}
+          {each === null
+            ? fmt(t.home.billUneven, { name: payer })
+            : fmt(each.exact ? t.home.billEach : t.home.billAbout, { name: payer, amount: money(each.amount) })}
         </span>
       </span>
-      <span className="tabular shrink-0 text-[16px] font-extrabold">{money(item.amountMinor)}</span>
+      <span className="shrink-0 text-[16px] font-extrabold tabular">{money(item.amountMinor)}</span>
     </button>
   );
 }
@@ -317,7 +366,14 @@ function NamesForm({ onAdd }: { onAdd: (text: string) => void }) {
 function StepHeader({ n, title, meta, locked = false }: { n: number; title: string; meta?: string; locked?: boolean }) {
   return (
     <div className="flex min-h-9 items-center gap-2.5">
-      <span className={cn("inline-flex size-[26px] shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold", locked ? "bg-disabled text-muted" : "bg-green text-white")}>{n}</span>
+      <span
+        className={cn(
+          "inline-flex size-[26px] shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold",
+          locked ? "bg-disabled text-muted" : "bg-green text-white",
+        )}
+      >
+        {n}
+      </span>
       <h2 className="m-0 text-[17px] font-extrabold md:text-[19px]">{title}</h2>
       {meta ? <span className="ml-auto text-[13px] whitespace-nowrap text-muted">{meta}</span> : null}
     </div>

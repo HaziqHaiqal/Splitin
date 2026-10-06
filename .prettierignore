@@ -1,0 +1,4 @@
+# Prettier already skips everything in .gitignore (node_modules, .next, .env*)
+pnpm-lock.yaml
+pnpm-workspace.yaml
+next-env.d.ts

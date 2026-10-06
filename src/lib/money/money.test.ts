@@ -108,7 +108,10 @@ describe("balances and settle-up", () => {
   const members = ["ali", "abu", "siti", "mei"];
   const expenses = [
     // Ali paid 120 split 4 ways
-    { payers: [{ memberId: "ali", amountMinor: 12000 }], splits: members.map((m) => ({ memberId: m, amountMinor: 3000 })) },
+    {
+      payers: [{ memberId: "ali", amountMinor: 12000 }],
+      splits: members.map((m) => ({ memberId: m, amountMinor: 3000 })),
+    },
     // Siti paid 45 for Abu and herself
     {
       payers: [{ memberId: "siti", amountMinor: 4500 }],
@@ -144,9 +147,11 @@ describe("balances and settle-up", () => {
   });
 
   it("partial settlement reduces the debt", () => {
-    const balances = computeBalances(["a", "b"], [
-      { payers: [{ memberId: "a", amountMinor: 1000 }], splits: [{ memberId: "b", amountMinor: 1000 }] },
-    ], [{ fromMember: "b", toMember: "a", amountMinor: 400 }]);
+    const balances = computeBalances(
+      ["a", "b"],
+      [{ payers: [{ memberId: "a", amountMinor: 1000 }], splits: [{ memberId: "b", amountMinor: 1000 }] }],
+      [{ fromMember: "b", toMember: "a", amountMinor: 400 }],
+    );
     expect(balances).toEqual({ a: 600, b: -600 });
     expect(simplifyDebts(balances)).toEqual([{ from: "b", to: "a", amount: 600 }]);
   });

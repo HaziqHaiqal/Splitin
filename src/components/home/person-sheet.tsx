@@ -42,7 +42,12 @@ export function PersonSheet({
       ...d,
       people: d.people.map((p) =>
         p.id === person.id
-          ? { ...p, name: trimmed.slice(0, 30), bank: bankName || null, accountNo: bankName ? accountNo.trim() || null : null }
+          ? {
+              ...p,
+              name: trimmed.slice(0, 30),
+              bank: bankName || null,
+              accountNo: bankName ? accountNo.trim() || null : null,
+            }
           : p,
       ),
     }));
@@ -105,7 +110,13 @@ export function PersonSheet({
           <span className="text-[13px] font-semibold text-muted">{t.person.bankLabel}</span>
           <div className="flex flex-wrap gap-1.5">
             {BANKS.map((b) => (
-              <button key={b} type="button" aria-pressed={bank === b} onClick={() => setBank(bank === b ? null : b)} className={chip(bank === b)}>
+              <button
+                key={b}
+                type="button"
+                aria-pressed={bank === b}
+                onClick={() => setBank(bank === b ? null : b)}
+                className={chip(bank === b)}
+              >
                 {b}
               </button>
             ))}
@@ -113,7 +124,11 @@ export function PersonSheet({
               type="button"
               aria-pressed={bank === "other"}
               onClick={() => setBank(bank === "other" ? null : "other")}
-              className={bank === "other" ? chip(true) : "h-9 rounded-full border-[1.5px] border-dashed border-dash bg-card px-3 text-[13px] font-bold text-green-ink"}
+              className={
+                bank === "other"
+                  ? chip(true)
+                  : "h-9 rounded-full border-[1.5px] border-dashed border-dash bg-card px-3 text-[13px] font-bold text-green-ink"
+              }
             >
               {t.person.other}
             </button>
@@ -149,7 +164,11 @@ export function PersonSheet({
           />
         </label>
 
-        <button type="submit" disabled={!name.trim()} className="h-[54px] rounded-2xl bg-green text-[16px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink">
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="h-[54px] rounded-2xl bg-green text-[16px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
+        >
           {t.common.save}
         </button>
         <button type="button" onClick={remove} className="-mt-1.5 h-10 text-[15px] font-bold text-owe">

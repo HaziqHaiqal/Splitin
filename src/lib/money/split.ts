@@ -135,8 +135,7 @@ export type SplitInput =
   | { mode: "itemized"; items: Item[]; extras: Extras };
 
 export type SplitResult =
-  | { ok: true; total: number; splits: Allocation }
-  | { ok: false; error: SplitError; diff?: number };
+  { ok: true; total: number; splits: Allocation } | { ok: false; error: SplitError; diff?: number };
 
 export type SplitError =
   | "no_participants"

@@ -18,11 +18,7 @@ export type SharedBill = {
 export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
   if (!/^[A-Za-z0-9]{8,16}$/.test(id)) return null;
   const client = db();
-  const { data, error } = await client
-    .from("bills")
-    .select("id, doc, created_at")
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await client.from("bills").select("id, doc, created_at").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
 

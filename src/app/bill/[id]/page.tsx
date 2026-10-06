@@ -25,7 +25,13 @@ export default async function BillPage({ params }: PageProps<"/bill/[id]">) {
   if (!bill) return <Expired t={t} />;
   return (
     <SharedBill
-      bill={{ id: bill.id, doc: bill.doc, payments: bill.payments, createdAt: bill.createdAt, expiresAt: bill.expiresAt }}
+      bill={{
+        id: bill.id,
+        doc: bill.doc,
+        payments: bill.payments,
+        createdAt: bill.createdAt,
+        expiresAt: bill.expiresAt,
+      }}
     />
   );
 }

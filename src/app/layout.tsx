@@ -35,7 +35,11 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { locale } = await getI18n();
   return (
-    <html lang={locale} suppressHydrationWarning className={`${jakarta.variable} ${plexMono.variable} h-full antialiased`}>
+    <html
+      lang={locale}
+      suppressHydrationWarning
+      className={`${jakarta.variable} ${plexMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full">
         <Providers locale={locale}>{children}</Providers>
       </body>

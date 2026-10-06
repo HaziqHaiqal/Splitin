@@ -157,7 +157,8 @@ export function ShareSheet({
     }
   };
 
-  const tile = "flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] bg-field text-[13px] font-bold text-ink disabled:opacity-50";
+  const tile =
+    "flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] bg-field text-[13px] font-bold text-ink disabled:opacity-50";
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={t.share.title}>
@@ -176,12 +177,19 @@ export function ShareSheet({
             <div className="mt-1 text-[13px] leading-[1.45] text-muted">{t.share.previewDesc}</div>
           </div>
         </div>
-        <button type="button" onClick={sendWhatsApp} className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-green text-[16px] font-bold text-white">
+        <button
+          type="button"
+          onClick={sendWhatsApp}
+          className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-green text-[16px] font-bold text-white"
+        >
           <SendIcon />
           {t.share.whatsapp}
         </button>
         {pasteHint ? (
-          <div role="status" className="-mt-1.5 rounded-xl bg-green-soft px-3 py-2 text-center text-[13px] font-semibold text-green-soft-ink">
+          <div
+            role="status"
+            className="-mt-1.5 rounded-xl bg-green-soft px-3 py-2 text-center text-[13px] font-semibold text-green-soft-ink"
+          >
             {t.share.pictureCopied}
           </div>
         ) : null}

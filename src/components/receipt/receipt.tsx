@@ -14,7 +14,13 @@ export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
   return (
     // overlaps the paper by 1px so no hairline seam shows between the teeth and the paper in the picture
-    <svg width="100%" height="8" preserveAspectRatio="none" aria-hidden className={edge === "top" ? "-mb-px block" : "-mt-px block"}>
+    <svg
+      width="100%"
+      height="8"
+      preserveAspectRatio="none"
+      aria-hidden
+      className={edge === "top" ? "-mb-px block" : "-mt-px block"}
+    >
       <defs>
         <pattern id={`zz${id}`} width="10" height="8" patternUnits="userSpaceOnUse">
           <path d={edge === "top" ? "M0 8 L5 0 L10 8 Z" : "M0 0 L5 8 L10 0 Z"} fill="#fffdf6" />
@@ -25,9 +31,15 @@ export function Zigzag({ edge }: { edge: "top" | "bottom" }) {
   );
 }
 
-const BARS = [3, 1.5, 4, 1.5, 2.5, 1.5, 5, 1.5, 3, 1.5, 2, 4, 1.5, 3, 1.5, 5, 2, 1.5, 3, 4, 1.5, 2.5, 1.5, 5, 1.5, 3, 2, 4, 1.5, 3, 1.5, 5, 1.5, 2.5, 1.5, 4, 2, 1.5, 3, 1.5, 5, 1.5, 3, 2];
+const BARS = [
+  3, 1.5, 4, 1.5, 2.5, 1.5, 5, 1.5, 3, 1.5, 2, 4, 1.5, 3, 1.5, 5, 2, 1.5, 3, 4, 1.5, 2.5, 1.5, 5, 1.5, 3, 2, 4, 1.5, 3,
+  1.5, 5, 1.5, 2.5, 1.5, 4, 2, 1.5, 3, 1.5, 5, 1.5, 3, 2,
+];
 
-const BAR_X = BARS.reduce<number[]>((xs, w, i) => [...xs, i === 0 ? 0 : xs[i - 1] + BARS[i - 1] + ((i - 1) % 3 === 0 ? 2 : 2.5)], []);
+const BAR_X = BARS.reduce<number[]>(
+  (xs, w, i) => [...xs, i === 0 ? 0 : xs[i - 1] + BARS[i - 1] + ((i - 1) % 3 === 0 ? 2 : 2.5)],
+  [],
+);
 const BAR_WIDTH = BAR_X[BAR_X.length - 1] + BARS[BARS.length - 1];
 
 function Barcode() {
@@ -76,7 +88,10 @@ export type ReceiptProps = {
 };
 
 /** The thermal-receipt look. Paper colours stay the same in dark mode. */
-export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt({ doc, payments = [], billId, expiresAt, sharedBy, onLine, hint }, ref) {
+export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt(
+  { doc, payments = [], billId, expiresAt, sharedBy, onLine, hint },
+  ref,
+) {
   const { t, plain, money, date } = useI18n();
   const r = t.receipt;
   const summary = summarize(doc, payments);
@@ -112,14 +127,19 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         className="flex flex-col gap-0.5 font-mono"
         style={{ background: "#fffdf6", padding: "18px 18px 20px", fontSize: 12.5, lineHeight: 1.6, color: INK }}
       >
-        <div className="text-center" style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.32em", paddingLeft: "0.32em" }}>
+        <div
+          className="text-center"
+          style={{ fontSize: 19, fontWeight: 700, letterSpacing: "0.32em", paddingLeft: "0.32em" }}
+        >
           SPLITIN
         </div>
         <div className="text-center" style={{ fontWeight: 600 }}>
           {doc.title.toUpperCase()}
         </div>
         <div className="text-center" style={{ color: MUTED, fontSize: 11.5 }}>
-          {sharedBy ? `${fmt(r.sharedBy, { name: sharedBy.toUpperCase() })} · ${created}` : `${created} ${createdTime}${billId ? ` · ${r.no} ${billId.toUpperCase()}` : ""}`}
+          {sharedBy
+            ? `${fmt(r.sharedBy, { name: sharedBy.toUpperCase() })} · ${created}`
+            : `${created} ${createdTime}${billId ? ` · ${r.no} ${billId.toUpperCase()}` : ""}`}
         </div>
         <Dashed />
 
@@ -132,7 +152,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             <div key={item.id} className="contents">
               <span className="truncate">{item.name.toUpperCase()}</span>
               <span className="truncate">{name(item.paidBy)}</span>
-              <span style={{ textAlign: "right" }}>{each !== null ? `${each.exact ? "" : "~"}${plain(each.amount)}` : mark}</span>
+              <span style={{ textAlign: "right" }}>
+                {each !== null ? `${each.exact ? "" : "~"}${plain(each.amount)}` : mark}
+              </span>
               <span style={{ textAlign: "right" }}>{plain(item.amountMinor)}</span>
             </div>
           ))}
@@ -156,7 +178,10 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             </div>
             <Dashed />
             <div style={{ color: MUTED, fontSize: 11 }}>{r.balance}</div>
-            <div className="grid" style={{ gridTemplateColumns: "70px minmax(0,1fr) auto", columnGap: 8, rowGap: 2, fontWeight: 600 }}>
+            <div
+              className="grid"
+              style={{ gridTemplateColumns: "70px minmax(0,1fr) auto", columnGap: 8, rowGap: 2, fontWeight: 600 }}
+            >
               {[...summary.people]
                 .filter((p) => p.net !== 0)
                 .sort((a, b) => b.net - a.net)
@@ -183,7 +208,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 <div key={p.id} className="contents">
                   <span className="truncate">{name(p.id)}</span>
                   <span style={{ textAlign: "right" }}>{plain(p.share)}</span>
-                  <span style={{ textAlign: "right", fontWeight: 700, color: p.net > 0 ? GREEN : p.net < 0 ? RED : MUTED }}>
+                  <span
+                    style={{ textAlign: "right", fontWeight: 700, color: p.net > 0 ? GREEN : p.net < 0 ? RED : MUTED }}
+                  >
                     {p.net > 0 ? "+" : p.net < 0 ? "−" : ""}
                     {plain(Math.abs(p.net))}
                   </span>
@@ -191,16 +218,25 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               ))}
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-              <span style={{ color: GREEN }}>{r.legend.split(" · ")[0]}</span> · <span style={{ color: RED }}>{r.legend.split(" · ")[1]}</span>
+              <span style={{ color: GREEN }}>{r.legend.split(" · ")[0]}</span> ·{" "}
+              <span style={{ color: RED }}>{r.legend.split(" · ")[1]}</span>
             </div>
           </>
         )}
         <Dashed double />
 
         <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
-          {lines.length === 0 ? r.nothingToSettle : lines.length === 1 ? r.settleUpOne : fmt(r.settleUp, { count: lines.length })}
+          {lines.length === 0
+            ? r.nothingToSettle
+            : lines.length === 1
+              ? r.settleUpOne
+              : fmt(r.settleUp, { count: lines.length })}
         </div>
-        {hint ? <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>{hint}</div> : null}
+        {hint ? (
+          <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
+            {hint}
+          </div>
+        ) : null}
         <div className="mt-1.5 flex flex-col gap-2">
           {lines.map((l) => {
             const leader = (
@@ -208,7 +244,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 bold
                 left={
                   <>
-                    <span style={{ color: RED }}>{name(l.from)}</span> → <span style={{ color: GREEN }}>{name(l.to)}</span>
+                    <span style={{ color: RED }}>{name(l.from)}</span> →{" "}
+                    <span style={{ color: GREEN }}>{name(l.to)}</span>
                   </>
                 }
                 right={
@@ -233,17 +270,28 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               );
             }
             return (
-            <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
-              {leader}
-              {l.paid ? (
-                <span
-                  className="absolute"
-                  style={{ right: 58, top: -2, transform: "rotate(-8deg)", border: "2px solid #c2412b", color: "#c2412b", fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", padding: "0 4px", background: "#fffdf6" }}
-                >
-                  {r.paidStamp}
-                </span>
-              ) : null}
-            </div>
+              <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+                {leader}
+                {l.paid ? (
+                  <span
+                    className="absolute"
+                    style={{
+                      right: 58,
+                      top: -2,
+                      transform: "rotate(-8deg)",
+                      border: "2px solid #c2412b",
+                      color: "#c2412b",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.12em",
+                      padding: "0 4px",
+                      background: "#fffdf6",
+                    }}
+                  >
+                    {r.paidStamp}
+                  </span>
+                ) : null}
+              </div>
             );
           })}
         </div>
@@ -273,7 +321,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         {billId ? (
           <div className="text-center" style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
             {host}/bill/{billId}
-            {expiresAt ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}` : ""}
+            {expiresAt
+              ? ` · ${fmt(r.validTo, { date: date(expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" }) })}`
+              : ""}
           </div>
         ) : null}
         <div className="text-center" style={{ fontWeight: 600, marginTop: 6 }}>

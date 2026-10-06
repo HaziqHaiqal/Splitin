@@ -43,7 +43,10 @@ export function LanguageToggle() {
               onClick={() => {
                 if (!active) start(() => setLocale(l.code));
               }}
-              className={cn("h-9 px-2 transition-colors", active ? "font-extrabold text-ink" : "font-semibold text-faint hover:text-ink")}
+              className={cn(
+                "h-9 px-2 transition-colors",
+                active ? "font-extrabold text-ink" : "font-semibold text-faint hover:text-ink",
+              )}
             >
               {l.label}
             </button>
@@ -88,7 +91,10 @@ export function Header({ theme = true }: { theme?: boolean }) {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-14 max-w-[inherit] items-center justify-between bg-inherit px-[inherit] md:h-16">
-        <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
+        />
         <Logo />
         {/* no boxes around the controls; -mr-2 lines the last icon up with the page edge */}
         <div className="-mr-2 flex items-center gap-0.5">
@@ -106,12 +112,24 @@ export function Header({ theme = true }: { theme?: boolean }) {
  * The fixed top bar of a sub-page (the receipt): back on the left, the page name in the middle and
  * an optional action on the right. Pinned and sized like `Header`, with the same spacer below.
  */
-export function TopBar({ back, title, action }: { back: { label: string; href?: string; onClick?: () => void }; title: string; action?: ReactNode }) {
-  const backClass = "-ml-1.5 flex h-10 items-center gap-1 justify-self-start pr-2 text-[15px] font-bold text-ink no-underline";
+export function TopBar({
+  back,
+  title,
+  action,
+}: {
+  back: { label: string; href?: string; onClick?: () => void };
+  title: string;
+  action?: ReactNode;
+}) {
+  const backClass =
+    "-ml-1.5 flex h-10 items-center gap-1 justify-self-start pr-2 text-[15px] font-bold text-ink no-underline";
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-30 mx-auto grid h-14 max-w-[inherit] grid-cols-[1fr_auto_1fr] items-center bg-inherit px-[inherit] md:h-16">
-        <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16" />
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
+        />
         {back.href ? (
           <Link href={back.href} className={backClass}>
             <BackIcon />
