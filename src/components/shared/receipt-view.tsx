@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   addFriendItem,
   addMyName,
@@ -23,8 +23,21 @@ import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { itemShares, ownerOf, summarize, type Item, type Person, type PlanLine, type PreviewItem } from "@/lib/bill";
-import { getMe, setMe, setMyItem, setMyJoin, setMyName, useMe, useMyItems, useMyJoins, useMyNames } from "@/lib/store";
+import {
+  getAsked,
+  getMe,
+  setAsked,
+  setMe,
+  setMyItem,
+  setMyJoin,
+  setMyName,
+  useMe,
+  useMyItems,
+  useMyJoins,
+  useMyNames,
+} from "@/lib/store";
 import { BankForm } from "./bank-form";
+import { Greeting } from "./greeting";
 import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
 import { JoinForm } from "./join-form";
 import { NameForm } from "./name-form";
@@ -39,24 +52,23 @@ type View =
   | { kind: "bank"; personId: string };
 
 type Ask =
-  | { kind: "who"; then: () => void; hide?: string | null }
+  | { kind: "who"; then: () => void; hide?: string | null; first?: boolean }
   | { kind: "choose" }
-  | { kind: "payer"; line: PlanLine }
   | { kind: "confirm"; line: PlanLine };
 
 export function ReceiptView({
   bill,
   sharedBy,
   back,
+  quiet = false,
 }: {
   bill: SharedBillData;
   sharedBy: string;
   back?: { label: string; onClick: () => void };
+  quiet?: boolean;
 }) {
   const { t, money, date } = useI18n();
   const toast = useToast();
-  const [ask, setAsk] = useState<Ask | null>(null);
-  const [asking, setAsking] = useState(false);
   const [pending, start] = useTransition();
   const [view, setView] = useState<View | null>(null);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
@@ -79,6 +91,19 @@ export function ReceiptView({
   const friend = !back;
   const locked = Boolean(doc.locked);
   const owner = ownerOf(doc)?.name;
+  const others = doc.people.filter((p) => p.id !== doc.ownerId);
+  const canName = !locked || others.length > 0;
+
+  const [ask, setAsk] = useState<Ask | null>(() =>
+    friend && canName && !myName && !quiet && !getAsked(bill.id)
+      ? { kind: "who", then: () => undefined, first: true }
+      : null,
+  );
+  const [asking, setAsking] = useState(ask !== null);
+
+  useEffect(() => {
+    if (ask?.kind === "who" && ask.first) setAsked(bill.id);
+  }, [ask, bill.id]);
 
   const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => Boolean(myName) && e.by === myName);
   const showHistory = (next: boolean) => {
@@ -101,12 +126,9 @@ export function ReceiptView({
     setAsking(false);
     requestAnimationFrame(() => setView({ kind: "name", then }));
   };
-  const tapLine = (line: PlanLine) => showAsk({ kind: line.from === me ? "confirm" : "payer", line });
-  const iAmPayer = (line: PlanLine) => {
-    if (line.from !== doc.ownerId) setMe(bill.id, line.from);
-    showAsk({ kind: "confirm", line });
-  };
+  const tapLine = (line: PlanLine) => showAsk({ kind: "confirm", line });
   const forgetMe = () => {
+    setAsked(bill.id);
     setMe(bill.id, null);
     setAsking(false);
   };
@@ -121,6 +143,12 @@ export function ReceiptView({
   };
 
   const summary = summarize(doc, bill.payments);
+
+  const lineHint = () => {
+    if (!friend) return undefined;
+    if (myName) return summary.remaining.some((l) => l.from === me) ? t.friend.tapHint : undefined;
+    return canName && summary.remaining.length > 0 ? t.friend.chooseHint : undefined;
+  };
 
   const receivers = [...new Set([...summary.remaining, ...summary.done].map((l) => l.to))]
     .map((id) => doc.people.find((p) => p.id === id))
@@ -331,23 +359,17 @@ export function ReceiptView({
 
   const history = <HistoryButton doc={doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />;
 
-  const changeMe =
-    friend && myName ? (
-      <button
-        type="button"
-        onClick={() => showAsk({ kind: "who", then: () => undefined, hide: me })}
-        className="h-9 text-[13.5px] font-bold text-muted"
-      >
-        {fmt(t.friend.notYou, { name: myName })}
-      </button>
+  const greeting = (className?: string) =>
+    friend && (myName || canName) ? (
+      <Greeting
+        name={myName}
+        className={className}
+        action={{
+          label: myName ? fmt(t.friend.notYou, { name: myName }) : t.friend.chooseName,
+          onClick: () => showAsk({ kind: "who", then: () => undefined, hide: myName ? me : undefined }),
+        }}
+      />
     ) : null;
-
-  const links = (
-    <>
-      {history}
-      {changeMe}
-    </>
-  );
 
   const body = (bare: boolean) => {
     if (!view) return null;
@@ -429,7 +451,7 @@ export function ReceiptView({
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
     >
       <PlusIcon size={16} />
-      {canJoin ? t.friend.addOrJoin : t.friend.addPaid}
+      {canJoin ? t.friend.addOrUpdate : t.friend.addPaid}
     </button>
   );
 
@@ -441,8 +463,8 @@ export function ReceiptView({
           <>
             <p className="m-0 text-[14px] text-muted">{t.friend.whoDesc}</p>
             <div className="flex flex-col gap-2">
-              {doc.people
-                .filter((p) => p.id !== doc.ownerId && p.id !== ask.hide)
+              {others
+                .filter((p) => p.id !== ask.hide)
                 .map((p) => (
                   <button
                     key={p.id}
@@ -464,6 +486,15 @@ export function ReceiptView({
                   {t.friend.clearMe}
                 </button>
               ) : null}
+              {ask.first ? (
+                <button
+                  type="button"
+                  onClick={() => setAsking(false)}
+                  className="h-11 text-[15px] font-bold text-muted"
+                >
+                  {t.friend.justLooking}
+                </button>
+              ) : null}
             </div>
           </>
         );
@@ -471,26 +502,8 @@ export function ReceiptView({
         return (
           <div className="flex flex-col gap-2">
             <SheetOption title={t.friend.addPaid} desc={t.friend.addPaidDesc} onClick={() => choose("add")} />
-            <SheetOption title={t.friend.joinBill} desc={t.friend.joinBillDesc} onClick={() => choose("join")} />
+            <SheetOption title={t.friend.myBills} desc={t.friend.myBillsDesc} onClick={() => choose("join")} />
           </div>
-        );
-      case "payer":
-        return (
-          <>
-            <p className="m-0 text-[14px] text-muted">{t.friend.areYouDesc}</p>
-            <div className="flex flex-col gap-1.5 pt-1">
-              <button
-                type="button"
-                onClick={() => iAmPayer(ask.line)}
-                className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white"
-              >
-                {fmt(t.friend.yesIAm, { name: nameOf(ask.line.from) })}
-              </button>
-              <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
-                {t.friend.notMe}
-              </button>
-            </div>
-          </>
         );
       case "confirm": {
         const { line } = ask;
@@ -529,6 +542,7 @@ export function ReceiptView({
 
   const side = (
     <>
+      {greeting()}
       <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">
         {sharedBy
           ? fmt(t.friend.sharedLine, { name: sharedBy, date: date(bill.createdAt, { day: "numeric", month: "short" }) })
@@ -536,9 +550,6 @@ export function ReceiptView({
       </span>
       <h1 className="m-0 text-[30px] font-extrabold tracking-[-0.025em]">{bill.doc.title}</h1>
       {banner}
-      {friend && summary.remaining.length > 0 ? (
-        <p className="m-0 max-w-[46ch] text-[14.5px] leading-[1.5] text-muted">{t.friend.findYours}</p>
-      ) : null}
       {lockedNote}
       {tellCard}
       {receivers.length > 0 ? (
@@ -572,7 +583,7 @@ export function ReceiptView({
         : canChange
           ? changeButton("h-[42px] self-start border border-border bg-card px-4 text-[14px]")
           : null}
-      <div className="flex flex-wrap items-center gap-x-4 self-start">{links}</div>
+      <div className="self-start">{history}</div>
     </>
   );
 
@@ -584,6 +595,7 @@ export function ReceiptView({
         phoneTop={
           view ? undefined : (
             <>
+              {greeting("px-1")}
               {banner}
               {lockedNote}
               {tellCard}
@@ -591,7 +603,7 @@ export function ReceiptView({
             </>
           )
         }
-        phoneBelow={<div className="flex flex-wrap justify-center gap-x-4">{links}</div>}
+        phoneBelow={<div className="flex justify-center">{history}</div>}
         panel={friend && view ? body(true) : undefined}
         dock={canChange && !view ? changeButton("h-12 w-full bg-chip text-[14.5px]") : undefined}
         paper={
@@ -603,8 +615,9 @@ export function ReceiptView({
             sharedBy={sharedBy}
             preview={view?.kind === "add" ? preview : null}
             freshItemId={freshId}
-            hint={friend && summary.remaining.length > 0 ? t.friend.tapHint : undefined}
-            onLine={friend ? tapLine : undefined}
+            hint={lineHint()}
+            onLine={friend && myName ? tapLine : undefined}
+            onlyFrom={me}
           />
         }
       />
@@ -617,11 +630,9 @@ export function ReceiptView({
               ? t.friend.whoTitle
               : ask?.kind === "choose"
                 ? t.friend.chooseTitle
-                : ask?.kind === "payer"
-                  ? fmt(t.friend.areYou, { name: nameOf(ask.line.from) })
-                  : ask
-                    ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
-                    : ""
+                : ask
+                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                  : ""
           }
         >
           {askBody()}

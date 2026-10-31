@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, type Browser, type Page } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { BillDoc, Item, Payment } from "../src/lib/bill";
 
 const STUB = "http://localhost:54399";
@@ -88,8 +88,15 @@ export async function patchDoc(change: (doc: BillDoc) => BillDoc) {
 
 export const settled = (check: () => Promise<unknown>, expected: unknown) => expect.poll(check).toEqual(expected);
 
+const phones: BrowserContext[] = [];
+
+export async function closePhones() {
+  await Promise.all(phones.splice(0).map((phone) => phone.close()));
+}
+
 export async function newPhone(browser: Browser, storage: Record<string, unknown> = {}) {
   const context = await browser.newContext();
+  phones.push(context);
   await context.addInitScript((items) => {
     if (sessionStorage.getItem("seeded")) return;
     sessionStorage.setItem("seeded", "1");
@@ -104,7 +111,19 @@ export const ownerStorage = (doc: BillDoc = trip, seenAt = "") => ({
   "splitin:draft:v2": { doc, billId: BILL, seenAt },
 });
 
-export const openBill = (page: Page) => page.goto(`/bill/${BILL}`);
+export const openFresh = (page: Page) => page.goto(`/bill/${BILL}`);
+
+export async function openBill(page: Page) {
+  await page.addInitScript((id) => localStorage.setItem(`splitin:asked:${id}`, "1"), BILL);
+  await openFresh(page);
+}
+
+export async function openAs(page: Page, name: string) {
+  await openFresh(page);
+  await pickMe(page, name);
+  await expect(sheet(page)).toHaveCount(0);
+}
+
 export const panel = (page: Page) => page.locator('[class*="rounded-t-[22px]"]');
 export const sheet = (page: Page) => page.getByRole("dialog");
 export const button = (page: Page, name: string | RegExp) => page.getByRole("button", { name });
@@ -115,13 +134,6 @@ export async function pickMe(page: Page, name: string) {
   await sheet(page).getByRole("button", { name }).click();
 }
 
-export async function iAm(page: Page, name: string) {
-  await expect(sheet(page).getByRole("heading", { name: `Are you ${name}?` })).toBeVisible();
-  await sheet(page)
-    .getByRole("button", { name: `Yes, I'm ${name}` })
-    .click();
-}
-
 export async function addName(page: Page, name: string) {
   await pickMe(page, "Not on the list");
   const form = panel(page);
@@ -130,8 +142,8 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
-export async function choose(page: Page, option: "Add what I paid" | "Join a bill") {
-  await button(page, "Add or join a bill").click();
+export async function choose(page: Page, option: "Add what I paid" | "Bills I'm in") {
+  await button(page, "Add or update my bills").click();
   await sheet(page).getByRole("button", { name: option }).click();
 }
 
@@ -153,7 +165,7 @@ export async function startAdding(page: Page, name: string, digits: string, me?:
 export const submit = (form: ReturnType<typeof panel>) => form.locator("button[type=submit]").click();
 
 export async function openJoin(page: Page, me?: string) {
-  await choose(page, "Join a bill");
+  await choose(page, "Bills I'm in");
   if (me) await pickMe(page, me);
   const form = panel(page);
   await expect(form.getByText("Which bills are you in?")).toBeVisible();

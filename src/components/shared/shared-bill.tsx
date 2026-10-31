@@ -26,6 +26,7 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
   const hydrated = useHydrated();
   const ownerToken = useOwnerToken(bill.id);
   const [view, setView] = useState<"main" | "receipt" | "payments">("main");
+  const [ownerLink] = useState(() => typeof window !== "undefined" && window.location.hash.startsWith("#owner="));
   const { t } = useI18n();
   const toast = useToast();
 
@@ -44,7 +45,7 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
   const summary = summarize(bill.doc, bill.payments);
   const sharerName = ownerOf(bill.doc)?.name ?? "";
 
-  if (!ownerToken) return <ReceiptView bill={bill} sharedBy={sharerName} />;
+  if (!ownerToken) return <ReceiptView bill={bill} sharedBy={sharerName} quiet={ownerLink} />;
   if (view === "receipt")
     return (
       <ReceiptView bill={bill} sharedBy={sharerName} back={{ label: t.receipt.back, onClick: () => setView("main") }} />

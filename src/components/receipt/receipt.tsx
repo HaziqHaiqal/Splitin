@@ -113,6 +113,7 @@ export type ReceiptProps = {
   expiresAt?: string | null;
   sharedBy?: string | null;
   onLine?: (line: PlanLine) => void;
+  onlyFrom?: string | null;
   hint?: string;
   variant?: "draft" | "full";
   people?: { key: number; fresh?: boolean } | null;
@@ -130,6 +131,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     expiresAt,
     sharedBy,
     onLine,
+    onlyFrom,
     hint,
     variant = "full",
     people,
@@ -307,6 +309,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               {groups.map((group) => {
                 const branched = group.length > 1;
                 const lineFor = (l: (typeof lines)[number], i: number) => {
+                  const tappable = onLine && !l.paid && (!onlyFrom || l.from === onlyFrom);
                   const leader = (
                     <Leader
                       bold
@@ -324,46 +327,45 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                       right={
                         <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
                           {plain(l.amount)}
-                          {onLine && !l.paid ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
+                          {tappable ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
                         </span>
                       }
                     />
                   );
-                  const node =
-                    onLine && !l.paid ? (
-                      <button
-                        key={`${l.from}-${l.to}-open`}
-                        type="button"
-                        onClick={() => onLine(l)}
-                        aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
-                        className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f3f2ef] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#ebeae6]"
-                      >
-                        {leader}
-                      </button>
-                    ) : (
-                      <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
-                        {leader}
-                        {l.paid ? (
-                          <span
-                            className="absolute"
-                            style={{
-                              right: 58,
-                              top: -2,
-                              transform: "rotate(-8deg)",
-                              border: "2px solid #b5413b",
-                              color: "#b5413b",
-                              fontSize: 10,
-                              fontWeight: 700,
-                              letterSpacing: "0.12em",
-                              padding: "0 4px",
-                              background: "#ffffff",
-                            }}
-                          >
-                            {r.paidStamp}
-                          </span>
-                        ) : null}
-                      </div>
-                    );
+                  const node = tappable ? (
+                    <button
+                      key={`${l.from}-${l.to}-open`}
+                      type="button"
+                      onClick={() => onLine(l)}
+                      aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
+                      className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f3f2ef] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#ebeae6]"
+                    >
+                      {leader}
+                    </button>
+                  ) : (
+                    <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
+                      {leader}
+                      {l.paid ? (
+                        <span
+                          className="absolute"
+                          style={{
+                            right: 58,
+                            top: -2,
+                            transform: "rotate(-8deg)",
+                            border: "2px solid #b5413b",
+                            color: "#b5413b",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.12em",
+                            padding: "0 4px",
+                            background: "#ffffff",
+                          }}
+                        >
+                          {r.paidStamp}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
                   if (!branched) return node;
                   const last = i === group.length - 1;
                   return (

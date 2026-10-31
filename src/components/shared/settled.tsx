@@ -8,6 +8,7 @@ import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary } from "@/lib/bill";
 import { saveDraft } from "@/lib/store";
+import { OwnerGreeting } from "./greeting";
 import { HistoryButton } from "./history";
 import { OwnerActions } from "./owner-actions";
 import type { SharedBillData } from "./shared-bill";
@@ -72,11 +73,13 @@ export function Settled({
     <PrinterPage
       side={
         <>
+          <OwnerGreeting doc={bill.doc} />
           {words}
           {actions}
           {deletes}
         </>
       }
+      phoneTop={<OwnerGreeting doc={bill.doc} className="px-1" />}
       paper={
         <Receipt
           doc={bill.doc}

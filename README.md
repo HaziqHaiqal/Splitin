@@ -17,8 +17,9 @@ Planned work is in [TODO.md](TODO.md).
 - **Equal split by default.** You can type a different amount for one person and the rest re-splits, or leave someone out of a bill.
 - **Receipt-style summary.** Each person's share, who owes and who collects, and the smallest set of payments that settles everything.
 - **Share to the group.** A picture of the receipt plus a link, sent through WhatsApp or the phone's share menu.
-- **Friends use the link.** It opens straight on the receipt: who pays who, the bank account numbers, and PAID stamps as payments come in. Someone who has paid taps their payment on the receipt and confirms, one payment at a time. The person who shared sees who marked what and can mark any payment unpaid again. The person who shared can also mark payments and send reminders.
-- **Friends can add what they paid.** They add a bill from the link, and can delete only what they added, on the same phone. The first time they add, join or delete something, they tap their name from the bill. Marking a payment only asks "Are you Imanul?", because only the person paying marks it. "Not Haziq?" switches to another name, and "Clear" forgets it on that phone.
+- **Friends use the link.** It opens on the receipt: who pays who, the bank account numbers, and PAID stamps as payments come in. Someone who has paid taps their payment on the receipt and confirms, one payment at a time. The person who shared sees who marked what and can mark any payment unpaid again. The person who shared can also mark payments and send reminders.
+- **Friends say who they are.** The first time they open the link, "Who are you?" lists the names, "Not on the list" and "Just looking". After that the page says "Hi Imanul!", with "Not Imanul?" beside it to switch or clear the name. Only their own payments can be tapped. "Just looking" can't mark anything until they choose a name, and adding or joining a bill asks for it first.
+- **Friends can add what they paid.** They add a bill from the link, and can delete only what they added, on the same phone.
 - **Friends can add their own name.** Someone missing taps "Not on the list" and types their name. Nobody's amount changes until they join a bill. Whoever adds a bill sees all the names and can add a new one with "+ Add".
 - **Friends can join the bills they're in.** They tick some bills, or "Join all". Their share is worked out for them, or they can write their own amount. Anyone who already paid more than their new share gets a line on the receipt paying them back.
 - **Different amounts.** If someone sent more or less than the receipt says, they tap that payment and record the real amount. The two names can't be changed, and the receipt works out the rest. The owner can record a payment between any two people.
@@ -43,6 +44,8 @@ Amounts are in Malaysian Ringgit (RM) only.
 **Saving never overwrites friends.** The owner's phone can hold an old copy of the bill, so each save is merged with what's on the server (`mergeFriendChanges`). Whatever friends did since the owner last looked is kept, and it isn't logged in History as the owner's change. If the owner removes something they have already seen, it stays removed.
 
 **The owner's name and link.** On the first share, the owner picks which name is theirs, or says they are not on the list (`doc.ownerId`). Bills shared before this was added treat the first name as the owner. The owner link is `/bill/<id>#owner=<token>`. The token is in the `#` part so it never reaches the server logs, and the page removes it from the address bar after using it.
+
+**Who's opening the link.** The name is saved per bill on that phone (`splitin:me:<id>`), and `splitin:asked:<id>` stops the question coming back, however it was answered. The owner's phone never gets the question.
 
 **History.** Each change adds a row to the `bill_events` table. A friend's name comes from the person they picked (`splitin:me:<id>`), which the server looks up on the bill, so it can't be made-up text. For a payment, it's the person paying. Bank account numbers are never recorded. If history can't be read or written, the bill keeps working.
 

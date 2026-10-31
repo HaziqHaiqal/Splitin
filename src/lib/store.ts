@@ -93,6 +93,11 @@ export const useMe = (billId: string) => useStored(meKey(billId));
 export const getMe = (billId: string) => read(meKey(billId)) ?? undefined;
 export const setMe = (billId: string, personId: string | null) => write(meKey(billId), personId);
 
+const askedKey = (billId: string) => `splitin:asked:${billId}`;
+
+export const getAsked = (billId: string) => read(askedKey(billId)) !== null;
+export const setAsked = (billId: string) => write(askedKey(billId), "1");
+
 function parseTokens(raw: string | null | undefined): Record<string, string> {
   try {
     return raw ? (JSON.parse(raw) as Record<string, string>) : {};

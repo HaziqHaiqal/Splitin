@@ -9,7 +9,9 @@ const languages = [
     step: "Step 8",
     all: "Join all",
     none: "Untick all",
-    add: "Add what I paid",
+    looking: "Just looking",
+    choose: "Choose my name",
+    hi: "Hi Afiq!",
     notAfiq: "Not Afiq?",
     clear: "Clear",
   },
@@ -20,26 +22,29 @@ const languages = [
     step: "Langkah 8",
     all: "Sertai semua",
     none: "Nyahtanda semua",
-    add: "Tambah bayaran saya",
+    looking: "Tengok sahaja",
+    choose: "Pilih nama saya",
+    hi: "Hai Afiq!",
     notAfiq: "Bukan Afiq?",
     clear: "Kosongkan",
   },
 ];
 
-for (const { locale, help, next, step, all, none, add, notAfiq, clear } of languages) {
+for (const { locale, help, next, step, all, none, looking, choose, hi, notAfiq, clear } of languages) {
   test(`the guide shows Not X? without your name, with Clear (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
     await page.getByRole("button", { name: help }).click();
     const guide = sheet(page);
-    for (let i = 0; i < 7; i++) await guide.getByRole("button", { name: next, exact: true }).click();
-    await guide.getByRole("button", { name: add }).dispatchEvent("click");
+    for (let i = 0; i < 6; i++) await guide.getByRole("button", { name: next, exact: true }).click();
+    await expect(guide.getByRole("button", { name: looking })).toBeVisible();
     await guide.getByRole("button", { name: "Afiq" }).click();
+    await expect(guide.getByText(hi)).toBeVisible();
     await guide.getByRole("button", { name: notAfiq }).click();
     await expect(guide.getByRole("button", { name: "Najmi" })).toBeVisible();
     await expect(guide.getByRole("button", { name: "Afiq" })).toHaveCount(0);
     await guide.getByRole("button", { name: clear, exact: true }).click();
-    await expect(guide.getByRole("button", { name: add })).toBeVisible();
+    await expect(guide.getByRole("button", { name: choose })).toBeVisible();
     await expect(guide.getByRole("button", { name: next, exact: true })).toBeInViewport();
   });
 

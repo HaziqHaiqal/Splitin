@@ -10,6 +10,7 @@ import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary, PlanLine } from "@/lib/bill";
 import { cn } from "@/lib/utils";
+import { OwnerGreeting } from "./greeting";
 import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
 import { OwnerActions } from "./owner-actions";
 import { PayForm } from "./pay-form";
@@ -93,6 +94,7 @@ export function Tracking({
 
   const side = (
     <>
+      <OwnerGreeting doc={bill.doc} />
       <h1 className="m-0 text-[28px] font-extrabold tracking-[-0.025em]">{bill.doc.title}</h1>
       <ChangesBanner count={changes.count} onShow={() => showHistory(true)} />
       <div>

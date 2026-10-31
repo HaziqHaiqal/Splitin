@@ -4,14 +4,15 @@ import {
   BILL,
   button,
   choose,
+  closePhones,
   dinner,
   eventKinds,
   fromMore,
   getDb,
   hotel,
-  iAm,
   newPhone,
   OLD,
+  openAs,
   openBill,
   openHistory,
   openJoin,
@@ -32,6 +33,7 @@ import {
 } from "./helpers";
 
 test.beforeEach(() => seed());
+test.afterEach(() => closePhones());
 
 const openDraft = (doc = trip) => ({ "splitin:draft:v2": { doc, billId: null, seenAt: "" } });
 
@@ -53,8 +55,7 @@ test.describe("sharing", () => {
 
     const friend = await newPhone(browser);
     await friend.goto(`/bill/${published.id}`);
-    await expect(text(friend, "SHARED BY NAJMI")).toBeVisible();
-    await choose(friend, "Add what I paid");
+    await expect(text(friend, "SHARED BY NAJMI")).toBeAttached();
     const who = sheet(friend);
     await expect(who.getByRole("button", { name: "Haziq" })).toBeVisible();
     await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
@@ -93,7 +94,7 @@ test.describe("saving over friends' changes", () => {
 
     const friend = await newPhone(browser);
     await openBill(friend);
-    await choose(friend, "Join a bill");
+    await choose(friend, "Bills I'm in");
     await addName(friend, "Aiman");
     const form = panel(friend);
     await form.getByRole("checkbox", { name: "Hotel" }).click();
@@ -166,6 +167,21 @@ test.describe("owner screen", () => {
     return owner;
   };
 
+  test("greets the owner, with no way to change the name", async ({ browser }) => {
+    const owner = await tracking(browser);
+    await expect(text(owner, "Hi Haziq!")).toBeVisible();
+    await expect(button(owner, "Not Haziq?")).toHaveCount(0);
+    await expect(owner.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
+  });
+
+  test("an older bill with no owner saved has no greeting", async ({ browser }) => {
+    const { ownerId, ...doc } = trip;
+    void ownerId;
+    await seed(doc);
+    const owner = await tracking(browser, doc);
+    await expect(owner.getByText(/^Hi /)).toHaveCount(0);
+  });
+
   test("marks paid and unpaid, naming the owner in History", async ({ browser }) => {
     const owner = await tracking(browser);
     await button(owner, "Mark paid").first().click();
@@ -202,9 +218,8 @@ test.describe("owner screen", () => {
   });
 
   test("names the friend who paid", async ({ browser, page }) => {
-    await openBill(page);
+    await openAs(page, "Afiq");
     await page.getByRole("button", { name: /AFIQ PAYS HAZIQ/ }).click();
-    await iAm(page, "Afiq");
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
     await settled(async () => (await paymentsOf()).length, 1);
 
@@ -222,7 +237,7 @@ test.describe("owner screen", () => {
     await fromMore(owner, "Unlock bill");
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(page);
-    await expect(button(page, "Add or join a bill")).toBeVisible();
+    await expect(button(page, "Add or update my bills")).toBeVisible();
     expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
   });
 
@@ -248,6 +263,7 @@ test.describe("owner screen", () => {
     const owner = await newPhone(browser, ownerStorage());
     await openBill(owner);
     await expect(text(owner, "Everyone")).toBeVisible();
+    await expect(text(owner, "Hi Haziq!")).toBeVisible();
     await expect(button(owner, /^History/)).toBeVisible();
     await owner.getByRole("button", { name: "More", exact: true }).click();
     await expect(sheet(owner).getByRole("button", { name: "Copy owner link" })).toBeVisible();
@@ -262,6 +278,7 @@ test.describe("owner link and editing", () => {
     await phone.goto(`/bill/${BILL}#owner=${TOKEN}`);
     await expect(text(phone, "You can edit this bill on this device now")).toBeVisible();
     await expect(button(phone, "View receipt")).toBeVisible();
+    expect(await phone.evaluate((id) => localStorage.getItem(`splitin:asked:${id}`), BILL)).toBeNull();
     expect(phone.url()).not.toContain("owner=");
   });
 
@@ -269,7 +286,8 @@ test.describe("owner link and editing", () => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=wrongwrongwrongwrongwrong`);
     await expect(text(phone, "Something went wrong")).toBeVisible();
-    await expect(button(phone, "Add or join a bill")).toBeVisible();
+    await expect(button(phone, "Add or update my bills")).toBeVisible();
+    await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
     expect(await phone.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
   });
 

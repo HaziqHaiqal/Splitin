@@ -357,16 +357,17 @@ function SplitDemo() {
   );
 }
 
+const PAYS: [string, string, number][] = [
+  ["NAJMI", "HAZIQ", 11845],
+  ["IMANUL", "HAZIQ", 3530],
+  ["IMANUL", "AFIQ", 8315],
+];
+
 function ReceiptDemo() {
   const { t, plain } = useI18n();
   const [run, setRun] = useState(0);
   const r = t.receipt;
   const print = () => setRun(run + 1);
-  const pays: [string, string, number][] = [
-    ["NAJMI", "HAZIQ", 11845],
-    ["IMANUL", "HAZIQ", 3530],
-    ["IMANUL", "AFIQ", 8315],
-  ];
   return (
     <div
       role="button"
@@ -391,15 +392,15 @@ function ReceiptDemo() {
           <div className="font-bold tracking-[0.06em]">{r.settleUp}</div>
           <div className="flex justify-between">
             <span>
-              <span style={{ color: "#b5413b" }}>{pays[0][0]}</span> {r.pays}{" "}
-              <span style={{ color: "#2f7552" }}>{pays[0][1]}</span>
+              <span style={{ color: "#b5413b" }}>{PAYS[0][0]}</span> {r.pays}{" "}
+              <span style={{ color: "#2f7552" }}>{PAYS[0][1]}</span>
             </span>
-            <span>{plain(pays[0][2])}</span>
+            <span>{plain(PAYS[0][2])}</span>
           </div>
           <div>
-            <span style={{ color: "#b5413b" }}>{pays[1][0]}</span> {r.pays}
+            <span style={{ color: "#b5413b" }}>{PAYS[1][0]}</span> {r.pays}
           </div>
-          {pays.slice(1).map(([, to, amount]) => (
+          {PAYS.slice(1).map(([, to, amount]) => (
             <div key={to} className="ml-1 flex justify-between border-l border-[#c8c7c3] pl-2">
               <span style={{ color: "#2f7552" }}>{to}</span>
               <span>{plain(amount)}</span>
@@ -471,31 +472,94 @@ function ShareDemo() {
 
 function PayDemo() {
   const { t, plain } = useI18n();
-  const [paid, setPaid] = useState(false);
-  return (
-    <div className="flex w-full max-w-[280px] flex-col items-center">
-      <Paper className="relative w-full">
-        <div className="font-bold tracking-[0.06em]">{t.receipt.settleUp}</div>
-        <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{t.friend.tapHint}</div>
+  const [asking, setAsking] = useState(true);
+  const [me, setMe] = useState<string | null>(null);
+  const [paid, setPaid] = useState<number[]>([]);
+  const mine = PAYS.flatMap(([from], i) => (from === me?.toUpperCase() ? [i] : []));
+
+  if (asking) {
+    return (
+      <div className="flex flex-col items-center gap-2.5">
+        <div className="text-[15px] font-extrabold text-ink">{t.friend.whoTitle}</div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {NAMES.map((name, i) =>
+            i === 0 || name === me ? null : (
+              <button
+                key={name}
+                type="button"
+                onClick={() => {
+                  setMe(name);
+                  setPaid([]);
+                  setAsking(false);
+                }}
+                className={cn(press, "rounded-full")}
+              >
+                <Chip name={name} color={i} />
+              </button>
+            ),
+          )}
+        </div>
         <button
           type="button"
-          onClick={() => setPaid(!paid)}
-          className={cn(
-            press,
-            "relative -mx-1 mt-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5 text-left font-mono",
-            paid ? "" : "animate-nudge bg-[#f3f2ef]",
-          )}
+          onClick={() => {
+            setMe(null);
+            setAsking(false);
+          }}
+          className="h-7 text-[12px] font-bold text-green-soft-ink"
         >
-          <span style={{ color: "#b5413b" }}>NAJMI</span> {t.receipt.pays}{" "}
-          <span style={{ color: "#2f7552" }}>HAZIQ</span>
-          <span className="flex-1 border-b border-dotted border-[#c8c7c3]" />
-          <span className={paid ? "text-[#9b9a96] line-through" : ""}>{plain(11845)}</span>
-          {paid ? (
-            <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#b5413b] bg-[#ffffff] px-1 text-[9px] font-bold tracking-[0.12em] text-[#b5413b]">
-              {t.receipt.paidStamp}
-            </span>
-          ) : null}
+          {me ? t.friend.clearMe : t.friend.justLooking}
         </button>
+      </div>
+    );
+  }
+
+  const hint = me ? (mine.length > 0 ? t.friend.tapHint : null) : t.friend.chooseHint;
+  return (
+    <div className="flex w-full max-w-[280px] flex-col gap-1">
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        {me ? <b className="text-[14px] font-extrabold text-ink">{fmt(t.friend.hi, { name: me })}</b> : null}
+        <button
+          type="button"
+          onClick={() => setAsking(true)}
+          className="ml-auto h-7 text-[12px] font-bold text-green-soft-ink"
+        >
+          {me ? fmt(t.friend.notYou, { name: me }) : t.friend.chooseName}
+        </button>
+      </div>
+      <Paper className="w-full">
+        <div className="font-bold tracking-[0.06em]">{t.receipt.settleUp}</div>
+        {hint ? <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{hint}</div> : null}
+        {PAYS.map(([from, to, amount], i) => {
+          const done = paid.includes(i);
+          const line = (
+            <>
+              <span style={{ color: "#b5413b" }}>{from}</span> {t.receipt.pays}{" "}
+              <span style={{ color: "#2f7552" }}>{to}</span>
+              <span className="flex-1 border-b border-dotted border-[#c8c7c3]" />
+              <span className={done ? "text-[#9b9a96] line-through" : ""}>{plain(amount)}</span>
+              {done ? (
+                <span className="absolute top-0 right-12 rotate-[-8deg] animate-stamp border-2 border-[#b5413b] bg-[#ffffff] px-1 text-[9px] font-bold tracking-[0.12em] text-[#b5413b]">
+                  {t.receipt.paidStamp}
+                </span>
+              ) : null}
+            </>
+          );
+          const shape = "relative -mx-1 mt-1 flex w-[calc(100%+8px)] items-baseline gap-1.5 rounded px-1 py-0.5";
+          return mine.includes(i) ? (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setPaid(done ? paid.filter((p) => p !== i) : [...paid, i])}
+              className={cn(press, shape, "text-left font-mono", !done && "animate-nudge bg-[#f3f2ef]")}
+            >
+              {line}
+            </button>
+          ) : (
+            <div key={i} className={shape}>
+              {line}
+            </div>
+          );
+        })}
       </Paper>
     </div>
   );
@@ -503,14 +567,13 @@ function PayDemo() {
 
 function AddDemo() {
   const { t, money } = useI18n();
-  const [stage, setStage] = useState<"add" | "who" | "change" | "mine">("add");
-  const [who, setWho] = useState(NAMES[1]);
+  const [added, setAdded] = useState(false);
 
-  if (stage === "add") {
+  if (!added) {
     return (
       <button
         type="button"
-        onClick={() => setStage("who")}
+        onClick={() => setAdded(true)}
         className={cn(
           mini,
           press,
@@ -523,68 +586,25 @@ function AddDemo() {
     );
   }
 
-  if (stage === "who" || stage === "change") {
-    return (
-      <div className="flex flex-col items-center gap-2.5">
-        <div className="text-[15px] font-extrabold text-ink">{t.friend.whoTitle}</div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {NAMES.slice(0, 3).map((name, i) =>
-            stage === "change" && name === who ? null : (
-              <button
-                key={name}
-                type="button"
-                onClick={() => {
-                  setWho(name);
-                  setStage("mine");
-                }}
-                className={cn(press, "rounded-full")}
-              >
-                <Chip name={name} color={i} />
-              </button>
-            ),
-          )}
-        </div>
-        {stage === "change" ? (
-          <button
-            type="button"
-            onClick={() => setStage("add")}
-            className="h-7 text-[12px] font-bold text-green-soft-ink"
-          >
-            {t.friend.clearMe}
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex w-full max-w-[270px] flex-col items-center gap-1.5">
-      <div className={cn(mini, "w-full animate-pop px-3 pt-2.5 pb-1")}>
-        <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.yours}</span>
-        <div className="flex items-center justify-between gap-2 py-2">
-          <span className="min-w-0 truncate text-[13px] text-ink">
-            <b>{t.help.demoBills[1]}</b>
-            <span className="text-muted"> · {money(5000)}</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setStage("add")}
-            className={cn(
-              press,
-              "h-7 shrink-0 animate-nudge rounded-lg border border-border bg-card px-2.5 text-[12px] font-bold text-owe",
-            )}
-          >
-            {t.friend.deleteMine}
-          </button>
-        </div>
+    <div className={cn(mini, "w-full max-w-[270px] animate-pop px-3 pt-2.5 pb-1")}>
+      <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.yours}</span>
+      <div className="flex items-center justify-between gap-2 py-2">
+        <span className="min-w-0 truncate text-[13px] text-ink">
+          <b>{t.help.demoBills[1]}</b>
+          <span className="text-muted"> · {money(5000)}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setAdded(false)}
+          className={cn(
+            press,
+            "h-7 shrink-0 animate-nudge rounded-lg border border-border bg-card px-2.5 text-[12px] font-bold text-owe",
+          )}
+        >
+          {t.friend.deleteMine}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => setStage("change")}
-        className="h-7 text-[12px] font-bold text-green-soft-ink"
-      >
-        {fmt(t.friend.notYou, { name: who })}
-      </button>
     </div>
   );
 }
