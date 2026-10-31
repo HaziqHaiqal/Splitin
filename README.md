@@ -22,9 +22,13 @@ Split shared bills with friends or family. Name the bill, add the people and who
 
 Amounts are in Malaysian Ringgit (RM) only.
 
+## Next MVP
+
+- **Past splits.** See your past splits and duplicate one for next month.
+- **Scan a bill.** Take a photo so nobody types the name and amount by hand.
+- **Paid plans.** Links that last longer, and past splits on every device. Friends never pay or sign up.
+
 ## Tests
 
 - `pnpm test` runs the unit tests.
 - `pnpm test:e2e` runs the browser tests against a stand-in database, so it never touches real data.
-
-Planned work is in [TODO.md](TODO.md).
