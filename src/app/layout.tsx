@@ -22,6 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: t.meta.title, template: "%s · Splitin" },
     description: t.meta.description,
     applicationName: "Splitin",
+    appleWebApp: { capable: true, title: "Splitin", statusBarStyle: "default" },
+    icons: { icon: "/logo.png", apple: "/logo.png" },
   };
 }
 

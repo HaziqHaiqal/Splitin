@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Header } from "@/components/header";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
+import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { cn } from "@/lib/utils";
 import { BigStamp, Zigzag } from "./receipt";
 
@@ -108,6 +109,8 @@ export function PrinterPage({
   const desktop = useIsDesktop();
   const pinned = useRef<HTMLDivElement>(null);
   const [pinnedHeight, setPinnedHeight] = useState(0);
+  const keyboard = useKeyboardViewport(pinned);
+  const typing = keyboard !== null;
 
   useEffect(() => {
     const el = pinned.current;
@@ -118,9 +121,9 @@ export function PrinterPage({
   }, [desktop, panel, dock]);
 
   useEffect(() => {
-    if (desktop || follow === undefined) return;
+    if (desktop || follow === undefined || typing) return;
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
-  }, [desktop, follow, pinnedHeight]);
+  }, [desktop, follow, pinnedHeight, typing]);
 
   if (desktop) {
     return (
@@ -160,6 +163,16 @@ export function PrinterPage({
       {panel ? (
         <div
           ref={pinned}
+          style={
+            keyboard
+              ? {
+                  top: keyboard.bottom,
+                  bottom: "auto",
+                  maxHeight: keyboard.height,
+                  transform: "translateY(-100%)",
+                }
+              : undefined
+          }
           className="fixed inset-x-0 bottom-0 z-20 max-h-[74dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-border bg-card px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(55,53,47,0.08)]"
         >
           {panel}

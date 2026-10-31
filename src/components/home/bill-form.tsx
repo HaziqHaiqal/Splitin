@@ -177,7 +177,7 @@ export function BillForm({
       : t.bill.splitEveryone;
 
   const field =
-    "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[15px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
+    "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
 
   return (
     <form
@@ -222,7 +222,7 @@ export function BillForm({
           aria-label={t.bill.amount}
           placeholder="0.00"
           onChange={(e) => setAmount(autoPoint(e.target.value))}
-          className={cn(field, "text-[16px] font-extrabold tabular")}
+          className={cn(field, "font-extrabold tabular")}
         />
       </div>
 
@@ -317,7 +317,7 @@ export function BillForm({
                         commitEditing();
                       }
                     }}
-                    className="h-[34px] w-[84px] rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[14px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
+                    className="h-[34px] w-[92px] rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
                   />
                 ) : (
                   <button
@@ -327,7 +327,7 @@ export function BillForm({
                       const current = share !== undefined ? toInputValue(share, "MYR") : "";
                       setEditing({ id: p.id, value: current, start: current });
                     }}
-                    className="h-[34px] w-[84px] rounded-lg border border-border bg-bg px-2.5 text-right text-[14px] font-bold text-muted tabular"
+                    className="h-[34px] w-[92px] rounded-lg border border-border bg-bg px-2.5 text-right text-[14px] font-bold text-muted tabular"
                   >
                     {on && share !== undefined ? plain(share) : "–"}
                   </button>
