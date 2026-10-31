@@ -114,6 +114,7 @@ export type ReceiptProps = {
   sharedBy?: string | null;
   onLine?: (line: PlanLine) => void;
   onlyFrom?: string | null;
+  canUndo?: (line: PlanLine) => boolean;
   hint?: string;
   onHint?: () => void;
   variant?: "draft" | "full";
@@ -133,6 +134,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     sharedBy,
     onLine,
     onlyFrom,
+    canUndo,
     hint,
     onHint,
     variant = "full",
@@ -320,7 +322,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               {groups.map((group) => {
                 const branched = group.length > 1;
                 const lineFor = (l: (typeof lines)[number], i: number) => {
-                  const tappable = onLine && !l.paid && (!onlyFrom || l.from === onlyFrom);
+                  const tappable = onLine && (!onlyFrom || l.from === onlyFrom) && (!l.paid || canUndo?.(l));
                   const leader = (
                     <Leader
                       bold
@@ -336,8 +338,31 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                         )
                       }
                       right={
-                        <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
-                          {plain(l.amount)}
+                        <span>
+                          <span className="relative inline-block">
+                            <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
+                              {plain(l.amount)}
+                            </span>
+                            {l.paid ? (
+                              <span
+                                className="absolute"
+                                style={{
+                                  right: "calc(100% + 13px)",
+                                  top: -2,
+                                  transform: "rotate(-8deg)",
+                                  border: "2px solid #b5413b",
+                                  color: "#b5413b",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.12em",
+                                  padding: "0 4px",
+                                  background: "#ffffff",
+                                }}
+                              >
+                                {r.paidStamp}
+                              </span>
+                            ) : null}
+                          </span>
                           {tappable ? (
                             <span className="inline-block animate-arrow" style={{ marginLeft: 2 }}>
                               ›
@@ -349,37 +374,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                   );
                   const node = tappable ? (
                     <button
-                      key={`${l.from}-${l.to}-open`}
+                      key={`${l.from}-${l.to}-${l.paymentId ?? "open"}`}
                       type="button"
                       onClick={() => onLine(l)}
-                      aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}`}
+                      aria-label={`${name(l.from)} ${r.pays} ${name(l.to)} ${plain(l.amount)}${l.paid ? ` ${r.paidStamp}` : ""}`}
                       className="-mx-1.5 block w-[calc(100%+12px)] rounded-md bg-[#f3f2ef] px-1.5 py-1 text-left font-mono transition-colors hover:bg-[#ebeae6]"
                     >
                       {leader}
                     </button>
                   ) : (
-                    <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`} className="relative">
-                      {leader}
-                      {l.paid ? (
-                        <span
-                          className="absolute"
-                          style={{
-                            right: 58,
-                            top: -2,
-                            transform: "rotate(-8deg)",
-                            border: "2px solid #b5413b",
-                            color: "#b5413b",
-                            fontSize: 10,
-                            fontWeight: 700,
-                            letterSpacing: "0.12em",
-                            padding: "0 4px",
-                            background: "#ffffff",
-                          }}
-                        >
-                          {r.paidStamp}
-                        </span>
-                      ) : null}
-                    </div>
+                    <div key={`${l.from}-${l.to}-${l.paymentId ?? "x"}`}>{leader}</div>
                   );
                   if (!branched) return node;
                   const last = i === group.length - 1;

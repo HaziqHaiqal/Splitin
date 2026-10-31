@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   addName,
   BILL,
@@ -22,6 +22,7 @@ import {
   paymentsOf,
   payLine,
   pickMe,
+  saveDb,
   seed,
   serverDoc,
   serverItem,
@@ -636,6 +637,155 @@ test.describe("paying", () => {
     await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 10000 }]);
     await button(page, "Undo").click();
     await settled(paymentsOf, []);
+  });
+
+  test.describe("undoing later", () => {
+    const paid = { from: "n", to: "h", amountMinor: 10000 };
+    const markPaid = async (page: Page) => {
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "Mark paid" }).click();
+      await settled(paymentsOf, [paid]);
+    };
+    const stamp = (page: Page) => page.getByText("PAID", { exact: true }).first();
+
+    test("the phone that marked it can undo it, with no time limit", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+
+      const db = await getDb();
+      db.payments[0].created_at = new Date(Date.now() - 20 * 86_400_000).toISOString();
+      await saveDb(db);
+      await page.reload();
+
+      const line = button(page, /NAJMI PAYS HAZIQ 100\.00 PAID/);
+      await expect(stamp(page)).toBeVisible();
+      expect(await line.getByText("›").evaluate((el) => getComputedStyle(el).animationName)).toBe("arrow");
+      await line.click();
+      await expect(sheet(page).getByRole("heading", { name: "Not paid Haziq after all?" })).toBeVisible();
+      await sheet(page).getByRole("button", { name: "Cancel" }).click();
+      await expect(sheet(page)).toHaveCount(0);
+      expect(await paymentsOf()).toEqual([paid]);
+
+      await line.click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await settled(paymentsOf, []);
+      await expect(text(page, "Najmi → Haziq is unpaid again")).toBeVisible();
+      await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
+
+      const list = await openHistory(page);
+      await expect(list.getByText("Najmi undid their payment to Haziq")).toBeVisible();
+    });
+
+    test("the toast's Undo clears the saved key too", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+      await button(page, "Undo").click();
+      await settled(paymentsOf, []);
+      await expect(text(page, "Najmi → Haziq is unpaid again")).toBeVisible();
+      await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
+      expect(await page.evaluate((id) => localStorage.getItem(`splitin:paid:${id}`), BILL)).toBe("{}");
+    });
+
+    test("another phone, or another name on this phone, cannot undo it", async ({ page, browser }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+
+      const other = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
+      await openFresh(other);
+      await expect(stamp(other)).toBeVisible();
+      await expect(payLine(other, "NAJMI", "HAZIQ")).toHaveCount(0);
+
+      await button(page, "Hi Najmi").click();
+      await pickMe(page, "Afiq");
+      await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
+      await button(page, "Hi Afiq").click();
+      await pickMe(page, "Najmi");
+      await expect(payLine(page, "NAJMI", "HAZIQ")).toBeVisible();
+    });
+
+    for (const markedBy of ["owner", "payer"])
+      test(`a payment with no saved key (marked by ${markedBy}) stays as it is`, async ({ page }) => {
+        await seed(trip, { payments: [paymentRow("n", "h", 10000, markedBy)] });
+        await openAs(page, "Najmi");
+        await expect(stamp(page)).toBeVisible();
+        await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
+      });
+
+    test("the PAID stamp stays clear of a big amount", async ({ page }) => {
+      await seed({ ...trip, items: [{ ...hotel, amountMinor: 370000 }] }, { payments: [paymentRow("n", "h", 123333)] });
+      await openAs(page, "Najmi");
+      const stampBox = await stamp(page).boundingBox();
+      const amountBox = await page.getByText("1,233.33", { exact: true }).first().boundingBox();
+      expect(stampBox!.x + stampBox!.width).toBeLessThanOrEqual(amountBox!.x);
+    });
+
+    test("the server refuses a made-up key", async ({ page }) => {
+      const row = paymentRow("n", "h", 10000);
+      await seed(trip, { payments: [row] });
+      await page.addInitScript(
+        ([id, paymentId]) => localStorage.setItem(`splitin:paid:${id}`, JSON.stringify({ [paymentId]: "made-up" })),
+        [BILL, row.id],
+      );
+      await openAs(page, "Najmi");
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await expect(text(page, "Something went wrong")).toBeVisible();
+      expect(await paymentsOf()).toEqual([paid]);
+    });
+
+    test("the server refuses when the owner has taken over the payment", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+      const db = await getDb();
+      db.payments[0].marked_by = "owner";
+      await saveDb(db);
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await expect(text(page, "Something went wrong")).toBeVisible();
+      expect(await paymentsOf()).toEqual([paid]);
+    });
+
+    test("a payment the owner already undid just clears", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+      const db = await getDb();
+      db.payments = [];
+      await saveDb(db);
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await expect(text(page, "Najmi → Haziq is unpaid again")).toBeVisible();
+      await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
+    });
+
+    test("a part payment can be undone while the rest stays open", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+      const form = panel(page);
+      await form.locator("input[inputmode='numeric']").pressSequentially("6000");
+      await submit(form);
+      await settled(paymentsOf, [{ ...paid, amountMinor: 6000 }]);
+
+      await button(page, /NAJMI PAYS HAZIQ 40\.00$/).click();
+      await expect(sheet(page).getByRole("heading", { name: "Najmi paid Haziq?" })).toBeVisible();
+      await sheet(page).getByRole("button", { name: "Cancel" }).click();
+      await expect(sheet(page)).toHaveCount(0);
+
+      await button(page, /NAJMI PAYS HAZIQ 60\.00 PAID/).click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await settled(paymentsOf, []);
+      await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
+    });
+
+    test("still works on a locked bill", async ({ page }) => {
+      await openAs(page, "Najmi");
+      await markPaid(page);
+      await patchDoc((d) => ({ ...d, locked: true }));
+      await page.reload();
+      await payLine(page, "NAJMI", "HAZIQ").click();
+      await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
+      await settled(paymentsOf, []);
+    });
   });
 
   test("a different amount is recorded and the receipt works out the rest", async ({ page }) => {

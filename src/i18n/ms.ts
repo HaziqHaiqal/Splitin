@@ -166,6 +166,8 @@ export const ms: Dictionary = {
     confirmDesc: "Semua yang ada pautan akan nampak cap DIBAYAR pada bayaran ini.",
     cancel: "Batal",
     marked: "Ditanda dah bayar kepada {name}",
+    undoTitle: "Belum bayar {to} sebenarnya?",
+    undoDesc: "Cap DIBAYAR akan hilang untuk semua orang, dan Sejarah akan tunjuk perubahan ini.",
     joinBill: "Sertai bil",
     addTitle: "Tambah apa yang anda bayar",
     added: "Ditambah “{name}”",
@@ -300,7 +302,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 6: Tanda siapa dah bayar",
-        desc: "Rakan buka pautan dan pilih nama mereka, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Anda boleh tanda belum bayar. Bayar jumlah lain? Rekod jumlah itu, dan resit kira selebihnya.",
+        desc: "Rakan buka pautan dan pilih nama mereka, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Rekod jumlah itu, dan resit kira selebihnya.",
         hint: "Cuba: pilih nama, kemudian tanda bayaran anda.",
       },
       {

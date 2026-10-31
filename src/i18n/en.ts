@@ -164,6 +164,8 @@ export const en = {
     confirmDesc: "Everyone with the link will see a PAID stamp on this payment.",
     cancel: "Cancel",
     marked: "Marked as paid to {name}",
+    undoTitle: "Not paid {to} after all?",
+    undoDesc: "The PAID stamp comes off for everyone, and History shows the change.",
     joinBill: "Join bill",
     addTitle: "Add what you paid",
     added: "Added “{name}”",
@@ -298,7 +300,7 @@ export const en = {
       },
       {
         title: "Step 6: Mark who has paid",
-        desc: "Friends open the link and pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? You can mark it unpaid. Paid a different amount? Record it, and the receipt works out the rest.",
+        desc: "Friends open the link and pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Record it, and the receipt works out the rest.",
         hint: "Try it: pick a name, then mark your payment.",
       },
       {

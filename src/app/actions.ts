@@ -500,8 +500,6 @@ export async function addPayment(
   });
 }
 
-const UNDO_WINDOW_MS = 15 * 60_000;
-
 export async function removePayment(
   id: string,
   paymentId: string,
@@ -511,18 +509,12 @@ export async function removePayment(
     if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };
     const { data: row } = await db()
       .from("payments")
-      .select("from_person, to_person, amount_minor, marked_by, created_at")
+      .select("from_person, to_person, amount_minor, marked_by")
       .eq("id", paymentId)
       .eq("bill_id", id)
       .maybeSingle();
     const owner = await isOwner(id, ownerToken);
-    if (
-      !owner &&
-      (!row ||
-        undoKey !== paymentKey(paymentId) ||
-        row.marked_by !== "payer" ||
-        Date.now() - new Date(row.created_at).getTime() > UNDO_WINDOW_MS)
-    )
+    if (!owner && (undoKey !== paymentKey(paymentId) || (row && row.marked_by !== "payer")))
       return { ok: false, error: "forbidden" };
     if (row) {
       const { error } = await db().from("payments").delete().eq("id", paymentId).eq("bill_id", id);

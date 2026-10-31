@@ -30,11 +30,13 @@ import {
   setMe,
   setMyItem,
   setMyJoin,
+  setMyPayment,
   setMyName,
   useMe,
   useMyItems,
   useMyJoins,
   useMyNames,
+  useMyPayments,
 } from "@/lib/store";
 import { BankForm } from "./bank-form";
 import { Greeting } from "./greeting";
@@ -52,7 +54,9 @@ type View =
   | { kind: "bank"; personId: string };
 
 type Ask =
-  { kind: "who"; then: () => void; hide?: string | null; first?: boolean } | { kind: "confirm"; line: PlanLine };
+  | { kind: "who"; then: () => void; hide?: string | null; first?: boolean }
+  | { kind: "confirm"; line: PlanLine }
+  | { kind: "undo"; line: PlanLine };
 
 export function ReceiptView({
   bill,
@@ -78,6 +82,7 @@ export function ReceiptView({
   const mine = useMyItems(bill.id);
   const myJoins = useMyJoins(bill.id);
   const myNames = useMyNames(bill.id);
+  const myPayments = useMyPayments(bill.id);
   const me = useMe(bill.id);
 
   const doc =
@@ -124,7 +129,7 @@ export function ReceiptView({
     setAsking(false);
     requestAnimationFrame(() => setView({ kind: "name", then }));
   };
-  const tapLine = (line: PlanLine) => showAsk({ kind: "confirm", line });
+  const tapLine = (line: PlanLine) => showAsk({ kind: line.paymentId ? "undo" : "confirm", line });
   const forgetMe = () => {
     setAsked(bill.id);
     setMe(bill.id, null);
@@ -173,13 +178,20 @@ export function ReceiptView({
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setView(null);
       const { id, undoKey } = result.data;
+      setMyPayment(bill.id, id, undoKey);
       toast({
         message: fmt(t.friend.marked, { name: nameOf(payment.to) }),
-        action: {
-          label: t.common.undo,
-          onClick: () => void removePayment(bill.id, id, { undoKey, byId: payment.from }),
-        },
+        action: { label: t.common.undo, onClick: () => unpay(id, payment, undoKey) },
       });
+    });
+
+  const unpay = (paymentId: string, line: { from: string; to: string }, undoKey: string) =>
+    start(async () => {
+      const result = await removePayment(bill.id, paymentId, { undoKey, byId: line.from });
+      setAsking(false);
+      if (!result.ok) return void toast({ message: errorText(result.error) });
+      setMyPayment(bill.id, paymentId, null);
+      toast({ message: fmt(t.track.unmarked, { from: nameOf(line.from), to: nameOf(line.to) }) });
     });
 
   const addItem = (item: Item, newPeople: readonly Person[] = []) =>
@@ -536,6 +548,28 @@ export function ReceiptView({
           </>
         );
       }
+      case "undo": {
+        const { line } = ask;
+        return (
+          <>
+            <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
+            <p className="m-0 text-[14px] text-muted">{t.friend.undoDesc}</p>
+            <div className="flex flex-col gap-1.5 pt-1">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => unpay(line.paymentId!, line, myPayments[line.paymentId!])}
+                className="h-14 rounded-2xl bg-chip text-[16px] font-bold text-ink disabled:opacity-60"
+              >
+                {t.track.markUnpaid}
+              </button>
+              <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
+                {t.friend.cancel}
+              </button>
+            </div>
+          </>
+        );
+      }
     }
   };
 
@@ -622,6 +656,7 @@ export function ReceiptView({
             onHint={friend && !myName ? () => showAsk({ kind: "who", then: () => undefined }) : undefined}
             onLine={friend && myName ? tapLine : undefined}
             onlyFrom={me}
+            canUndo={(line) => Boolean(line.paymentId && myPayments[line.paymentId])}
           />
         }
       />
@@ -632,9 +667,11 @@ export function ReceiptView({
           title={
             ask?.kind === "who"
               ? t.friend.whoTitle
-              : ask
-                ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
-                : ""
+              : ask?.kind === "undo"
+                ? fmt(t.friend.undoTitle, { to: nameOf(ask.line.to) })
+                : ask
+                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                  : ""
           }
         >
           {askBody()}

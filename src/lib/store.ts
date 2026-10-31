@@ -131,6 +131,11 @@ export const useMyJoins = (billId: string) => useTokens(joinsKey(billId));
 export const setMyJoin = (billId: string, itemId: string, token: string | null) =>
   setToken(joinsKey(billId), itemId, token);
 
+const paidKey = (billId: string) => `splitin:paid:${billId}`;
+export const useMyPayments = (billId: string) => useTokens(paidKey(billId));
+export const setMyPayment = (billId: string, paymentId: string, key: string | null) =>
+  setToken(paidKey(billId), paymentId, key);
+
 const namesKey = (billId: string) => `splitin:names:${billId}`;
 export const useMyNames = (billId: string) => useTokens(namesKey(billId));
 export const setMyName = (billId: string, personId: string, key: string) => setToken(namesKey(billId), personId, key);
