@@ -26,5 +26,32 @@ export function useKeyboardViewport(container: RefObject<HTMLElement | null>) {
     };
   }, [container]);
 
+  const typing = viewport !== null;
+
+  useEffect(() => {
+    if (!typing) return;
+    let startX = 0;
+    let startY = 0;
+    const start = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+    const move = (e: TouchEvent) => {
+      if (e.touches.length > 1 || !e.cancelable) return;
+      const panel = container.current;
+      if (panel && e.target instanceof Node && panel.contains(e.target)) {
+        const sideways = Math.abs(e.touches[0].clientX - startX) > Math.abs(e.touches[0].clientY - startY);
+        if (sideways || panel.scrollHeight > panel.clientHeight) return;
+      }
+      e.preventDefault();
+    };
+    document.addEventListener("touchstart", start, { passive: true });
+    document.addEventListener("touchmove", move, { passive: false });
+    return () => {
+      document.removeEventListener("touchstart", start);
+      document.removeEventListener("touchmove", move);
+    };
+  }, [typing, container]);
+
   return viewport;
 }
