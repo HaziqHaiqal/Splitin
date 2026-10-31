@@ -185,7 +185,7 @@ export function Tracking({
         <button
           type="button"
           onClick={onViewReceipt}
-          className="h-12 w-full rounded-xl border border-border bg-card text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(55,53,47,0.10)]"
+          className="h-12 w-full rounded-xl bg-chip text-[15px] font-bold text-ink"
         >
           {t.track.viewReceipt}
         </button>

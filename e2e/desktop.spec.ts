@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { button, openBill, panel, payLine, pickMe, seed, sheet } from "./helpers";
+import { button, iAm, openBill, panel, payLine, pickMe, seed, sheet } from "./helpers";
 
 test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 });
 test.beforeEach(() => seed());
@@ -18,6 +18,6 @@ test("the questions close and the form opens with the cursor in it", async ({ pa
 test("the mark-paid question follows in the same dialog", async ({ page }) => {
   await openBill(page);
   await payLine(page, "NAJMI", "HAZIQ").click();
-  await pickMe(page, "Najmi");
+  await iAm(page, "Najmi");
   await expect(sheet(page).getByRole("button", { name: "Mark paid" })).toBeVisible();
 });

@@ -447,7 +447,7 @@ async function loadPayments(id: string): Promise<Payment[]> {
 export async function addPayment(
   id: string,
   input: z.input<typeof paymentSchema>,
-  { ownerToken, byId, different = false }: { ownerToken?: string; byId?: unknown; different?: boolean } = {},
+  { ownerToken, different = false }: { ownerToken?: string; different?: boolean } = {},
 ): Promise<Result<{ id: string; undoKey: string }>> {
   return guard(async () => {
     const parsed = paymentSchema.safeParse(input);
@@ -493,7 +493,7 @@ export async function addPayment(
           paymentId: data.id,
         },
       ],
-      owner ? undefined : actorName(doc, byId),
+      owner ? undefined : actorName(doc, parsed.data.from),
     );
     changed(id);
     return { ok: true, data: { id: data.id, undoKey: paymentKey(data.id) } };

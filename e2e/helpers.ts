@@ -115,6 +115,13 @@ export async function pickMe(page: Page, name: string) {
   await sheet(page).getByRole("button", { name }).click();
 }
 
+export async function iAm(page: Page, name: string) {
+  await expect(sheet(page).getByRole("heading", { name: `Are you ${name}?` })).toBeVisible();
+  await sheet(page)
+    .getByRole("button", { name: `Yes, I'm ${name}` })
+    .click();
+}
+
 export async function addName(page: Page, name: string) {
   await pickMe(page, "Not on the list");
   const form = panel(page);

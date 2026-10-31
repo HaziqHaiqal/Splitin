@@ -9,6 +9,7 @@ import {
   fromMore,
   getDb,
   hotel,
+  iAm,
   newPhone,
   OLD,
   openBill,
@@ -18,7 +19,6 @@ import {
   panel,
   paymentRow,
   paymentsOf,
-  pickMe,
   seed,
   serverDoc,
   serverItem,
@@ -201,15 +201,15 @@ test.describe("owner screen", () => {
     await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 2500 }]);
   });
 
-  test("names the friend who marked a payment, not the payer", async ({ browser, page }) => {
+  test("names the friend who paid", async ({ browser, page }) => {
     await openBill(page);
     await page.getByRole("button", { name: /AFIQ PAYS HAZIQ/ }).click();
-    await pickMe(page, "Najmi");
+    await iAm(page, "Afiq");
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
     await settled(async () => (await paymentsOf()).length, 1);
 
     const owner = await tracking(browser);
-    await expect(text(owner, /Najmi tapped paid/)).toBeVisible();
+    await expect(text(owner, /Afiq tapped paid/)).toBeVisible();
   });
 
   test("locks and unlocks the bill", async ({ browser, page }) => {

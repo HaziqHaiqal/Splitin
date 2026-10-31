@@ -236,7 +236,7 @@ export function BillsHome() {
               <button
                 type="button"
                 onClick={openAdd}
-                className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl border border-border bg-card text-[15px] font-bold text-ink shadow-[0_4px_14px_rgba(55,53,47,0.10)]"
+                className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-chip text-[15px] font-bold text-ink"
               >
                 <PlusIcon size={16} />
                 {t.home.nextBill}

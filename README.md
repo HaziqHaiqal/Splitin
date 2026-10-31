@@ -18,7 +18,7 @@ Planned work is in [TODO.md](TODO.md).
 - **Receipt-style summary.** Each person's share, who owes and who collects, and the smallest set of payments that settles everything.
 - **Share to the group.** A picture of the receipt plus a link, sent through WhatsApp or the phone's share menu.
 - **Friends use the link.** It opens straight on the receipt: who pays who, the bank account numbers, and PAID stamps as payments come in. Someone who has paid taps their payment on the receipt and confirms, one payment at a time. The person who shared sees who marked what and can mark any payment unpaid again. The person who shared can also mark payments and send reminders.
-- **Friends can add what they paid.** They add a bill from the link, and can delete only what they added, on the same phone. The first time they add, join, delete or mark something, they tap their name from the bill. "Not Haziq?" switches to another name, and "Clear" forgets it on that phone.
+- **Friends can add what they paid.** They add a bill from the link, and can delete only what they added, on the same phone. The first time they add, join or delete something, they tap their name from the bill. Marking a payment only asks "Are you Imanul?", because only the person paying marks it. "Not Haziq?" switches to another name, and "Clear" forgets it on that phone.
 - **Friends can add their own name.** Someone missing taps "Not on the list" and types their name. Nobody's amount changes until they join a bill. Whoever adds a bill sees all the names and can add a new one with "+ Add".
 - **Friends can join the bills they're in.** They tick some bills, or "Join all". Their share is worked out for them, or they can write their own amount. Anyone who already paid more than their new share gets a line on the receipt paying them back.
 - **Different amounts.** If someone sent more or less than the receipt says, they tap that payment and record the real amount. The two names can't be changed, and the receipt works out the rest. The owner can record a payment between any two people.
@@ -44,7 +44,7 @@ Amounts are in Malaysian Ringgit (RM) only.
 
 **The owner's name and link.** On the first share, the owner picks which name is theirs, or says they are not on the list (`doc.ownerId`). Bills shared before this was added treat the first name as the owner. The owner link is `/bill/<id>#owner=<token>`. The token is in the `#` part so it never reaches the server logs, and the page removes it from the address bar after using it.
 
-**History.** Each change adds a row to the `bill_events` table. A friend's name comes from the person they picked (`splitin:me:<id>`), which the server looks up on the bill, so it can't be made-up text. Bank account numbers are never recorded. If history can't be read or written, the bill keeps working.
+**History.** Each change adds a row to the `bill_events` table. A friend's name comes from the person they picked (`splitin:me:<id>`), which the server looks up on the bill, so it can't be made-up text. For a payment, it's the person paying. Bank account numbers are never recorded. If history can't be read or written, the bill keeps working.
 
 **Money is whole sen.** All amounts are integers, so nothing is lost to decimals. When an amount does not divide evenly, the leftover sen go to the first people in the list: RM 240.90 between four people is 60.23, 60.23, 60.22 and 60.22. The maths is in [src/lib/money](src/lib/money) and [src/lib/bill.ts](src/lib/bill.ts).
 

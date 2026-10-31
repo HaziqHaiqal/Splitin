@@ -180,7 +180,7 @@ export function PrinterPage({
       ) : dock ? (
         <div
           ref={pinned}
-          className="fixed inset-x-0 bottom-0 z-20 px-3 pt-2 pb-[max(12px,env(safe-area-inset-bottom))]"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card px-3 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))]"
         >
           {dock}
         </div>

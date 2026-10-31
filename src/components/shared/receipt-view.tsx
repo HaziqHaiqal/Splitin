@@ -39,7 +39,10 @@ type View =
   | { kind: "bank"; personId: string };
 
 type Ask =
-  { kind: "who"; then: () => void; hide?: string | null } | { kind: "choose" } | { kind: "confirm"; line: PlanLine };
+  | { kind: "who"; then: () => void; hide?: string | null }
+  | { kind: "choose" }
+  | { kind: "payer"; line: PlanLine }
+  | { kind: "confirm"; line: PlanLine };
 
 export function ReceiptView({
   bill,
@@ -98,6 +101,11 @@ export function ReceiptView({
     setAsking(false);
     requestAnimationFrame(() => setView({ kind: "name", then }));
   };
+  const tapLine = (line: PlanLine) => showAsk({ kind: line.from === me ? "confirm" : "payer", line });
+  const iAmPayer = (line: PlanLine) => {
+    if (line.from !== doc.ownerId) setMe(bill.id, line.from);
+    showAsk({ kind: "confirm", line });
+  };
   const forgetMe = () => {
     setMe(bill.id, null);
     setAsking(false);
@@ -138,8 +146,7 @@ export function ReceiptView({
 
   const pay = (payment: { from: string; to: string; amountMinor: number }, different: boolean) =>
     start(async () => {
-      const byId = getMe(bill.id);
-      const result = await addPayment(bill.id, payment, { byId, different });
+      const result = await addPayment(bill.id, payment, { different });
       setAsking(false);
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setView(null);
@@ -148,7 +155,7 @@ export function ReceiptView({
         message: fmt(t.friend.marked, { name: nameOf(payment.to) }),
         action: {
           label: t.common.undo,
-          onClick: () => void removePayment(bill.id, id, { undoKey, byId: getMe(bill.id) }),
+          onClick: () => void removePayment(bill.id, id, { undoKey, byId: payment.from }),
         },
       });
     });
@@ -419,7 +426,7 @@ export function ReceiptView({
       type="button"
       disabled={pending}
       onClick={() => (canJoin ? showAsk({ kind: "choose" }) : withMe(() => openView({ kind: "add" })))}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
     >
       <PlusIcon size={16} />
       {canJoin ? t.friend.addOrJoin : t.friend.addPaid}
@@ -466,6 +473,24 @@ export function ReceiptView({
             <SheetOption title={t.friend.addPaid} desc={t.friend.addPaidDesc} onClick={() => choose("add")} />
             <SheetOption title={t.friend.joinBill} desc={t.friend.joinBillDesc} onClick={() => choose("join")} />
           </div>
+        );
+      case "payer":
+        return (
+          <>
+            <p className="m-0 text-[14px] text-muted">{t.friend.areYouDesc}</p>
+            <div className="flex flex-col gap-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => iAmPayer(ask.line)}
+                className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white"
+              >
+                {fmt(t.friend.yesIAm, { name: nameOf(ask.line.from) })}
+              </button>
+              <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
+                {t.friend.notMe}
+              </button>
+            </div>
+          </>
         );
       case "confirm": {
         const { line } = ask;
@@ -542,7 +567,11 @@ export function ReceiptView({
         </div>
       ) : null}
       {myList}
-      {view ? body(false) : canChange ? changeButton("h-[42px] self-start px-4 text-[14px]") : null}
+      {view
+        ? body(false)
+        : canChange
+          ? changeButton("h-[42px] self-start border border-border bg-card px-4 text-[14px]")
+          : null}
       <div className="flex flex-wrap items-center gap-x-4 self-start">{links}</div>
     </>
   );
@@ -564,11 +593,7 @@ export function ReceiptView({
         }
         phoneBelow={<div className="flex flex-wrap justify-center gap-x-4">{links}</div>}
         panel={friend && view ? body(true) : undefined}
-        dock={
-          canChange && !view
-            ? changeButton("h-12 w-full text-[14.5px] shadow-[0_4px_14px_rgba(55,53,47,0.10)]")
-            : undefined
-        }
+        dock={canChange && !view ? changeButton("h-12 w-full bg-chip text-[14.5px]") : undefined}
         paper={
           <Receipt
             doc={bill.doc}
@@ -579,7 +604,7 @@ export function ReceiptView({
             preview={view?.kind === "add" ? preview : null}
             freshItemId={freshId}
             hint={friend && summary.remaining.length > 0 ? t.friend.tapHint : undefined}
-            onLine={friend ? (line) => withMe(() => showAsk({ kind: "confirm", line })) : undefined}
+            onLine={friend ? tapLine : undefined}
           />
         }
       />
@@ -592,9 +617,11 @@ export function ReceiptView({
               ? t.friend.whoTitle
               : ask?.kind === "choose"
                 ? t.friend.chooseTitle
-                : ask
-                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
-                  : ""
+                : ask?.kind === "payer"
+                  ? fmt(t.friend.areYou, { name: nameOf(ask.line.from) })
+                  : ask
+                    ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                    : ""
           }
         >
           {askBody()}
