@@ -42,6 +42,7 @@ export type Db = {
   bills: (Row & { doc: BillDoc })[];
   payments: Row[];
   bill_events: (Row & { kind: string; actor: string; data: Row })[];
+  expired_bills: Row[];
 };
 
 export const paymentRow = (from: string, to: string, amountMinor: number, marked_by = "payer") => ({
@@ -74,6 +75,7 @@ export async function seed(doc: BillDoc = trip, rest: { payments?: Row[]; bill_e
 }
 
 export const getDb = async (): Promise<Db> => (await fetch(`${STUB}/__db`)).json();
+export const saveDb = (db: Partial<Db>) => fetch(`${STUB}/__db`, { method: "POST", body: JSON.stringify(db) });
 export const serverDoc = async () => (await getDb()).bills[0].doc;
 export const serverItem = async (id: string) => (await serverDoc()).items.find((i) => i.id === id);
 export const eventKinds = async () => (await getDb()).bill_events?.map((e) => e.kind) ?? [];
@@ -83,7 +85,7 @@ export async function patchDoc(change: (doc: BillDoc) => BillDoc) {
   const db = await getDb();
   db.bills[0].doc = change(db.bills[0].doc);
   db.bills[0].updated_at = new Date().toISOString();
-  await fetch(`${STUB}/__db`, { method: "POST", body: JSON.stringify(db) });
+  await saveDb(db);
 }
 
 export const settled = (check: () => Promise<unknown>, expected: unknown) => expect.poll(check).toEqual(expected);
