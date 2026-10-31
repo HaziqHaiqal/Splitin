@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useI18n } from "@/i18n/client";
 import { summarize, type BillDoc, type Payment } from "@/lib/bill";
+import type { BillEvent } from "@/lib/history";
 import { useHydrated, useOwnerToken } from "@/lib/store";
 import { useBillLive } from "@/hooks/use-bill-live";
 import { ReceiptView } from "./receipt-view";
@@ -13,6 +14,7 @@ export type SharedBillData = {
   id: string;
   doc: BillDoc;
   payments: Payment[];
+  events: BillEvent[];
   createdAt: string;
   expiresAt: string;
 };

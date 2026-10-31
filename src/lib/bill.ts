@@ -15,6 +15,8 @@ export type Item = {
   paidBy: string;
   participants: string[];
   overrides: Record<string, number>;
+  addedAt?: string;
+  deleteHash?: string;
 };
 
 export type BillDoc = {
@@ -59,6 +61,32 @@ export function splitItem(
 export function itemShares(item: Item): Allocation {
   const result = splitItem(item.amountMinor, item.participants, item.overrides);
   return result.ok ? result.shares : {};
+}
+
+export function latestAddedAt(doc: BillDoc, after = ""): string {
+  return doc.items.reduce((latest, i) => (i.addedAt && i.addedAt > latest ? i.addedAt : latest), after);
+}
+
+export function mergeFriendItems(server: BillDoc, local: BillDoc, seenAt: string): BillDoc {
+  const onServer = new Set(server.items.map((i) => i.id));
+  const onLocal = new Set(local.items.map((i) => i.id));
+  const people = new Set(local.people.map((p) => p.id));
+  const kept = local.items.filter((i) => !i.addedAt || onServer.has(i.id));
+  const fresh = server.items.filter(
+    (i) =>
+      i.addedAt &&
+      i.addedAt > seenAt &&
+      !onLocal.has(i.id) &&
+      people.has(i.paidBy) &&
+      i.participants.every((id) => people.has(id)),
+  );
+  return { ...local, items: [...kept, ...fresh] };
+}
+
+export function withoutOwnItem(doc: BillDoc, itemId: string, tokenHash: string): BillDoc | null {
+  const item = doc.items.find((i) => i.id === itemId);
+  if (!item?.deleteHash || item.deleteHash !== tokenHash) return null;
+  return { ...doc, items: doc.items.filter((i) => i.id !== itemId) };
 }
 
 export type PersonSummary = {

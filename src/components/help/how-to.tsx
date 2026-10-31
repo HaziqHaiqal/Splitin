@@ -2,8 +2,9 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { ArrowRightIcon, BackIcon, CheckIcon, HelpIcon, SendIcon } from "@/components/icons";
+import { ArrowRightIcon, BackIcon, CheckIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
+import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
 import { cn } from "@/lib/utils";
@@ -168,8 +169,12 @@ function Visual({ step, onJump }: { step: number; onJump: (step: number) => void
       return <ReceiptDemo />;
     case 5:
       return <ShareDemo />;
-    default:
+    case 6:
       return <PayDemo />;
+    case 7:
+      return <AddDemo />;
+    default:
+      return <HistoryDemo />;
   }
 }
 
@@ -490,6 +495,121 @@ function PayDemo() {
           ) : null}
         </button>
       </Paper>
+    </div>
+  );
+}
+
+function AddDemo() {
+  const { t, money } = useI18n();
+  const [stage, setStage] = useState<"add" | "who" | "mine">("add");
+  const [who, setWho] = useState(NAMES[1]);
+
+  if (stage === "add") {
+    return (
+      <button
+        type="button"
+        onClick={() => setStage("who")}
+        className={cn(
+          mini,
+          press,
+          "inline-flex h-10 animate-nudge items-center gap-1.5 px-3.5 text-[13px] font-bold text-ink",
+        )}
+      >
+        <PlusIcon size={15} />
+        {t.friend.addPaid}
+      </button>
+    );
+  }
+
+  if (stage === "who") {
+    return (
+      <div className="flex flex-col items-center gap-2.5">
+        <div className="text-[15px] font-extrabold text-ink">{t.friend.whoTitle}</div>
+        <div className="flex flex-wrap justify-center gap-2">
+          {NAMES.slice(0, 3).map((name, i) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => {
+                setWho(name);
+                setStage("mine");
+              }}
+              className={cn(press, "rounded-full")}
+            >
+              <Chip name={name} color={i} />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-[270px] flex-col items-center gap-1.5">
+      <div className={cn(mini, "w-full animate-pop px-3 pt-2.5 pb-1")}>
+        <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.yours}</span>
+        <div className="flex items-center justify-between gap-2 py-2">
+          <span className="min-w-0 truncate text-[13px] text-ink">
+            <b>{t.help.demoBills[1]}</b>
+            <span className="text-muted"> · {money(5000)}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setStage("add")}
+            className={cn(
+              press,
+              "h-7 shrink-0 animate-nudge rounded-lg border border-border bg-card px-2.5 text-[12px] font-bold text-owe",
+            )}
+          >
+            {t.friend.deleteMine}
+          </button>
+        </div>
+      </div>
+      <button type="button" onClick={() => setStage("who")} className="h-7 text-[12px] font-bold text-green-soft-ink">
+        {fmt(t.friend.notYou, { name: who })}
+      </button>
+    </div>
+  );
+}
+
+function HistoryDemo() {
+  const { t, money } = useI18n();
+  const h = t.history;
+  const [count, setCount] = useState(1);
+  const rows = [
+    fmt(h.itemAdded, { who: "Afiq", name: t.help.demoBills[1], amount: money(5000), payer: "Afiq" }),
+    fmt(h.paid, { who: "Najmi", from: "Najmi", to: "Haziq", amount: money(11845) }),
+    `${fmt(h.itemEdited, { who: "Haziq", name: "Wifi" })}: ${fmt(h.changeAmount, { from: money(9220), to: money(12000) })}`,
+  ];
+  const next = () => setCount(count === rows.length ? 1 : count + 1);
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={h.title}
+      onClick={next}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") next();
+      }}
+      className={cn(mini, "w-full max-w-[290px] cursor-pointer px-3 py-2.5")}
+    >
+      <div className="pb-0.5 text-[13px] font-extrabold text-ink">
+        {h.title} · {count}
+      </div>
+      {rows
+        .slice(0, count)
+        .reverse()
+        .map((row, i) => (
+          <div
+            key={row}
+            className={cn(
+              "py-1.5 text-[12px] leading-[1.4] text-ink",
+              i === 0 ? "animate-rise" : "border-t border-line",
+            )}
+          >
+            {row}
+          </div>
+        ))}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import type { BillDoc, Payment } from "@/lib/bill";
+import type { BillEvent } from "@/lib/history";
 import { db } from "@/lib/supabase/server";
 
 export const KEEP_DAYS = 30;
@@ -11,6 +12,7 @@ export type SharedBill = {
   id: string;
   doc: BillDoc;
   payments: Payment[];
+  events: BillEvent[];
   createdAt: string;
   expiresAt: string;
 };
@@ -32,6 +34,14 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
     .order("created_at");
   if (payError) throw payError;
 
+  const { data: eventRows, error: eventError } = await client
+    .from("bill_events")
+    .select("id, kind, actor, data, created_at")
+    .eq("bill_id", id)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (eventError) console.error("[splitin] history failed:", eventError);
+
   return {
     id: data.id,
     doc: data.doc as BillDoc,
@@ -43,6 +53,9 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
       markedBy: r.marked_by,
       createdAt: r.created_at,
     })),
+    events: (eventRows ?? []).map(
+      (r) => ({ ...r.data, id: r.id, kind: r.kind, actor: r.actor, createdAt: r.created_at }) as BillEvent,
+    ),
     createdAt: data.created_at,
     expiresAt: new Date(created + KEEP_DAYS * DAY).toISOString(),
   };

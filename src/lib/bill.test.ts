@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { evenShare, itemSplitText, splitItem, summarize, type BillDoc } from "./bill";
+import {
+  evenShare,
+  itemSplitText,
+  latestAddedAt,
+  mergeFriendItems,
+  splitItem,
+  summarize,
+  withoutOwnItem,
+  type BillDoc,
+  type Item,
+} from "./bill";
 import { formatMoney } from "./money";
 
 const people = [
@@ -21,6 +31,98 @@ const houseBills: BillDoc = {
     { id: "3", name: "Wifi", amountMinor: 9220, paidBy: "h", participants: all, overrides: {} },
   ],
 };
+
+describe("withoutOwnItem", () => {
+  const mine: Item = { ...houseBills.items[0], id: "mine", deleteHash: "my-hash" };
+  const other: Item = { ...houseBills.items[0], id: "other", deleteHash: "other-hash" };
+  const doc: BillDoc = { ...houseBills, items: [...houseBills.items, mine, other] };
+
+  it("lets a friend delete their own item", () => {
+    expect(withoutOwnItem(doc, "mine", "my-hash")?.items.map((i) => i.id)).toEqual(["1", "2", "3", "other"]);
+  });
+
+  it("refuses another friend's item", () => {
+    expect(withoutOwnItem(doc, "other", "my-hash")).toBeNull();
+  });
+
+  it("refuses the owner's item, even with an empty key", () => {
+    expect(withoutOwnItem(doc, "1", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, "1", "")).toBeNull();
+  });
+
+  it("refuses an item that does not exist", () => {
+    expect(withoutOwnItem(doc, "nope", "my-hash")).toBeNull();
+  });
+});
+
+describe("friend items", () => {
+  const friendItem: Item = {
+    id: "f",
+    name: "Petrol",
+    amountMinor: 6000,
+    paidBy: "n",
+    participants: all,
+    overrides: {},
+    addedAt: "2026-10-31T10:00:00.000Z",
+  };
+  const withFriend: BillDoc = { ...houseBills, items: [...houseBills.items, friendItem] };
+  const ids = (doc: BillDoc) => doc.items.map((i) => i.id);
+
+  it("brings in an item the owner has not seen", () => {
+    expect(ids(mergeFriendItems(withFriend, houseBills, ""))).toEqual(["1", "2", "3", "f"]);
+  });
+
+  it("keeps an item deleted once the owner has seen it", () => {
+    expect(ids(mergeFriendItems(withFriend, houseBills, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+  });
+
+  it("drops an item the friend undid", () => {
+    expect(ids(mergeFriendItems(houseBills, withFriend, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+  });
+
+  it("keeps the owner's edit without a duplicate", () => {
+    const edited: Item = { ...friendItem, name: "Petrol + toll", addedAt: undefined };
+    const local = { ...houseBills, items: [...houseBills.items, edited] };
+    const merged = mergeFriendItems(withFriend, local, "");
+    expect(ids(merged)).toEqual(["1", "2", "3", "f"]);
+    expect(merged.items[3].name).toBe("Petrol + toll");
+  });
+
+  it("does not touch the owner's own items", () => {
+    const local = { ...houseBills, items: [...houseBills.items, { ...houseBills.items[0], id: "new" }] };
+    expect(ids(mergeFriendItems(houseBills, local, ""))).toEqual(["1", "2", "3", "new"]);
+  });
+
+  it("skips an item for a person the owner removed", () => {
+    const local = { ...houseBills, people: people.filter((p) => p.id !== "n"), items: [] };
+    expect(ids(mergeFriendItems(withFriend, local, ""))).toEqual([]);
+  });
+
+  it("tracks the latest added time", () => {
+    expect(latestAddedAt(houseBills)).toBe("");
+    expect(latestAddedAt(withFriend)).toBe(friendItem.addedAt);
+    expect(latestAddedAt(houseBills, "2026-01-01")).toBe("2026-01-01");
+  });
+
+  it("settles a trip where each friend paid for something different", () => {
+    const trio = people.slice(0, 3);
+    const everyone = trio.map((p) => p.id);
+    const trip: BillDoc = {
+      ...houseBills,
+      people: trio,
+      items: [
+        { id: "1", name: "Hotel", amountMinor: 30000, paidBy: "h", participants: everyone, overrides: {} },
+        { ...friendItem, id: "2", amountMinor: 6000, paidBy: "n", participants: everyone },
+        { ...friendItem, id: "3", name: "Food", amountMinor: 9000, paidBy: "a", participants: everyone },
+      ],
+    };
+    const lines = summarize(trip).remaining.map((l) => [l.from, l.to, l.amount]);
+    expect(lines).toEqual([
+      ["n", "h", 9000],
+      ["a", "h", 6000],
+    ]);
+  });
+});
 
 describe("splitItem", () => {
   it("splits equally by default", () => {

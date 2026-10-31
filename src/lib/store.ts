@@ -47,7 +47,7 @@ export function useHydrated() {
   );
 }
 
-export type Draft = { doc: BillDoc; billId: string | null };
+export type Draft = { doc: BillDoc; billId: string | null; seenAt?: string };
 
 const DRAFT_KEY = "splitin:draft:v2";
 
@@ -70,6 +70,8 @@ export function useDraft(): Draft | null | undefined {
   return useMemo(() => (raw === undefined ? undefined : parseDraft(raw)), [raw]);
 }
 
+export const getDraft = () => parseDraft(read(DRAFT_KEY));
+
 export function saveDraft(draft: Draft | null) {
   write(DRAFT_KEY, draft ? JSON.stringify(draft) : null);
 }
@@ -84,3 +86,32 @@ const ownerKey = (billId: string) => `splitin:owner:${billId}`;
 export const useOwnerToken = (billId: string) => useStored(ownerKey(billId));
 export const getOwnerToken = (billId: string) => read(ownerKey(billId));
 export const setOwnerToken = (billId: string, token: string) => write(ownerKey(billId), token);
+
+const meKey = (billId: string) => `splitin:me:${billId}`;
+
+export const NOT_LISTED = "-";
+export const useMe = (billId: string) => useStored(meKey(billId));
+export const getMe = (billId: string) => read(meKey(billId)) ?? undefined;
+export const setMe = (billId: string, personId: string) => write(meKey(billId), personId);
+
+const mineKey = (billId: string) => `splitin:mine:${billId}`;
+
+function parseMine(raw: string | null | undefined): Record<string, string> {
+  try {
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function useMyItems(billId: string): Record<string, string> {
+  const raw = useStored(mineKey(billId));
+  return useMemo(() => parseMine(raw), [raw]);
+}
+
+export function setMyItem(billId: string, itemId: string, token: string | null) {
+  const mine = parseMine(read(mineKey(billId)));
+  if (token) mine[itemId] = token;
+  else delete mine[itemId];
+  write(mineKey(billId), JSON.stringify(mine));
+}

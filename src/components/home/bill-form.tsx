@@ -20,16 +20,22 @@ export function BillForm({
   first,
   bare = false,
   autoFocus = false,
+  title,
+  defaultPaidBy,
+  onAdd,
   onPrinted,
   onCancel,
   onPreview,
 }: {
   item: Item | null;
   doc: BillDoc;
-  update: (fn: (doc: BillDoc) => BillDoc) => void;
+  update?: (fn: (doc: BillDoc) => BillDoc) => void;
   first: boolean;
   bare?: boolean;
   autoFocus?: boolean;
+  title?: string;
+  defaultPaidBy?: string;
+  onAdd?: (item: Item) => void;
   onPrinted: (id: string) => void;
   onCancel?: () => void;
   onPreview: (item: Item | null) => void;
@@ -41,7 +47,7 @@ export function BillForm({
 
   const [name, setName] = useState(item?.name ?? "");
   const [amount, setAmount] = useState(item ? toInputValue(item.amountMinor, "MYR") : "");
-  const [paidBy, setPaidBy] = useState(item?.paidBy ?? everyone[0] ?? "");
+  const [paidBy, setPaidBy] = useState(item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (everyone[0] ?? "")));
   const [participants, setParticipants] = useState<string[]>(item?.participants ?? everyone);
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
@@ -136,7 +142,12 @@ export function BillForm({
       participants: included,
       overrides: cleanOverrides,
     };
-    update((d) => ({ ...d, items: isEdit ? d.items.map((i) => (i.id === next.id ? next : i)) : [...d.items, next] }));
+    if (onAdd) onAdd(next);
+    else
+      update?.((d) => ({
+        ...d,
+        items: isEdit ? d.items.map((i) => (i.id === next.id ? next : i)) : [...d.items, next],
+      }));
     onPreview(null);
     onPrinted(next.id);
     if (!isEdit) {
@@ -151,14 +162,14 @@ export function BillForm({
   const remove = () => {
     if (!item) return;
     const index = doc.items.findIndex((i) => i.id === item.id);
-    update((d) => ({ ...d, items: d.items.filter((i) => i.id !== item.id) }));
+    update?.((d) => ({ ...d, items: d.items.filter((i) => i.id !== item.id) }));
     onCancel?.();
     toast({
       message: fmt(t.bill.deleted, { name: item.name }),
       action: {
         label: t.common.undo,
         onClick: () =>
-          update((d) => {
+          update?.((d) => {
             if (d.items.some((i) => i.id === item.id)) return d;
             const items = [...d.items];
             items.splice(Math.min(index, items.length), 0, item);
@@ -189,7 +200,7 @@ export function BillForm({
     >
       <div className="flex min-h-9 items-center justify-between gap-3">
         <span className="text-[16px] font-extrabold tracking-[-0.01em]">
-          {isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle}
+          {title ?? (isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle)}
         </span>
         {onCancel ? (
           <button

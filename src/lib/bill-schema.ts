@@ -3,6 +3,19 @@ import { z } from "zod";
 const id = z.string().min(1).max(40);
 const minor = z.int().min(0).max(100_000_000_00);
 
+export const MAX_ITEMS = 200;
+
+export const itemSchema = z.object({
+  id,
+  name: z.string().trim().min(1).max(60),
+  amountMinor: minor.min(1),
+  paidBy: id,
+  participants: z.array(id).min(1).max(50),
+  overrides: z.record(id, minor),
+  addedAt: z.iso.datetime().optional(),
+  deleteHash: z.string().max(64).optional(),
+});
+
 export const billDocSchema = z
   .object({
     title: z.string().trim().min(1).max(60),
@@ -20,18 +33,7 @@ export const billDocSchema = z
       )
       .min(1)
       .max(50),
-    items: z
-      .array(
-        z.object({
-          id,
-          name: z.string().trim().min(1).max(60),
-          amountMinor: minor.min(1),
-          paidBy: id,
-          participants: z.array(id).min(1).max(50),
-          overrides: z.record(id, minor),
-        }),
-      )
-      .max(200),
+    items: z.array(itemSchema).max(MAX_ITEMS),
   })
   .refine(
     (doc) => {

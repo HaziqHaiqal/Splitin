@@ -30,6 +30,7 @@ export default async function BillPage({ params }: PageProps<"/bill/[id]">) {
         id: bill.id,
         doc: bill.doc,
         payments: bill.payments,
+        events: bill.events,
         createdAt: bill.createdAt,
         expiresAt: bill.expiresAt,
       }}

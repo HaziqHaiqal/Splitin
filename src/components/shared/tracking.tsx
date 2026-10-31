@@ -11,6 +11,7 @@ import { useI18n } from "@/i18n/client";
 import type { BillSummary, PlanLine } from "@/lib/bill";
 import { useDraft } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { HistoryButton } from "./history";
 import type { SharedBillData } from "./shared-bill";
 
 export function Tracking({
@@ -141,6 +142,7 @@ export function Tracking({
           </div>
         ))}
       </div>
+      <HistoryButton doc={bill.doc} events={bill.events} className="self-start" />
       {draft?.billId === bill.id ? (
         <Link href="/" className="text-[14px] font-bold text-green-ink no-underline">
           {t.track.editBills}
