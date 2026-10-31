@@ -51,8 +51,11 @@ export type Draft = { doc: BillDoc; billId: string | null; seenAt?: string };
 
 const DRAFT_KEY = "splitin:draft:v2";
 
-export function emptyDraft(title: string): Draft {
-  return { doc: { title, currency: "MYR", createdAt: new Date().toISOString(), people: [], items: [] }, billId: null };
+export function emptyDraft(): Draft {
+  return {
+    doc: { title: "", currency: "MYR", createdAt: new Date().toISOString(), people: [], items: [] },
+    billId: null,
+  };
 }
 
 function parseDraft(raw: string | null | undefined): Draft | null {
@@ -76,8 +79,8 @@ export function saveDraft(draft: Draft | null) {
   write(DRAFT_KEY, draft ? JSON.stringify(draft) : null);
 }
 
-export function updateDraft(fallbackTitle: string, fn: (draft: Draft) => Draft) {
-  const current = parseDraft(read(DRAFT_KEY)) ?? emptyDraft(fallbackTitle);
+export function updateDraft(fn: (draft: Draft) => Draft) {
+  const current = parseDraft(read(DRAFT_KEY)) ?? emptyDraft();
   saveDraft(fn(current));
 }
 

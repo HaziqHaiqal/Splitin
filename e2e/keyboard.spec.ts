@@ -26,7 +26,7 @@ test("the page stays still behind the form while typing", async ({ page }) => {
   });
   const cdp = await page.context().newCDPSession(page);
   await openBill(page);
-  await choose(page, "Add what I paid");
+  await choose(page, "Add bill");
   await pickMe(page, "Person number 1");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
@@ -87,7 +87,7 @@ test("the page stays still behind the form while typing", async ({ page }) => {
 test("every form input is at least 16px, so iPhone does not zoom", async ({ page }) => {
   await seed();
   await openBill(page);
-  await choose(page, "Add what I paid");
+  await choose(page, "Add bill");
   await pickMe(page, "Najmi");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();

@@ -17,7 +17,7 @@ import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
-import { Sheet, SheetOption } from "@/components/sheet";
+import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
@@ -52,9 +52,7 @@ type View =
   | { kind: "bank"; personId: string };
 
 type Ask =
-  | { kind: "who"; then: () => void; hide?: string | null; first?: boolean }
-  | { kind: "choose" }
-  | { kind: "confirm"; line: PlanLine };
+  { kind: "who"; then: () => void; hide?: string | null; first?: boolean } | { kind: "confirm"; line: PlanLine };
 
 export function ReceiptView({
   bill,
@@ -137,10 +135,6 @@ export function ReceiptView({
       setView(next);
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
-  const choose = (kind: "add" | "join") => {
-    setAsking(false);
-    withMe(() => openView({ kind }));
-  };
 
   const summary = summarize(doc, bill.payments);
 
@@ -360,14 +354,11 @@ export function ReceiptView({
   const history = <HistoryButton doc={doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />;
 
   const greeting = (className?: string) =>
-    friend && (myName || canName) ? (
+    friend && myName ? (
       <Greeting
         name={myName}
         className={className}
-        action={{
-          label: myName ? fmt(t.friend.notYou, { name: myName }) : t.friend.chooseName,
-          onClick: () => showAsk({ kind: "who", then: () => undefined, hide: myName ? me : undefined }),
-        }}
+        onChange={() => showAsk({ kind: "who", then: () => undefined, hide: me })}
       />
     ) : null;
 
@@ -441,19 +432,34 @@ export function ReceiptView({
   };
 
   const canChange = friend && !locked;
-  const canJoin = doc.items.length > 0;
+  const canJoin = myName ? doc.items.some((i) => !i.participants.includes(me!)) : doc.items.length > 0;
 
-  const changeButton = (className: string) => (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => (canJoin ? showAsk({ kind: "choose" }) : withMe(() => openView({ kind: "add" })))}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
-    >
-      <PlusIcon size={16} />
-      {canJoin ? t.friend.addOrUpdate : t.friend.addPaid}
-    </button>
-  );
+  const changeButtons = (className: string) => {
+    const shape = `inline-flex items-center justify-center gap-1.5 rounded-xl font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`;
+    return (
+      <>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => withMe(() => openView({ kind: "add" }))}
+          className={shape}
+        >
+          <PlusIcon size={16} />
+          {t.home.nextBill}
+        </button>
+        {canJoin ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => withMe(() => openView({ kind: "join" }))}
+            className={shape}
+          >
+            {t.friend.joinBill}
+          </button>
+        ) : null}
+      </>
+    );
+  };
 
   const askBody = () => {
     if (!ask) return null;
@@ -497,13 +503,6 @@ export function ReceiptView({
               ) : null}
             </div>
           </>
-        );
-      case "choose":
-        return (
-          <div className="flex flex-col gap-2">
-            <SheetOption title={t.friend.addPaid} desc={t.friend.addPaidDesc} onClick={() => choose("add")} />
-            <SheetOption title={t.friend.myBills} desc={t.friend.myBillsDesc} onClick={() => choose("join")} />
-          </div>
         );
       case "confirm": {
         const { line } = ask;
@@ -578,11 +577,13 @@ export function ReceiptView({
         </div>
       ) : null}
       {myList}
-      {view
-        ? body(false)
-        : canChange
-          ? changeButton("h-[42px] self-start border border-border bg-card px-4 text-[14px]")
-          : null}
+      {view ? (
+        body(false)
+      ) : canChange ? (
+        <div className="flex gap-2 self-start">
+          {changeButtons("h-[42px] border border-border bg-card px-4 text-[14px]")}
+        </div>
+      ) : null}
       <div className="self-start">{history}</div>
     </>
   );
@@ -605,7 +606,11 @@ export function ReceiptView({
         }
         phoneBelow={<div className="flex justify-center">{history}</div>}
         panel={friend && view ? body(true) : undefined}
-        dock={canChange && !view ? changeButton("h-12 w-full bg-chip text-[14.5px]") : undefined}
+        dock={
+          canChange && !view ? (
+            <div className="flex gap-2">{changeButtons("h-12 flex-1 bg-chip text-[15px]")}</div>
+          ) : undefined
+        }
         paper={
           <Receipt
             doc={bill.doc}
@@ -616,6 +621,7 @@ export function ReceiptView({
             preview={view?.kind === "add" ? preview : null}
             freshItemId={freshId}
             hint={lineHint()}
+            onHint={friend && !myName ? () => showAsk({ kind: "who", then: () => undefined }) : undefined}
             onLine={friend && myName ? tapLine : undefined}
             onlyFrom={me}
           />
@@ -628,11 +634,9 @@ export function ReceiptView({
           title={
             ask?.kind === "who"
               ? t.friend.whoTitle
-              : ask?.kind === "choose"
-                ? t.friend.chooseTitle
-                : ask
-                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
-                  : ""
+              : ask
+                ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                : ""
           }
         >
           {askBody()}

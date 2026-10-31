@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { ArrowRightIcon, BackIcon, CheckIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
+import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -513,22 +513,35 @@ function PayDemo() {
     );
   }
 
-  const hint = me ? (mine.length > 0 ? t.friend.tapHint : null) : t.friend.chooseHint;
   return (
     <div className="flex w-full max-w-[280px] flex-col gap-1">
-      <div className="flex min-h-7 items-center justify-between gap-2">
-        {me ? <b className="text-[14px] font-extrabold text-ink">{fmt(t.friend.hi, { name: me })}</b> : null}
+      {me ? (
         <button
           type="button"
           onClick={() => setAsking(true)}
-          className="ml-auto h-7 text-[12px] font-bold text-green-soft-ink"
+          className="flex h-7 items-center gap-1 self-start text-[14px] font-extrabold text-ink"
         >
-          {me ? fmt(t.friend.notYou, { name: me }) : t.friend.chooseName}
+          {fmt(t.friend.hi, { name: me })}
+          <ChevronDownIcon className="text-muted" />
         </button>
-      </div>
+      ) : null}
       <Paper className="w-full">
         <div className="font-bold tracking-[0.06em]">{t.receipt.settleUp}</div>
-        {hint ? <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{hint}</div> : null}
+        {!me ? (
+          <button
+            type="button"
+            onClick={() => setAsking(true)}
+            className={cn(
+              press,
+              "-mx-1 mt-1 flex w-[calc(100%+8px)] animate-nudge items-center justify-between gap-2 rounded bg-[#f3f2ef] px-1 py-1 text-left font-sans text-[10px] font-semibold",
+            )}
+          >
+            {t.friend.chooseHint}
+            <span className="text-[#6b6a65]">›</span>
+          </button>
+        ) : mine.length > 0 ? (
+          <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{t.friend.tapHint}</div>
+        ) : null}
         {PAYS.map(([from, to, amount], i) => {
           const done = paid.includes(i);
           const line = (
@@ -581,7 +594,7 @@ function AddDemo() {
         )}
       >
         <PlusIcon size={15} />
-        {t.friend.addPaid}
+        {t.home.nextBill}
       </button>
     );
   }

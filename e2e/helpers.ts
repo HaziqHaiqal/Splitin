@@ -142,9 +142,9 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
-export async function choose(page: Page, option: "Add what I paid" | "Bills I'm in") {
-  await button(page, "Add or update my bills").click();
-  await sheet(page).getByRole("button", { name: option }).click();
+export async function choose(page: Page, option: "Add bill" | "Join bill") {
+  await page.addStyleTag({ content: "nextjs-portal { display: none }" });
+  await button(page, option).click();
 }
 
 export async function fromMore(page: Page, option: string) {
@@ -153,7 +153,7 @@ export async function fromMore(page: Page, option: string) {
 }
 
 export async function startAdding(page: Page, name: string, digits: string, me?: string) {
-  await choose(page, "Add what I paid");
+  await choose(page, "Add bill");
   if (me) await pickMe(page, me);
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
@@ -165,7 +165,7 @@ export async function startAdding(page: Page, name: string, digits: string, me?:
 export const submit = (form: ReturnType<typeof panel>) => form.locator("button[type=submit]").click();
 
 export async function openJoin(page: Page, me?: string) {
-  await choose(page, "Bills I'm in");
+  await choose(page, "Join bill");
   if (me) await pickMe(page, me);
   const form = panel(page);
   await expect(form.getByText("Which bills are you in?")).toBeVisible();

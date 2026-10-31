@@ -115,6 +115,7 @@ export type ReceiptProps = {
   onLine?: (line: PlanLine) => void;
   onlyFrom?: string | null;
   hint?: string;
+  onHint?: () => void;
   variant?: "draft" | "full";
   people?: { key: number; fresh?: boolean } | null;
   preview?: PreviewItem | null;
@@ -133,6 +134,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     onLine,
     onlyFrom,
     hint,
+    onHint,
     variant = "full",
     people,
     preview,
@@ -300,7 +302,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>
               {lines.length === 0 ? r.nothingToSettle : r.settleUp}
             </div>
-            {hint ? (
+            {hint && onHint ? (
+              <button
+                type="button"
+                onClick={onHint}
+                className="-mx-1.5 mt-1 flex w-[calc(100%+12px)] items-center justify-between gap-2 rounded-md bg-[#f3f2ef] px-1.5 py-1.5 text-left font-sans text-[11.5px] font-semibold transition-colors hover:bg-[#ebeae6]"
+              >
+                {hint}
+                <span style={{ color: MUTED }}>›</span>
+              </button>
+            ) : hint ? (
               <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
                 {hint}
               </div>

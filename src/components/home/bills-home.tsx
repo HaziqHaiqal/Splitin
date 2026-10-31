@@ -20,12 +20,11 @@ import { PersonSheet } from "./person-sheet";
 type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: number };
 
 export function BillsHome() {
-  const { t, money, monthName } = useI18n();
+  const { t, money } = useI18n();
   const toast = useToast();
   const draft = useDraft();
   useDraftSync(draft);
   const desktop = useIsDesktop();
-  const defaultTitle = fmt(t.receipt.defaultTitle, { month: monthName() });
   const { share, pending, receiptRef, sheet } = useShareReceipt(draft);
 
   const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({
@@ -41,8 +40,8 @@ export function BillsHome() {
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
 
-  const doc = draft?.doc ?? emptyDraft(defaultTitle).doc;
-  const update = (fn: (doc: BillDoc) => BillDoc) => updateDraft(defaultTitle, (d) => ({ ...d, doc: fn(d.doc) }));
+  const doc = draft?.doc ?? emptyDraft().doc;
+  const update = (fn: (doc: BillDoc) => BillDoc) => updateDraft((d) => ({ ...d, doc: fn(d.doc) }));
 
   const addPeople = (text: string) => {
     const names = parseNames(text);
@@ -63,6 +62,11 @@ export function BillsHome() {
     });
     setPeopleKey((k) => k + 1);
     setPeopleFresh(true);
+  };
+
+  const startBill = (title: string, names: string) => {
+    update((d) => ({ ...d, title }));
+    addPeople(names);
   };
 
   const clearAll = () => {
@@ -145,8 +149,7 @@ export function BillsHome() {
         {t.home.startTitle}
       </h1>
       <p className="m-0 max-w-[44ch] text-[14px] leading-[1.5] text-muted">{t.home.startDesc}</p>
-      <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.home.step1}</span>
-      <NamesForm onAdd={addPeople} />
+      <StartForm title={doc.title} onStart={startBill} />
     </>
   );
 
@@ -396,35 +399,71 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   );
 }
 
-function NamesForm({ onAdd }: { onAdd: (text: string) => void }) {
+function StartForm({ title: savedTitle, onStart }: { title: string; onStart: (title: string, names: string) => void }) {
   const { t } = useI18n();
-  const [value, setValue] = useState("");
+  const [title, setTitle] = useState(savedTitle);
+  const [names, setNames] = useState("");
+  const [missing, setMissing] = useState(false);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const namesInput = useRef<HTMLInputElement>(null);
+  const named = title.trim().length > 0;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!value.trim()) return;
-    onAdd(value);
-    setValue("");
+    if (!named) {
+      setMissing(true);
+      titleInput.current?.focus();
+    } else if (parseNames(names).length === 0) {
+      namesInput.current?.focus();
+    } else {
+      onStart(title.trim(), names);
+    }
   };
+  const label = "text-[11px] font-bold tracking-[0.06em] text-faint uppercase";
+  const field = "h-12 w-full rounded-xl border-[1.5px] bg-card px-[14px] text-[16px] text-ink outline-none";
+  const current = "border-green shadow-[0_0_0_4px_var(--green-soft)]";
   return (
-    <>
-      <form onSubmit={submit} className="flex gap-2">
-        <label className="flex-1">
-          <span className="sr-only">{t.home.namesLabel}</span>
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <label className="flex flex-col gap-1.5">
+        <span className={label}>{t.home.billName}</span>
+        <input
+          ref={titleInput}
+          type="text"
+          value={title}
+          maxLength={60}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setMissing(false);
+          }}
+          placeholder={t.home.billNamePlaceholder}
+          enterKeyHint="next"
+          autoCapitalize="words"
+          autoComplete="off"
+          className={cn(field, named ? "border-border" : current)}
+        />
+        {missing ? <span className="text-[12.5px] font-semibold text-owe">{t.home.billNameMissing}</span> : null}
+      </label>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="start-names" className={label}>
+          {t.home.step1}
+        </label>
+        <div className="flex gap-2">
           <input
+            ref={namesInput}
+            id="start-names"
             type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
+            value={names}
+            onChange={(e) => setNames(e.target.value)}
             placeholder={t.home.namesPlaceholder}
             autoCapitalize="words"
             autoComplete="off"
-            className="h-12 w-full rounded-xl border-[1.5px] border-green bg-card px-[14px] text-[16px] text-ink shadow-[0_0_0_4px_var(--green-soft)] outline-none"
+            className={cn(field, "min-w-0 flex-1", named ? current : "border-border")}
           />
-        </label>
-        <button type="submit" className="h-12 rounded-xl bg-green px-[18px] text-[15px] font-bold text-white">
-          {t.common.add}
-        </button>
-      </form>
+          <button type="submit" className="h-12 rounded-xl bg-green px-[18px] text-[15px] font-bold text-white">
+            {t.common.add}
+          </button>
+        </div>
+      </div>
       <p className="m-0 text-[12.5px] text-muted">{t.home.step1Hint}</p>
-    </>
+    </form>
   );
 }

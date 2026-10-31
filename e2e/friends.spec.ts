@@ -53,11 +53,11 @@ test.describe("who are you", () => {
 
     await list.getByRole("button", { name: "Najmi" }).click();
     await expect(sheet(page)).toHaveCount(0);
-    await expect(text(page, "Hi Najmi!")).toBeVisible();
-    await expect(button(page, "Not Najmi?")).toBeVisible();
+    await expect(button(page, "Hi Najmi")).toBeVisible();
+    await expect(page.getByText("Not Najmi?")).toHaveCount(0);
 
     await page.reload();
-    await expect(text(page, "Hi Najmi!")).toBeVisible();
+    await expect(button(page, "Hi Najmi")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
 
@@ -68,14 +68,14 @@ test.describe("who are you", () => {
     await expect(page.getByText(/^Hi /)).toHaveCount(0);
 
     await page.reload();
-    await expect(button(page, "Choose my name")).toBeVisible();
+    await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
     await page.waitForTimeout(500);
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
 
-    await button(page, "Choose my name").click();
+    await button(page, "Paid? Tap to pick your name").click();
     await expect(sheet(page).getByRole("button", { name: "Just looking" })).toHaveCount(0);
     await pickMe(page, "Afiq");
-    await expect(text(page, "Hi Afiq!")).toBeVisible();
+    await expect(button(page, "Hi Afiq")).toBeVisible();
   });
 
   test("closing the question counts as Just looking", async ({ page }) => {
@@ -84,14 +84,14 @@ test.describe("who are you", () => {
     await page.keyboard.press("Escape");
     await expect(sheet(page)).toHaveCount(0);
     await page.reload();
-    await expect(button(page, "Choose my name")).toBeVisible();
+    await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
 
   test("a name not on the list can be added from the question", async ({ page }) => {
     await openFresh(page);
     await addName(page, "Aiman");
-    await expect(text(page, "Hi Aiman!")).toBeVisible();
+    await expect(button(page, "Hi Aiman")).toBeVisible();
     await settled(names, ["Haziq", "Najmi", "Afiq", "Aiman"]);
     await expect(page.getByText("Paid? ")).toHaveCount(0);
   });
@@ -99,7 +99,7 @@ test.describe("who are you", () => {
   test("a phone that already has a name is not asked", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
-    await expect(text(phone, "Hi Najmi!")).toBeVisible();
+    await expect(button(phone, "Hi Najmi")).toBeVisible();
     await phone.waitForTimeout(500);
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
@@ -107,11 +107,11 @@ test.describe("who are you", () => {
   test("clearing a name does not bring the question back", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
-    await button(phone, "Not Najmi?").click();
+    await button(phone, "Hi Najmi").click();
     await sheet(phone).getByRole("button", { name: "Clear", exact: true }).click();
-    await expect(button(phone, "Choose my name")).toBeVisible();
+    await expect(button(phone, "Paid? Tap to pick your name")).toBeVisible();
     await phone.reload();
-    await expect(button(phone, "Choose my name")).toBeVisible();
+    await expect(button(phone, "Paid? Tap to pick your name")).toBeVisible();
     await phone.waitForTimeout(500);
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
@@ -122,15 +122,15 @@ test.describe("who are you", () => {
     await expect(text(page, "Haziq locked this bill")).toBeVisible();
     await page.waitForTimeout(500);
     await expect(sheet(page)).toHaveCount(0);
-    await expect(button(page, "Choose my name")).toHaveCount(0);
+    await expect(button(page, "Paid? Tap to pick your name")).toHaveCount(0);
   });
 
   test("after Just looking, the first action asks and then carries on", async ({ page }) => {
     await openBill(page);
-    await expect(button(page, "Add or update my bills")).toBeVisible();
+    await expect(button(page, "Add bill")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
 
-    await choose(page, "Add what I paid");
+    await choose(page, "Add bill");
     const list = sheet(page);
     await expect(list.getByRole("heading", { name: "Who are you?" })).toBeVisible();
     await expect(list.getByRole("button", { name: "Just looking" })).toHaveCount(0);
@@ -144,57 +144,79 @@ test.describe("who are you", () => {
 
   test("the name can be changed afterwards", async ({ page }) => {
     await openAs(page, "Najmi");
-    await button(page, "Not Najmi?").click();
+    await button(page, "Hi Najmi").click();
     await pickMe(page, "Afiq");
-    await expect(text(page, "Hi Afiq!")).toBeVisible();
-    await expect(button(page, "Not Afiq?")).toBeVisible();
+    await expect(button(page, "Hi Afiq")).toBeVisible();
   });
 
-  test("Not X? hides your own name and can clear it", async ({ page }) => {
+  test("tapping your name hides it from the list and can clear it", async ({ page }) => {
     await openAs(page, "Najmi");
     await submit(await startAdding(page, "Snacks", "1000"));
     await expect(button(page, "Delete")).toBeVisible();
 
-    await button(page, "Not Najmi?").click();
+    await button(page, "Hi Najmi").click();
     const list = sheet(page);
     await expect(list.getByRole("button", { name: "Afiq" })).toBeVisible();
     await expect(list.getByRole("button", { name: "Najmi" })).toHaveCount(0);
     await list.getByRole("button", { name: "Clear", exact: true }).click();
 
-    await expect(button(page, "Not Najmi?")).toHaveCount(0);
-    await expect(button(page, "Choose my name")).toBeVisible();
+    await expect(button(page, "Hi Najmi")).toHaveCount(0);
+    await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
     await expect(button(page, "Delete")).toBeVisible();
     expect(await page.evaluate((id) => localStorage.getItem(`splitin:me:${id}`), BILL)).toBeNull();
 
-    await choose(page, "Bills I'm in");
+    await choose(page, "Join bill");
     await expect(sheet(page).getByRole("button", { name: "Najmi" })).toBeVisible();
     await expect(sheet(page).getByRole("button", { name: "Clear", exact: true })).toHaveCount(0);
   });
 
-  test("the name sits above the receipt, with one main button and History below", async ({ page }) => {
+  test("the name sits above the receipt, with History below and a flat bar", async ({ page }) => {
     await openAs(page, "Najmi");
-    await expect(button(page, "Add or update my bills")).toBeVisible();
+    await expect(button(page, "Add bill")).toBeVisible();
     await expect(button(page, /^History/)).toBeVisible();
-    await expect(button(page, "Add what I paid")).toHaveCount(0);
-    await expect(button(page, "Paid a different amount?")).toHaveCount(0);
 
-    const name = (await button(page, "Not Najmi?").boundingBox())!;
+    const name = (await button(page, "Hi Najmi").boundingBox())!;
     const paper = (await text(page, "HOTEL").boundingBox())!;
     const history = (await button(page, /^History/).boundingBox())!;
     expect(name.y).toBeLessThan(paper.y);
     expect(history.y).toBeGreaterThan(paper.y);
 
-    const main = button(page, "Add or update my bills");
-    const bar = (await main.locator("..").boundingBox())!;
+    const main = button(page, "Add bill");
+    const bar = (await main.locator("../..").boundingBox())!;
     expect([bar.x, bar.width, bar.y + bar.height]).toEqual([0, 390, 844]);
     expect(await main.evaluate((el) => getComputedStyle(el).boxShadow)).toBe("none");
+  });
+
+  test("someone already in every bill only gets Add bill", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(button(page, "Join bill")).toHaveCount(0);
+  });
+
+  test("before a name is chosen, both buttons show", async ({ page }) => {
+    await openBill(page);
+    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(button(page, "Join bill")).toBeVisible();
+  });
+
+  test("Add bill and Join bill open their forms straight away", async ({ page }) => {
+    await seed({ ...trip, items: [hotel, { ...dinner, participants: ["h", "a"] }] });
+    await openAs(page, "Najmi");
+    await button(page, "Add bill").click();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(panel(page).getByText("Add what you paid")).toBeVisible();
+    await panel(page).getByRole("button", { name: "Cancel" }).click();
+
+    await button(page, "Join bill").click();
+    await expect(sheet(page)).toHaveCount(0);
+    await expect(panel(page).getByText("Which bills are you in?")).toBeVisible();
   });
 
   test("with no bills yet the button only adds", async ({ page }) => {
     await seed({ ...trip, items: [] });
     await openBill(page);
-    await expect(button(page, "Add or update my bills")).toHaveCount(0);
-    await button(page, "Add what I paid").click();
+    await expect(button(page, "Join bill")).toHaveCount(0);
+    await button(page, "Add bill").click();
     await pickMe(page, "Najmi");
     await expect(panel(page).getByText("Add what you paid")).toBeVisible();
   });
@@ -203,7 +225,7 @@ test.describe("who are you", () => {
 test.describe("adding your own name", () => {
   test("adds the name, changes no amount, then carries on", async ({ page }) => {
     await openBill(page);
-    await choose(page, "Add what I paid");
+    await choose(page, "Add bill");
     await addName(page, "Aiman");
     await expect(panel(page).getByText("Add what you paid")).toBeVisible();
     await settled(names, ["Haziq", "Najmi", "Afiq", "Aiman"]);
@@ -216,7 +238,7 @@ test.describe("adding your own name", () => {
 
   test("refuses a name already on the bill", async ({ page }) => {
     await openBill(page);
-    await choose(page, "Add what I paid");
+    await choose(page, "Add bill");
     await addName(page, "najmi");
     await expect(text(page, "najmi is already in the list")).toBeVisible();
     expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);
@@ -227,7 +249,7 @@ test.describe("adding your own name", () => {
     const b = await newPhone(browser);
     for (const page of [a, b]) {
       await openBill(page);
-      await choose(page, "Add what I paid");
+      await choose(page, "Add bill");
       await pickMe(page, "Not on the list");
       await panel(page).getByPlaceholder("Name").fill("Aiman");
     }
@@ -244,7 +266,7 @@ test.describe("adding your own name", () => {
     const people = Array.from({ length: 50 }, (_, i) => ({ id: `p${i}`, name: `Person ${i}`, color: i }));
     await seed({ ...trip, ownerId: "p0", people, items: [] });
     await openBill(page);
-    await button(page, "Add what I paid").click();
+    await button(page, "Add bill").click();
     await addName(page, "Aiman");
     await expect(text(page, "Something went wrong")).toBeVisible();
     expect(await names()).toHaveLength(50);
@@ -252,7 +274,7 @@ test.describe("adding your own name", () => {
 
   test("bank details: only on the phone that added the name", async ({ page, browser }) => {
     await openBill(page);
-    await choose(page, "Add what I paid");
+    await choose(page, "Add bill");
     await addName(page, "Aiman");
     await expect(panel(page).getByText("Add what you paid")).toBeVisible();
     await panel(page).getByRole("button", { name: "Cancel" }).click();
@@ -267,7 +289,7 @@ test.describe("adding your own name", () => {
 
     const other = await newPhone(browser);
     await openBill(other);
-    await expect(button(other, "Add or update my bills")).toBeVisible();
+    await expect(button(other, "Add bill")).toBeVisible();
     await expect(button(other, "Bank details")).toHaveCount(0);
   });
 });
@@ -292,7 +314,7 @@ test.describe("adding a bill", () => {
   test("the payer must be chosen first when the name is unknown", async ({ page }) => {
     await seed({ ...trip, ownerId: null });
     await openBill(page);
-    await choose(page, "Add what I paid");
+    await choose(page, "Add bill");
     await addName(page, "Aiman");
     const form = panel(page);
     await form.getByRole("button", { name: "Aiman", pressed: true }).click();
@@ -330,7 +352,7 @@ test.describe("adding a bill", () => {
   test("a later bill has everyone ticked, including someone who joined only one bill", async ({ page }) => {
     await patchDoc((d) => ({ ...d, items: [hotel, dinner] }));
     await openBill(page);
-    await choose(page, "Bills I'm in");
+    await choose(page, "Join bill");
     await addName(page, "Aiman");
     const join = panel(page);
     await join.getByRole("checkbox", { name: "Hotel" }).click();
@@ -351,7 +373,7 @@ test.describe("adding a bill", () => {
     const snacks = (await serverDoc()).items[1];
 
     await openBill(stranger);
-    await expect(button(stranger, "Add or update my bills")).toBeVisible();
+    await expect(button(stranger, "Add bill")).toBeVisible();
     await expect(stranger.getByText("You added")).toHaveCount(0);
 
     await stranger.evaluate(
@@ -396,7 +418,7 @@ test.describe("joining bills", () => {
 
   const startJoining = async (page: import("@playwright/test").Page) => {
     await openBill(page);
-    await choose(page, "Bills I'm in");
+    await choose(page, "Join bill");
     await addName(page, "Aiman");
     const form = panel(page);
     await expect(form.getByText("Which bills are you in?")).toBeVisible();
@@ -520,7 +542,7 @@ test.describe("joining bills", () => {
     await seed(trip, { payments: [paymentRow("n", "h", 10000)] });
     await openBill(page);
     const form = await (async () => {
-      await choose(page, "Bills I'm in");
+      await choose(page, "Join bill");
       await addName(page, "Aiman");
       const panelForm = panel(page);
       await expect(panelForm.getByText("Which bills are you in?")).toBeVisible();
@@ -558,11 +580,11 @@ test.describe("paying", () => {
 
   test("Just looking cannot tap a payment until a name is chosen", async ({ page }) => {
     await openBill(page);
-    await expect(text(page, "Paid? Choose your name to mark it.")).toBeVisible();
+    await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
     await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
     await expect(payLine(page, "AFIQ", "HAZIQ")).toHaveCount(0);
 
-    await button(page, "Choose my name").click();
+    await button(page, "Paid? Tap to pick your name").click();
     await pickMe(page, "Afiq");
     await expect(payLine(page, "AFIQ", "HAZIQ")).toBeVisible();
     await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
@@ -572,7 +594,7 @@ test.describe("paying", () => {
   test("changing your name changes which payments can be tapped", async ({ page }) => {
     await openAs(page, "Najmi");
     await expect(payLine(page, "NAJMI", "HAZIQ")).toBeVisible();
-    await button(page, "Not Najmi?").click();
+    await button(page, "Hi Najmi").click();
     await pickMe(page, "Afiq");
     await expect(payLine(page, "AFIQ", "HAZIQ")).toBeVisible();
     await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
@@ -677,7 +699,7 @@ test.describe("locked and limited", () => {
     await expect(sheet(page).getByRole("button", { name: "Not on the list" })).toHaveCount(0);
     await pickMe(page, "Najmi");
     await expect(text(page, "Haziq locked this bill. You can still mark payments.")).toBeVisible();
-    await expect(button(page, "Add or update my bills")).toHaveCount(0);
+    await expect(button(page, "Add bill")).toHaveCount(0);
 
     await payLine(page, "NAJMI", "HAZIQ").click();
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
@@ -737,7 +759,7 @@ test.describe("telling the group", () => {
     await settled(itemNames, ["Hotel", "Mine"]);
 
     await openBill(me);
-    await expect(button(me, "Add or update my bills")).toBeVisible();
+    await expect(button(me, "Add bill")).toBeVisible();
     await expect(me.getByText(/since your last visit/)).toHaveCount(0);
 
     await openBill(other);
@@ -750,7 +772,7 @@ test.describe("telling the group", () => {
     await expect(sheet(me).getByText(/Afiq added Theirs/)).toBeVisible();
 
     await openBill(me);
-    await expect(button(me, "Add or update my bills")).toBeVisible();
+    await expect(button(me, "Add bill")).toBeVisible();
     await expect(me.getByText(/since your last visit/)).toHaveCount(0);
   });
 

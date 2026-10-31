@@ -1,34 +1,31 @@
 "use client";
 
+import { ChevronDownIcon } from "@/components/icons";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillDoc } from "@/lib/bill";
 import { cn } from "@/lib/utils";
 
-export function Greeting({
-  name,
-  action,
-  className,
-}: {
-  name?: string;
-  action?: { label: string; onClick: () => void };
-  className?: string;
-}) {
+const words = "text-[17px] font-extrabold tracking-[-0.01em]";
+
+export function Greeting({ name, onChange, className }: { name: string; onChange?: () => void; className?: string }) {
   const { t } = useI18n();
+  const hi = fmt(t.friend.hi, { name });
   return (
-    <div className={cn("flex min-h-9 items-center justify-between gap-3", className)}>
-      {name ? (
-        <b className="min-w-0 truncate text-[17px] font-extrabold tracking-[-0.01em]">{fmt(t.friend.hi, { name })}</b>
-      ) : null}
-      {action ? (
+    <div className={cn("flex min-h-9 items-center", className)}>
+      {onChange ? (
         <button
           type="button"
-          onClick={action.onClick}
-          className="ml-auto h-9 max-w-[55%] shrink-0 truncate text-[13.5px] font-bold text-muted"
+          aria-haspopup="dialog"
+          onClick={onChange}
+          className={cn(words, "flex h-9 min-w-0 items-center gap-1")}
         >
-          {action.label}
+          <span className="min-w-0 truncate">{hi}</span>
+          <ChevronDownIcon className="shrink-0 text-muted" />
         </button>
-      ) : null}
+      ) : (
+        <b className={cn(words, "min-w-0 truncate")}>{hi}</b>
+      )}
     </div>
   );
 }
