@@ -1,0 +1,384 @@
+import { expect, test } from "@playwright/test";
+import {
+  addName,
+  BILL,
+  button,
+  dinner,
+  eventKinds,
+  getDb,
+  hotel,
+  newPhone,
+  OLD,
+  openBill,
+  openHistory,
+  openJoin,
+  ownerStorage,
+  panel,
+  paymentRow,
+  paymentsOf,
+  pickMe,
+  seed,
+  serverDoc,
+  serverItem,
+  settled,
+  sheet,
+  startAdding,
+  submit,
+  text,
+  TOKEN,
+  trip,
+} from "./helpers";
+
+test.beforeEach(() => seed());
+
+const openDraft = (doc = trip) => ({ "splitin:draft:v2": { doc, billId: null, seenAt: "" } });
+
+test.describe("sharing", () => {
+  test("asks which one is you, then uses that name", async ({ browser }) => {
+    const { ownerId, ...doc } = trip;
+    void ownerId;
+    const owner = await newPhone(browser, openDraft(doc));
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    const list = sheet(owner);
+    await expect(list.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
+    await list.getByRole("button", { name: "Najmi" }).click();
+    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+
+    const db = await getDb();
+    const published = db.bills.find((b) => b.id !== BILL)!;
+    expect(published.doc.ownerId).toBe("n");
+
+    const friend = await newPhone(browser);
+    await friend.goto(`/bill/${published.id}`);
+    await expect(text(friend, "SHARED BY NAJMI")).toBeVisible();
+    await button(friend, "Add what I paid").click();
+    const who = sheet(friend);
+    await expect(who.getByRole("button", { name: "Haziq" })).toBeVisible();
+    await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
+  });
+
+  test("the owner can say they are not on the list", async ({ browser }) => {
+    const { ownerId, ...doc } = trip;
+    void ownerId;
+    const owner = await newPhone(browser, openDraft(doc));
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    await sheet(owner).getByRole("button", { name: "Not on the list" }).click();
+    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
+    expect(published.doc.ownerId).toBeNull();
+  });
+
+  test("a bill shared before this feature is not asked again", async ({ browser }) => {
+    const { ownerId, ...doc } = trip;
+    void ownerId;
+    await seed(doc);
+    const owner = await newPhone(browser, ownerStorage(doc));
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(owner.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
+  });
+});
+
+test.describe("saving over friends' changes", () => {
+  test("an old copy on the owner's phone loses nothing a friend did", async ({ browser }) => {
+    await seed({ ...trip, items: [hotel, dinner] });
+    const owner = await newPhone(browser, ownerStorage({ ...trip, items: [hotel, dinner] }, OLD));
+    await owner.goto("/");
+    await expect(text(owner, "HOTEL")).toBeVisible();
+
+    const friend = await newPhone(browser);
+    await openBill(friend);
+    await button(friend, "Join a bill").click();
+    await addName(friend, "Aiman");
+    const form = panel(friend);
+    await form.getByRole("checkbox", { name: "Hotel" }).click();
+    await submit(form);
+    await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
+    await openBill(friend);
+    await submit(await startAdding(friend, "Snacks", "1000"));
+    await settled(async () => (await serverDoc()).items.length, 3);
+
+    const eventsBefore = await eventKinds();
+    await owner.evaluate(() => {
+      const raw = localStorage.getItem("splitin:draft:v2")!;
+      const draft = JSON.parse(raw);
+      draft.doc.title = "Renamed";
+      localStorage.setItem("splitin:draft:v2", JSON.stringify(draft));
+      window.dispatchEvent(new Event("storage"));
+    });
+    await settled(async () => (await serverDoc()).title, "Renamed");
+
+    const doc = await serverDoc();
+    expect(doc.people.map((p) => p.name)).toContain("Aiman");
+    expect(doc.items.map((i) => i.name)).toEqual(["Hotel", "Dinner", "Snacks"]);
+    const aiman = doc.people.find((p) => p.name === "Aiman")!;
+    expect(doc.items[0].participants).toContain(aiman.id);
+
+    const added = (await eventKinds()).filter((k) => !eventsBefore.includes(k) || k === "title_changed");
+    expect(added).toEqual(["title_changed"]);
+    const ownerEvents = (await getDb()).bill_events.filter((e) => e.actor === "owner").map((e) => e.kind);
+    expect(ownerEvents).toEqual(["title_changed"]);
+
+    await expect
+      .poll(() =>
+        owner.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!).doc.people.length as number),
+      )
+      .toBe(4);
+  });
+
+  test("the owner's delete stays deleted, and a friend's later bill still arrives", async ({ browser }) => {
+    const items = [hotel, dinner];
+    await seed({ ...trip, items });
+    const owner = await newPhone(browser, ownerStorage({ ...trip, items }, OLD));
+    await owner.goto("/");
+    await expect(text(owner, "DINNER")).toBeVisible();
+    await owner.waitForTimeout(1500);
+
+    await owner.evaluate(() => {
+      const draft = JSON.parse(localStorage.getItem("splitin:draft:v2")!);
+      draft.doc.items = draft.doc.items.filter((i: { id: string }) => i.id !== "dinner");
+      localStorage.setItem("splitin:draft:v2", JSON.stringify(draft));
+      window.dispatchEvent(new Event("storage"));
+    });
+    await settled(async () => (await serverDoc()).items.map((i) => i.name), ["Hotel"]);
+
+    const friend = await newPhone(browser);
+    await openBill(friend);
+    await submit(await startAdding(friend, "Toll", "500", "Najmi"));
+    await settled(async () => (await serverDoc()).items.map((i) => i.name), ["Hotel", "Toll"]);
+
+    await owner.goto("/");
+    await expect(text(owner, "TOLL")).toBeVisible();
+    await expect(owner.getByText("DINNER")).toHaveCount(0);
+  });
+});
+
+test.describe("owner screen", () => {
+  const tracking = async (browser: import("@playwright/test").Browser, doc = trip) => {
+    const owner = await newPhone(browser, ownerStorage(doc));
+    await openBill(owner);
+    await expect(button(owner, "View receipt")).toBeVisible();
+    return owner;
+  };
+
+  test("marks paid and unpaid, naming the owner in History", async ({ browser }) => {
+    const owner = await tracking(browser);
+    await button(owner, "Mark paid").first().click();
+    await settled(async () => (await paymentsOf()).length, 1);
+    await button(owner, "Mark unpaid").click();
+    await settled(paymentsOf, []);
+    await settled(async () => (await eventKinds()).sort(), ["paid", "unpaid"]);
+    const list = await openHistory(owner);
+    await expect(list.getByText(/Haziq marked/)).toBeVisible();
+    await expect(list.getByText(/Haziq undid the payment/)).toBeVisible();
+  });
+
+  test("a payment already removed elsewhere shows no error and is not logged twice", async ({ browser }) => {
+    const owner = await tracking(browser);
+    await button(owner, "Mark paid").first().click();
+    await expect(button(owner, "Mark unpaid")).toBeVisible();
+    const db = await getDb();
+    await fetch("http://localhost:54399/__db", { method: "POST", body: JSON.stringify({ ...db, payments: [] }) });
+    await button(owner, "Mark unpaid").click();
+    await expect(text(owner, "is unpaid again")).toBeVisible();
+    await expect(owner.getByText("Something went wrong")).toHaveCount(0);
+    expect(await eventKinds()).toEqual(["paid"]);
+  });
+
+  test("records a different amount", async ({ browser }) => {
+    const owner = await tracking(browser);
+    await button(owner, "Record a different amount").click();
+    const form = panel(owner);
+    await form.getByRole("button", { name: "Najmi" }).first().click();
+    await form.getByRole("button", { name: "Haziq" }).nth(1).click();
+    await form.locator("input[inputmode='numeric']").pressSequentially("2500");
+    await submit(form);
+    await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 2500 }]);
+  });
+
+  test("names the friend who marked a payment, not the payer", async ({ browser, page }) => {
+    await openBill(page);
+    await page.getByRole("button", { name: /AFIQ PAYS HAZIQ/ }).click();
+    await pickMe(page, "Najmi");
+    await sheet(page).getByRole("button", { name: "Mark paid" }).click();
+    await settled(async () => (await paymentsOf()).length, 1);
+
+    const owner = await tracking(browser);
+    await expect(text(owner, /Najmi tapped paid/)).toBeVisible();
+  });
+
+  test("locks and unlocks the bill", async ({ browser, page }) => {
+    const owner = await tracking(browser);
+    await button(owner, "Lock bill").click();
+    await settled(async () => (await serverDoc()).locked, true);
+    await openBill(page);
+    await expect(text(page, "Haziq locked this bill")).toBeVisible();
+
+    await button(owner, "Unlock bill").click();
+    await settled(async () => (await serverDoc()).locked, undefined);
+    await openBill(page);
+    await expect(button(page, "Add what I paid")).toBeVisible();
+    expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
+  });
+
+  test("shows a banner for friends' changes only", async ({ browser, page }) => {
+    const owner = await tracking(browser);
+    await button(owner, "Lock bill").click();
+    await settled(async () => (await serverDoc()).locked, true);
+    await button(owner, "Unlock bill").click();
+    await settled(async () => (await serverDoc()).locked, undefined);
+    await openBill(owner);
+    await expect(button(owner, "View receipt")).toBeVisible();
+    await expect(owner.getByText(/since your last visit/)).toHaveCount(0);
+
+    await openBill(page);
+    await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
+    await settled(async () => (await serverDoc()).items.length, 2);
+    await openBill(owner);
+    await expect(text(owner, "1 change since your last visit")).toBeVisible();
+  });
+
+  test("the paid-off page keeps History and the owner's buttons", async ({ browser }) => {
+    await seed(trip, { payments: [paymentRow("n", "h", 10000), paymentRow("a", "h", 10000)] });
+    const owner = await newPhone(browser, ownerStorage());
+    await openBill(owner);
+    await expect(text(owner, "Everyone")).toBeVisible();
+    await expect(button(owner, /^History/)).toBeVisible();
+    await expect(button(owner, "Owner link")).toBeVisible();
+    await expect(button(owner, "Lock bill")).toBeVisible();
+  });
+});
+
+test.describe("owner link and editing", () => {
+  test("a new phone becomes the owner through the private link", async ({ browser }) => {
+    const phone = await newPhone(browser);
+    await phone.goto(`/bill/${BILL}#owner=${TOKEN}`);
+    await expect(text(phone, "You can edit this bill on this device now")).toBeVisible();
+    await expect(button(phone, "View receipt")).toBeVisible();
+    expect(phone.url()).not.toContain("owner=");
+  });
+
+  test("a wrong token gives nothing", async ({ browser }) => {
+    const phone = await newPhone(browser);
+    await phone.goto(`/bill/${BILL}#owner=wrongwrongwrongwrongwrong`);
+    await expect(text(phone, "Something went wrong")).toBeVisible();
+    await expect(button(phone, "Add what I paid")).toBeVisible();
+    expect(await phone.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
+  });
+
+  test("Owner link copies the private link", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    await owner.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await openBill(owner);
+    await button(owner, "Owner link").click();
+    await expect(sheet(owner).getByRole("heading", { name: "Your owner link" })).toBeVisible();
+    await sheet(owner).getByRole("button", { name: "Copy link" }).click();
+    await expect(text(owner, "Copied")).toBeVisible();
+  });
+
+  test("Edit bills brings the shared bill back to a phone that lost it", async ({ browser }) => {
+    const phone = await newPhone(browser, { [`splitin:owner:${BILL}`]: TOKEN });
+    await openBill(phone);
+    await button(phone, "Edit bills").click();
+    await expect(phone).toHaveURL(/\/$/);
+    await expect(text(phone, "HOTEL")).toBeVisible();
+    const draft = await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!));
+    expect(draft.billId).toBe(BILL);
+  });
+
+  test("Edit bills warns before replacing a split not yet shared", async ({ browser }) => {
+    const other = { ...trip, title: "Unshared", items: [] };
+    const phone = await newPhone(browser, {
+      [`splitin:owner:${BILL}`]: TOKEN,
+      "splitin:draft:v2": { doc: other, billId: null, seenAt: "" },
+    });
+    await openBill(phone);
+    await button(phone, "Edit bills").click();
+    const confirm = sheet(phone);
+    await expect(confirm.getByRole("heading", { name: "Replace your unshared split?" })).toBeVisible();
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    expect(await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!).billId)).toBeNull();
+
+    await button(phone, "Edit bills").click();
+    await sheet(phone).getByRole("button", { name: "Replace it" }).click();
+    await expect(text(phone, "HOTEL")).toBeVisible();
+  });
+});
+
+test.describe("people on the owner's phone", () => {
+  const openPerson = async (owner: import("@playwright/test").Page, name: string) => {
+    await owner.goto("/");
+    await owner.getByRole("button", { name, exact: false }).first().click();
+    const details = sheet(owner);
+    await expect(details.getByRole("button", { name: `Remove ${name}` })).toBeVisible();
+    return details;
+  };
+
+  test("cannot remove someone with a payment marked", async ({ browser }) => {
+    await seed(trip, { payments: [paymentRow("n", "h", 10000)] });
+    const owner = await newPhone(browser, ownerStorage());
+    const details = await openPerson(owner, "Najmi");
+    await details.getByRole("button", { name: "Remove Najmi" }).click();
+    await expect(text(owner, "Najmi has a payment marked. Mark it unpaid first.")).toBeVisible();
+    expect((await serverDoc()).people).toHaveLength(3);
+  });
+
+  test("can remove someone with no payment", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    const details = await openPerson(owner, "Najmi");
+    await details.getByRole("button", { name: "Remove Najmi" }).click();
+    await settled(async () => (await serverDoc()).people.map((p) => p.name), ["Haziq", "Afiq"]);
+  });
+
+  test("+ Add in the bill form adds a name for the owner too", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    await owner.goto("/");
+    await button(owner, "Add bill").click();
+    const form = panel(owner);
+    await form.locator("input[maxlength='60']").fill("Water");
+    await form.locator("input[inputmode='numeric']").pressSequentially("3000");
+    await form.getByRole("button", { name: "+ Add" }).click();
+    await form.getByPlaceholder("Name").fill("Siti");
+    await form.getByRole("button", { name: "Add", exact: true }).click();
+    await submit(form);
+    await settled(async () => (await serverDoc()).people.map((p) => p.name), ["Haziq", "Najmi", "Afiq", "Siti"]);
+    expect((await serverDoc()).items[1].participants).toHaveLength(4);
+  });
+});
+
+test.describe("History", () => {
+  test("words every kind of friend change, and never stores secrets", async ({ page }) => {
+    await seed({ ...trip, items: [hotel, dinner] });
+    await openBill(page);
+    await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
+    await settled(async () => (await serverDoc()).items.length, 3);
+    await expect(button(page, "Delete")).toBeVisible();
+    await button(page, "Delete").click();
+    await settled(async () => (await serverDoc()).items.length, 2);
+
+    await button(page, "Not Najmi?").click();
+    await sheet(page).getByRole("button", { name: "Not on the list" }).click();
+    const name = panel(page);
+    await name.getByPlaceholder("Name").fill("Aiman");
+    await name.getByRole("button", { name: "Add", exact: true }).click();
+    await settled(async () => (await serverDoc()).people.length, 4);
+
+    const join = await openJoin(page);
+    await join.getByRole("checkbox", { name: "Hotel" }).click();
+    await submit(join);
+    await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
+
+    const list = await openHistory(page);
+    await expect(list.getByText("Najmi added Snacks (RM 10.00), paid by Najmi")).toBeVisible();
+    await expect(list.getByText("Najmi deleted Snacks (RM 10.00)")).toBeVisible();
+    await expect(list.getByText("Aiman joined the bill")).toBeVisible();
+    await expect(list.getByText("Aiman joined Hotel (RM 75.00)")).toBeVisible();
+
+    const stored = JSON.stringify((await getDb()).bill_events);
+    expect(stored).not.toContain("deleteHash");
+    expect(stored).not.toContain("keyHash");
+  });
+});

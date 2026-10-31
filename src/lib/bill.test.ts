@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   evenShare,
   itemSplitText,
-  latestAddedAt,
-  mergeFriendItems,
+  latestFriendChange,
+  mergeFriendChanges,
   splitItem,
   summarize,
   withoutOwnItem,
@@ -69,39 +69,39 @@ describe("friend items", () => {
   const ids = (doc: BillDoc) => doc.items.map((i) => i.id);
 
   it("brings in an item the owner has not seen", () => {
-    expect(ids(mergeFriendItems(withFriend, houseBills, ""))).toEqual(["1", "2", "3", "f"]);
+    expect(ids(mergeFriendChanges(withFriend, houseBills, ""))).toEqual(["1", "2", "3", "f"]);
   });
 
   it("keeps an item deleted once the owner has seen it", () => {
-    expect(ids(mergeFriendItems(withFriend, houseBills, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+    expect(ids(mergeFriendChanges(withFriend, houseBills, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
   });
 
   it("drops an item the friend undid", () => {
-    expect(ids(mergeFriendItems(houseBills, withFriend, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+    expect(ids(mergeFriendChanges(houseBills, withFriend, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
   });
 
   it("keeps the owner's edit without a duplicate", () => {
     const edited: Item = { ...friendItem, name: "Petrol + toll", addedAt: undefined };
     const local = { ...houseBills, items: [...houseBills.items, edited] };
-    const merged = mergeFriendItems(withFriend, local, "");
+    const merged = mergeFriendChanges(withFriend, local, "");
     expect(ids(merged)).toEqual(["1", "2", "3", "f"]);
     expect(merged.items[3].name).toBe("Petrol + toll");
   });
 
   it("does not touch the owner's own items", () => {
     const local = { ...houseBills, items: [...houseBills.items, { ...houseBills.items[0], id: "new" }] };
-    expect(ids(mergeFriendItems(houseBills, local, ""))).toEqual(["1", "2", "3", "new"]);
+    expect(ids(mergeFriendChanges(houseBills, local, ""))).toEqual(["1", "2", "3", "new"]);
   });
 
   it("skips an item for a person the owner removed", () => {
     const local = { ...houseBills, people: people.filter((p) => p.id !== "n"), items: [] };
-    expect(ids(mergeFriendItems(withFriend, local, ""))).toEqual([]);
+    expect(ids(mergeFriendChanges(withFriend, local, ""))).toEqual([]);
   });
 
   it("tracks the latest added time", () => {
-    expect(latestAddedAt(houseBills)).toBe("");
-    expect(latestAddedAt(withFriend)).toBe(friendItem.addedAt);
-    expect(latestAddedAt(houseBills, "2026-01-01")).toBe("2026-01-01");
+    expect(latestFriendChange(houseBills)).toBe("");
+    expect(latestFriendChange(withFriend)).toBe(friendItem.addedAt);
+    expect(latestFriendChange(houseBills, "2026-01-01")).toBe("2026-01-01");
   });
 
   it("settles a trip where each friend paid for something different", () => {

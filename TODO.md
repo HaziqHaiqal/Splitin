@@ -8,7 +8,8 @@
 - [ ] Commit `.env.example`. `.gitignore` has `.env*`, which hides it; add `!.env.example`.
 - [ ] Remove the unused packages `sonner` and `nanoid`.
 - [ ] Drop the unused `bills.last_activity_at` column and its index `bills_last_activity_at_idx`.
-- [ ] Add browser tests (Playwright) to the repository. Today only the money maths and bill logic have tests.
+- [x] Add browser tests (Playwright) to the repository.
+- [ ] Test on a real iPhone: the keyboard with the bottom forms, adding a name, joining bills, and the owner link.
 - [ ] Create the `expired_bills` table (id, expired_at; row-level security on, no policies) and make the daily clean-up job record each id it deletes. Until then, a link deleted at 30 days shows "We can't find this receipt" instead of "This receipt has expired". The app already reads the table (`linkExpired` in `src/lib/data/bill.ts`).
 
 ## Phase 2

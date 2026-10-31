@@ -4,6 +4,10 @@ const id = z.string().min(1).max(40);
 const minor = z.int().min(0).max(100_000_000_00);
 
 export const MAX_ITEMS = 200;
+export const MAX_PEOPLE = 50;
+
+const when = z.iso.datetime();
+const hash = z.string().max(64);
 
 export const itemSchema = z.object({
   id,
@@ -12,9 +16,13 @@ export const itemSchema = z.object({
   paidBy: id,
   participants: z.array(id).min(1).max(50),
   overrides: z.record(id, minor),
-  addedAt: z.iso.datetime().optional(),
-  deleteHash: z.string().max(64).optional(),
+  addedAt: when.optional(),
+  deleteHash: hash.optional(),
+  joins: z.record(id, z.object({ hash, at: when })).optional(),
 });
+
+export const personNameSchema = z.string().trim().min(1).max(30);
+export const bankSchema = z.string().trim().max(40).nullable();
 
 export const billDocSchema = z
   .object({
@@ -25,15 +33,20 @@ export const billDocSchema = z
       .array(
         z.object({
           id,
-          name: z.string().trim().min(1).max(30),
+          name: personNameSchema,
           color: z.int().min(0).max(99),
-          bank: z.string().trim().max(40).nullable().optional(),
-          accountNo: z.string().trim().max(40).nullable().optional(),
+          bank: bankSchema.optional(),
+          accountNo: bankSchema.optional(),
+          addedAt: when.optional(),
+          keyHash: hash.optional(),
+          detailsAt: when.optional(),
         }),
       )
       .min(1)
-      .max(50),
+      .max(MAX_PEOPLE),
     items: z.array(itemSchema).max(MAX_ITEMS),
+    ownerId: id.nullable().optional(),
+    locked: z.boolean().optional(),
   })
   .refine(
     (doc) => {

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Avatar } from "@/components/avatar";
 import { CheckIcon, CloseIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { splitItem, type BillDoc, type Item } from "@/lib/bill";
+import { splitItem, type BillDoc, type Item, type Person, type PreviewItem } from "@/lib/bill";
 import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
-import { cn, newId } from "@/lib/utils";
+import { cn, newId, parseNames } from "@/lib/utils";
+import { PersonChips } from "./person-chips";
 
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 const parse = (v: string) => parseMoney(v, "MYR");
@@ -35,19 +35,23 @@ export function BillForm({
   autoFocus?: boolean;
   title?: string;
   defaultPaidBy?: string;
-  onAdd?: (item: Item) => void;
+  onAdd?: (item: Item, newPeople: Person[]) => void;
   onPrinted: (id: string) => void;
   onCancel?: () => void;
-  onPreview: (item: Item | null) => void;
+  onPreview: (item: PreviewItem | null) => void;
 }) {
   const { t, money, plain, locale } = useI18n();
   const toast = useToast();
   const isEdit = Boolean(item);
-  const everyone = doc.people.map((p) => p.id);
+  const [newPeople, setNewPeople] = useState<Person[]>([]);
+  const people = [...doc.people, ...newPeople];
+  const everyone = people.map((p) => p.id);
 
   const [name, setName] = useState(item?.name ?? "");
   const [amount, setAmount] = useState(item ? toInputValue(item.amountMinor, "MYR") : "");
-  const [paidBy, setPaidBy] = useState(item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (everyone[0] ?? "")));
+  const [paidBy, setPaidBy] = useState(
+    item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
+  );
   const [participants, setParticipants] = useState<string[]>(item?.participants ?? everyone);
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
@@ -68,7 +72,7 @@ export function BillForm({
   const fixedSum = included.reduce((s, id) => s + (liveOverrides[id] ?? 0), 0);
   const cleanOverrides = Object.fromEntries(Object.entries(liveOverrides).filter(([id]) => included.includes(id)));
 
-  const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
+  const nameOf = (id: string) => people.find((p) => p.id === id)?.name ?? "?";
   const list = (ids: string[]) =>
     new Intl.ListFormat(intlLocale(locale), { type: "conjunction" }).format(ids.map(nameOf));
   const freeIds = included.filter((id) => liveOverrides[id] === undefined);
@@ -88,7 +92,7 @@ export function BillForm({
   const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
   const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy);
 
-  const previewKey = JSON.stringify([name, amountMinor, paidBy, included, cleanOverrides, split.ok]);
+  const previewKey = JSON.stringify([name, amountMinor, paidBy, included, cleanOverrides, split.ok, newPeople]);
   useEffect(() => {
     const typing = isEdit || name.trim() !== "" || amountMinor > 0;
     onPreview(
@@ -100,6 +104,7 @@ export function BillForm({
             paidBy,
             participants: included,
             overrides: split.ok ? cleanOverrides : {},
+            newPeople,
           }
         : null,
     );
@@ -132,8 +137,25 @@ export function BillForm({
     });
   };
 
+  const addNames = (text: string) => {
+    const taken = new Set(people.map((p) => p.name.toLowerCase()));
+    let color = people.reduce((max, p) => Math.max(max, p.color + 1), 0);
+    const added: Person[] = [];
+    for (const person of parseNames(text)) {
+      if (taken.has(person.toLowerCase())) {
+        toast({ message: fmt(t.home.duplicateName, { name: person }) });
+        continue;
+      }
+      taken.add(person.toLowerCase());
+      added.push({ id: newId(6), name: person, color: color++ % 100 });
+    }
+    setNewPeople((p) => [...p, ...added]);
+    setParticipants((p) => [...p, ...added.map((a) => a.id)]);
+  };
+
   const save = () => {
     if (!canSave) return;
+    const joins = Object.fromEntries(Object.entries(item?.joins ?? {}).filter(([id]) => included.includes(id)));
     const next: Item = {
       id: item?.id ?? newId(6),
       name: name.trim().slice(0, 60),
@@ -141,11 +163,13 @@ export function BillForm({
       paidBy,
       participants: included,
       overrides: cleanOverrides,
+      ...(Object.keys(joins).length > 0 ? { joins } : {}),
     };
-    if (onAdd) onAdd(next);
+    if (onAdd) onAdd(next, newPeople);
     else
       update?.((d) => ({
         ...d,
+        people: [...d.people, ...newPeople],
         items: isEdit ? d.items.map((i) => (i.id === next.id ? next : i)) : [...d.items, next],
       }));
     onPreview(null);
@@ -154,7 +178,8 @@ export function BillForm({
       setName("");
       setAmount("");
       setOverrides({});
-      setParticipants(everyone);
+      setParticipants(doc.people.map((p) => p.id));
+      setNewPeople([]);
       setShowSplit(false);
     }
   };
@@ -239,26 +264,9 @@ export function BillForm({
 
       <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
         <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-        <div className={cn("flex gap-1.5", bare ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
-          {doc.people.map((p) => {
-            const on = paidBy === p.id;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setPaidBy(p.id)}
-                className={cn(
-                  "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full pr-3 pl-1 text-[13px] font-bold",
-                  on ? "bg-green text-white" : "bg-chip text-ink",
-                )}
-              >
-                <Avatar name={p.name} color={p.color} size={26} />
-                {p.name}
-              </button>
-            );
-          })}
-        </div>
+        <PersonChips people={people} value={paidBy} onChange={setPaidBy} bare={bare}>
+          <NewNameChip onAdd={addNames} />
+        </PersonChips>
       </div>
 
       {expanded ? (
@@ -281,7 +289,7 @@ export function BillForm({
               <span className="text-[12px] text-faint">{t.bill.tapToChange}</span>
             )}
           </div>
-          {doc.people.map((p) => {
+          {people.map((p) => {
             const on = participants.includes(p.id);
             const isSet = on && liveOverrides[p.id] !== undefined;
             const share = split.ok ? split.shares[p.id] : undefined;
@@ -385,5 +393,59 @@ export function BillForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function NewNameChip({ onAdd }: { onAdd: (text: string) => void }) {
+  const { t } = useI18n();
+  const [value, setValue] = useState<string | null>(null);
+  const commit = () => {
+    if (value?.trim()) onAdd(value);
+    setValue(null);
+  };
+  if (value === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => setValue("")}
+        className="inline-flex h-[34px] shrink-0 items-center rounded-full border-[1.5px] border-dashed border-dash px-3 text-[13px] font-bold whitespace-nowrap text-green-ink"
+      >
+        {t.home.addPerson}
+      </button>
+    );
+  }
+  return (
+    <span className="inline-flex h-[34px] shrink-0 items-center rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 shadow-[0_0_0_3px_var(--green-soft)]">
+      <input
+        autoFocus
+        type="text"
+        value={value}
+        maxLength={30}
+        aria-label={t.home.addPersonLabel}
+        placeholder={t.home.personPlaceholder}
+        enterKeyHint="done"
+        autoCapitalize="words"
+        autoComplete="off"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") setValue(null);
+        }}
+        className="w-24 bg-transparent text-[16px] font-semibold text-ink outline-none"
+      />
+      <button
+        type="button"
+        aria-label={t.common.add}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={commit}
+        className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-full bg-green text-white"
+      >
+        <CheckIcon size={13} />
+      </button>
+    </span>
   );
 }

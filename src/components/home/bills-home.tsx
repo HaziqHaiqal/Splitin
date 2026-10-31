@@ -11,7 +11,7 @@ import { useShareReceipt } from "@/hooks/use-share-receipt";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import type { BillDoc, Item } from "@/lib/bill";
+import type { BillDoc, PreviewItem } from "@/lib/bill";
 import { emptyDraft, saveDraft, updateDraft, useDraft } from "@/lib/store";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { BillForm } from "./bill-form";
@@ -34,7 +34,7 @@ export function BillsHome() {
     key: 0,
   });
   const [form, setForm] = useState<FormState>({ mode: "closed", editId: null, key: 0 });
-  const [preview, setPreview] = useState<Item | null>(null);
+  const [preview, setPreview] = useState<PreviewItem | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const [peopleKey, setPeopleKey] = useState(0);
   const [peopleFresh, setPeopleFresh] = useState(false);
@@ -82,7 +82,7 @@ export function BillsHome() {
 
   const openPerson = (id: string) => setPersonSheet((s) => ({ open: true, id, key: s.key + 1 }));
   const openAdd = () => setForm((f) => ({ mode: "add", editId: null, key: f.key + 1 }));
-  const openEdit = (item: Item) => setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
+  const openEdit = (item: { id: string }) => setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
   const closeForm = () => setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
   const printed = (id: string) => {
     setFreshId(id);
@@ -255,6 +255,7 @@ export function BillsHome() {
         onOpenChange={(open) => setPersonSheet((s) => ({ ...s, open }))}
         person={doc.people.find((p) => p.id === personSheet.id) ?? null}
         doc={doc}
+        billId={draft?.billId}
         update={update}
       />
       {sheet}

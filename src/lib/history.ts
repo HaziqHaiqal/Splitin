@@ -17,7 +17,13 @@ export type EventBody =
   | { kind: "person_removed"; name: string }
   | { kind: "person_renamed"; from: string; to: string }
   | { kind: "person_details"; name: string }
-  | { kind: "paid"; from: string; to: string; amountMinor: number }
+  | { kind: "person_joined"; name: string }
+  | { kind: "bill_joined"; name: string; amountMinor: number }
+  | { kind: "bill_left"; name: string }
+  | { kind: "share_changed"; name: string; from: number; to: number }
+  | { kind: "locked" }
+  | { kind: "unlocked" }
+  | { kind: "paid"; from: string; to: string; amountMinor: number; paymentId?: string }
   | { kind: "unpaid"; from: string; to: string; amountMinor: number };
 
 export type EventActor = "owner" | "friend";
@@ -26,7 +32,8 @@ export type BillEvent = EventBody & { id: string; actor: EventActor; by?: string
 
 export const personName = (doc: BillDoc, id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
-export const actorName = (doc: BillDoc, id: unknown) => doc.people.find((p) => p.id === id)?.name;
+export const actorName = (doc: BillDoc, id: unknown) =>
+  id === doc.ownerId ? undefined : doc.people.find((p) => p.id === id)?.name;
 
 const splitKey = (item: Item) =>
   JSON.stringify([

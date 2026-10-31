@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { loadBillDoc, saveBill } from "@/app/actions";
 import { useI18n } from "@/i18n/client";
-import { latestAddedAt, mergeFriendItems, type BillDoc } from "@/lib/bill";
+import { latestFriendChange, mergeFriendChanges, type BillDoc } from "@/lib/bill";
 import { getDraft, getOwnerToken, saveDraft, type Draft } from "@/lib/store";
 import { useToast } from "./toast";
 
@@ -11,9 +11,9 @@ function applyServerDoc(billId: string, server: BillDoc) {
   const current = getDraft();
   if (current?.billId !== billId) return;
   const seenAt = current.seenAt ?? "";
-  const doc = mergeFriendItems(server, current.doc, seenAt);
-  const latest = latestAddedAt(server, seenAt);
-  if (latest === seenAt && JSON.stringify(doc.items) === JSON.stringify(current.doc.items)) return;
+  const doc = mergeFriendChanges(server, current.doc, seenAt);
+  const latest = latestFriendChange(server, seenAt);
+  if (latest === seenAt && JSON.stringify(doc) === JSON.stringify(current.doc)) return;
   saveDraft({ ...current, doc, seenAt: latest });
 }
 

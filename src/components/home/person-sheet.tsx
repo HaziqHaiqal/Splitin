@@ -1,39 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { personHasPayments } from "@/app/actions";
 import { Avatar } from "@/components/avatar";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import type { BillDoc, Person } from "@/lib/bill";
-
-export const BANKS = ["Maybank", "CIMB", "Public Bank", "RHB", "Hong Leong", "Bank Islam", "TNG eWallet"];
+import { withoutPerson, type BillDoc, type Person } from "@/lib/bill";
+import { BankFields, useBankDetails } from "./bank-fields";
 
 export function PersonSheet({
   open,
   onOpenChange,
   person,
   doc,
+  billId,
   update,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   person: Person | null;
   doc: BillDoc;
+  billId?: string | null;
   update: (fn: (doc: BillDoc) => BillDoc) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
-  const knownBank = person?.bank && BANKS.includes(person.bank) ? person.bank : null;
   const [name, setName] = useState(person?.name ?? "");
-  const [bank, setBank] = useState<string | null>(knownBank ?? (person?.bank ? "other" : null));
-  const [otherBank, setOtherBank] = useState(knownBank ? "" : (person?.bank ?? ""));
-  const [accountNo, setAccountNo] = useState(person?.accountNo ?? "");
+  const details = useBankDetails(person);
+  const [pending, start] = useTransition();
 
   if (!person) return null;
   const displayName = name.trim() || person.name;
-  const bankName = bank === "other" ? otherBank.trim() : bank;
+  const { bankName, accountNo } = details;
 
   const save = () => {
     const trimmed = name.trim();
@@ -54,29 +54,23 @@ export function PersonSheet({
     onOpenChange(false);
   };
 
-  const remove = () => {
-    if (doc.items.some((i) => i.paidBy === person.id)) {
-      toast({ message: fmt(t.person.paidABill, { name: person.name }) });
-      return;
-    }
-    update((d) => ({
-      ...d,
-      people: d.people.filter((p) => p.id !== person.id),
-      items: d.items
-        .map((i) => {
-          const overrides = { ...i.overrides };
-          delete overrides[person.id];
-          return { ...i, participants: i.participants.filter((id) => id !== person.id), overrides };
-        })
-        .filter((i) => i.participants.length > 0),
-    }));
-    onOpenChange(false);
-  };
-
-  const chip = (selected: boolean) =>
-    selected
-      ? "h-9 rounded-full bg-green px-3 text-[13px] font-bold text-white"
-      : "h-9 rounded-full bg-chip px-3 text-[13px] font-semibold text-ink";
+  const remove = () =>
+    start(async () => {
+      if (doc.items.some((i) => i.paidBy === person.id)) {
+        toast({ message: fmt(t.person.paidABill, { name: person.name }) });
+        return;
+      }
+      if (billId) {
+        const result = await personHasPayments(billId, person.id);
+        if (!result.ok) return void toast({ message: t.common.generic });
+        if (result.data.has) {
+          toast({ message: fmt(t.person.hasPayment, { name: person.name }) });
+          return;
+        }
+      }
+      update((d) => withoutPerson(d, person.id));
+      onOpenChange(false);
+    });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={<span className="sr-only">{person.name}</span>}>
@@ -101,68 +95,7 @@ export function PersonSheet({
           </label>
         </div>
 
-        <div className="mt-1 text-[15px] font-extrabold">
-          {fmt(t.person.whereToPay, { name: displayName })}{" "}
-          <span className="text-[13px] font-medium text-muted">{t.common.optional}</span>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-semibold text-muted">{t.person.bankLabel}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {BANKS.map((b) => (
-              <button
-                key={b}
-                type="button"
-                aria-pressed={bank === b}
-                onClick={() => setBank(bank === b ? null : b)}
-                className={chip(bank === b)}
-              >
-                {b}
-              </button>
-            ))}
-            <button
-              type="button"
-              aria-pressed={bank === "other"}
-              onClick={() => setBank(bank === "other" ? null : "other")}
-              className={
-                bank === "other"
-                  ? chip(true)
-                  : "h-9 rounded-full border-[1.5px] border-dashed border-dash bg-card px-3 text-[13px] font-bold text-green-ink"
-              }
-            >
-              {t.person.other}
-            </button>
-          </div>
-          {bank === "other" ? (
-            <input
-              type="text"
-              value={otherBank}
-              onChange={(e) => setOtherBank(e.target.value)}
-              placeholder={t.person.otherPlaceholder}
-              maxLength={40}
-              aria-label={t.person.otherPlaceholder}
-              className="h-12 rounded-xl border border-border bg-card px-[14px] text-[16px] font-semibold text-ink outline-none focus:border-green"
-            />
-          ) : null}
-        </div>
-
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-semibold text-muted">{t.person.accountLabel}</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={accountNo}
-            onChange={(e) => setAccountNo(e.target.value.replace(/[^\d -]/g, ""))}
-            disabled={!bankName}
-            placeholder={t.person.accountPlaceholder}
-            maxLength={40}
-            className={
-              bankName
-                ? "h-[52px] rounded-xl border-[1.5px] border-green bg-card px-[14px] text-[20px] font-bold tracking-[0.04em] text-ink shadow-[0_0_0_4px_var(--green-soft)] outline-none"
-                : "h-[52px] cursor-not-allowed rounded-xl border border-border bg-chip px-[14px] text-[16px] font-semibold text-faint outline-none"
-            }
-          />
-        </label>
+        <BankFields name={displayName} details={details} />
 
         <button
           type="submit"
@@ -171,7 +104,12 @@ export function PersonSheet({
         >
           {t.common.save}
         </button>
-        <button type="button" onClick={remove} className="-mt-1.5 h-10 text-[15px] font-bold text-owe">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={remove}
+          className="-mt-1.5 h-10 text-[15px] font-bold text-owe disabled:opacity-60"
+        >
           {fmt(t.person.remove, { name: person.name })}
         </button>
       </form>

@@ -89,14 +89,11 @@ export const setOwnerToken = (billId: string, token: string) => write(ownerKey(b
 
 const meKey = (billId: string) => `splitin:me:${billId}`;
 
-export const NOT_LISTED = "-";
 export const useMe = (billId: string) => useStored(meKey(billId));
 export const getMe = (billId: string) => read(meKey(billId)) ?? undefined;
 export const setMe = (billId: string, personId: string) => write(meKey(billId), personId);
 
-const mineKey = (billId: string) => `splitin:mine:${billId}`;
-
-function parseMine(raw: string | null | undefined): Record<string, string> {
+function parseTokens(raw: string | null | undefined): Record<string, string> {
   try {
     return raw ? (JSON.parse(raw) as Record<string, string>) : {};
   } catch {
@@ -104,14 +101,32 @@ function parseMine(raw: string | null | undefined): Record<string, string> {
   }
 }
 
-export function useMyItems(billId: string): Record<string, string> {
-  const raw = useStored(mineKey(billId));
-  return useMemo(() => parseMine(raw), [raw]);
+function useTokens(key: string): Record<string, string> {
+  const raw = useStored(key);
+  return useMemo(() => parseTokens(raw), [raw]);
 }
 
-export function setMyItem(billId: string, itemId: string, token: string | null) {
-  const mine = parseMine(read(mineKey(billId)));
-  if (token) mine[itemId] = token;
-  else delete mine[itemId];
-  write(mineKey(billId), JSON.stringify(mine));
+function setToken(key: string, id: string, token: string | null) {
+  const tokens = parseTokens(read(key));
+  if (token) tokens[id] = token;
+  else delete tokens[id];
+  write(key, JSON.stringify(tokens));
 }
+
+const mineKey = (billId: string) => `splitin:mine:${billId}`;
+export const useMyItems = (billId: string) => useTokens(mineKey(billId));
+export const setMyItem = (billId: string, itemId: string, token: string | null) =>
+  setToken(mineKey(billId), itemId, token);
+
+const joinsKey = (billId: string) => `splitin:joins:${billId}`;
+export const useMyJoins = (billId: string) => useTokens(joinsKey(billId));
+export const setMyJoin = (billId: string, itemId: string, token: string | null) =>
+  setToken(joinsKey(billId), itemId, token);
+
+const namesKey = (billId: string) => `splitin:names:${billId}`;
+export const useMyNames = (billId: string) => useTokens(namesKey(billId));
+export const setMyName = (billId: string, personId: string, key: string) => setToken(namesKey(billId), personId, key);
+
+const seenKey = (billId: string) => `splitin:seen:${billId}`;
+export const getSeen = (billId: string) => read(seenKey(billId));
+export const setSeen = (billId: string, at: string) => write(seenKey(billId), at);

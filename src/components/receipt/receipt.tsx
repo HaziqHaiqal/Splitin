@@ -5,7 +5,16 @@ import { forwardRef, Fragment, useId, type ReactNode } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
-import { itemSplitText, summarize, type BillDoc, type Item, type Payment, type PlanLine } from "@/lib/bill";
+import {
+  activePeople,
+  itemSplitText,
+  summarize,
+  type BillDoc,
+  type Item,
+  type Payment,
+  type PlanLine,
+  type PreviewItem,
+} from "@/lib/bill";
 
 const INK = "#37352f";
 const MUTED = "#6b6a65";
@@ -107,7 +116,7 @@ export type ReceiptProps = {
   hint?: string;
   variant?: "draft" | "full";
   people?: { key: number; fresh?: boolean } | null;
-  preview?: Item | null;
+  preview?: PreviewItem | null;
   freshItemId?: string | null;
   onItem?: (item: Item) => void;
   bigStamp?: string;
@@ -135,13 +144,16 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const { t, plain, money, date, time } = useI18n();
   const r = t.receipt;
   const summary = summarize(doc, payments);
-  const name = (id: string) => doc.people.find((p) => p.id === id)?.name.toUpperCase() ?? "?";
+  const newPeople = preview?.newPeople ?? [];
+  const name = (id: string) => [...doc.people, ...newPeople].find((p) => p.id === id)?.name.toUpperCase() ?? "?";
   const created = date(doc.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" });
   const createdTime = time(doc.createdAt);
 
   const splitWords = { each: r.each, about: r.about, others: r.others, not: r.not };
-  const rows = doc.items.map((item) => ({ item, detail: itemSplitText(item, doc.people, plain, splitWords) }));
-  const previewDetail = preview && preview.amountMinor > 0 ? itemSplitText(preview, doc.people, plain, splitWords) : "";
+  const active = activePeople(doc);
+  const rows = doc.items.map((item) => ({ item, detail: itemSplitText(item, active, plain, splitWords) }));
+  const previewDetail =
+    preview && preview.amountMinor > 0 ? itemSplitText(preview, [...active, ...newPeople], plain, splitWords) : "";
 
   const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
     const body = (
@@ -277,7 +289,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
 
             {summary.sameShare !== null ? (
               <div className="flex justify-between" style={{ fontWeight: 600 }}>
-                <span>{fmt(r.peopleEach, { count: doc.people.length })}</span>
+                <span>{fmt(r.peopleEach, { count: active.length })}</span>
                 <span>{money(summary.sameShare)}</span>
               </div>
             ) : null}
@@ -355,7 +367,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                   if (!branched) return node;
                   const last = i === group.length - 1;
                   return (
-                    <div key={`${l.from}-${l.to}-branch`} className="relative" style={{ paddingLeft: 18 }}>
+                    <div
+                      key={`${l.from}-${l.to}-${l.paymentId ?? "x"}-branch`}
+                      className="relative"
+                      style={{ paddingLeft: 18 }}
+                    >
                       <span
                         aria-hidden
                         className="absolute"

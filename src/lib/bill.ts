@@ -6,7 +6,12 @@ export type Person = {
   color: number;
   bank?: string | null;
   accountNo?: string | null;
+  addedAt?: string;
+  keyHash?: string;
+  detailsAt?: string;
 };
+
+export type Join = { hash: string; at: string };
 
 export type Item = {
   id: string;
@@ -17,7 +22,10 @@ export type Item = {
   overrides: Record<string, number>;
   addedAt?: string;
   deleteHash?: string;
+  joins?: Record<string, Join>;
 };
+
+export type PreviewItem = Item & { newPeople?: Person[] };
 
 export type BillDoc = {
   title: string;
@@ -25,6 +33,8 @@ export type BillDoc = {
   createdAt: string;
   people: Person[];
   items: Item[];
+  ownerId?: string | null;
+  locked?: boolean;
 };
 
 export type Payment = {
@@ -63,25 +73,163 @@ export function itemShares(item: Item): Allocation {
   return result.ok ? result.shares : {};
 }
 
-export function latestAddedAt(doc: BillDoc, after = ""): string {
-  return doc.items.reduce((latest, i) => (i.addedAt && i.addedAt > latest ? i.addedAt : latest), after);
+export function ownerOf(doc: BillDoc): Person | undefined {
+  return doc.ownerId === undefined ? doc.people[0] : doc.people.find((p) => p.id === doc.ownerId);
 }
 
-export function mergeFriendItems(server: BillDoc, local: BillDoc, seenAt: string): BillDoc {
-  const onServer = new Set(server.items.map((i) => i.id));
-  const onLocal = new Set(local.items.map((i) => i.id));
-  const people = new Set(local.people.map((p) => p.id));
-  const kept = local.items.filter((i) => !i.addedAt || onServer.has(i.id));
+export function activePeople(doc: BillDoc): Person[] {
+  if (doc.items.length === 0) return doc.people;
+  return doc.people.filter((p) => doc.items.some((i) => i.paidBy === p.id || i.participants.includes(p.id)));
+}
+
+export function latestFriendChange(doc: BillDoc, after = ""): string {
+  const times = [
+    ...doc.people.flatMap((p) => [p.addedAt, p.detailsAt]),
+    ...doc.items.flatMap((i) => [i.addedAt, ...Object.values(i.joins ?? {}).map((j) => j.at)]),
+  ];
+  return times.reduce<string>((latest, at) => (at && at > latest ? at : latest), after);
+}
+
+function without<T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> {
+  const next = { ...record };
+  delete next[key];
+  return next;
+}
+
+function withJoins(item: Item, joins: Record<string, Join>): Item {
+  const next = { ...item };
+  delete next.joins;
+  return Object.keys(joins).length > 0 ? { ...next, joins } : next;
+}
+
+function mergeJoins(server: Item | undefined, local: Item, seenAt: string, people: Set<string>): Item {
+  if (!server || (!server.joins && !local.joins)) return local;
+  const joins = { ...local.joins };
+  const overrides = { ...local.overrides };
+  let participants = local.participants;
+
+  for (const id of Object.keys(joins)) {
+    if (server.joins?.[id]) continue;
+    delete joins[id];
+    delete overrides[id];
+    participants = participants.filter((p) => p !== id);
+  }
+  for (const [id, join] of Object.entries(server.joins ?? {})) {
+    if (join.at <= seenAt || !people.has(id) || joins[id]?.at === join.at) continue;
+    joins[id] = join;
+    if (!participants.includes(id)) participants = [...participants, id];
+    const written = server.overrides[id];
+    if (written === undefined || !splitItem(local.amountMinor, participants, { ...overrides, [id]: written }).ok)
+      delete overrides[id];
+    else overrides[id] = written;
+  }
+  if (!splitItem(local.amountMinor, participants, overrides).ok) return local;
+  return withJoins({ ...local, participants, overrides }, joins);
+}
+
+export function mergeFriendChanges(server: BillDoc, local: BillDoc, seenAt: string): BillDoc {
+  const serverPeople = new Map(server.people.map((p) => [p.id, p]));
+  const localPeople = new Set(local.people.map((p) => p.id));
+  const people = [
+    ...local.people
+      .filter((p) => !p.addedAt || serverPeople.has(p.id))
+      .map((p) => {
+        const current = serverPeople.get(p.id);
+        return current?.detailsAt && current.detailsAt > seenAt
+          ? { ...p, bank: current.bank, accountNo: current.accountNo, detailsAt: current.detailsAt }
+          : p;
+      }),
+    ...server.people.filter((p) => p.addedAt && p.addedAt > seenAt && !localPeople.has(p.id)),
+  ];
+  const known = new Set(people.map((p) => p.id));
+
+  const serverItems = new Map(server.items.map((i) => [i.id, i]));
+  const localItems = new Set(local.items.map((i) => i.id));
+  const kept = local.items
+    .filter((i) => !i.addedAt || serverItems.has(i.id))
+    .map((i) => mergeJoins(serverItems.get(i.id), i, seenAt, known));
   const fresh = server.items.filter(
     (i) =>
       i.addedAt &&
       i.addedAt > seenAt &&
-      !onLocal.has(i.id) &&
-      people.has(i.paidBy) &&
-      i.participants.every((id) => people.has(id)),
+      !localItems.has(i.id) &&
+      known.has(i.paidBy) &&
+      i.participants.every((id) => known.has(id)),
   );
-  return { ...local, items: [...kept, ...fresh] };
+
+  const merged: BillDoc = { ...local, people, items: [...kept, ...fresh] };
+  delete merged.locked;
+  return server.locked ? { ...merged, locked: true } : merged;
 }
+
+export function withNewPeople(
+  doc: BillDoc,
+  added: readonly { id: string; name: string }[],
+  keyHash: string,
+  at: string,
+): BillDoc | null {
+  const names = new Set(doc.people.map((p) => p.name.toLowerCase()));
+  const ids = new Set(doc.people.map((p) => p.id));
+  let color = doc.people.reduce((max, p) => Math.max(max, p.color + 1), 0);
+  const people = [...doc.people];
+  for (const { id, name } of added) {
+    if (names.has(name.toLowerCase()) || ids.has(id)) return null;
+    names.add(name.toLowerCase());
+    ids.add(id);
+    people.push({ id, name, color: color++ % 100, addedAt: at, keyHash });
+  }
+  return { ...doc, people };
+}
+
+export function withoutPerson(doc: BillDoc, id: string): BillDoc {
+  const items = doc.items
+    .map((item) => {
+      const overrides = without(item.overrides, id);
+      const participants = item.participants.filter((p) => p !== id);
+      const fits = splitItem(item.amountMinor, participants, overrides).ok;
+      return withJoins({ ...item, participants, overrides: fits ? overrides : {} }, without(item.joins ?? {}, id));
+    })
+    .filter((item) => item.participants.length > 0);
+  return {
+    ...doc,
+    ...(doc.ownerId === id ? { ownerId: null } : {}),
+    people: doc.people.filter((p) => p.id !== id),
+    items,
+  };
+}
+
+export function joinShare(item: Item, personId: string, written?: number): number | null {
+  const participants = item.participants.includes(personId) ? item.participants : [...item.participants, personId];
+  const others = without(item.overrides, personId);
+  const split = splitItem(
+    item.amountMinor,
+    participants,
+    written === undefined ? others : { ...others, [personId]: written },
+  );
+  const share = split.ok ? (split.shares[personId] ?? 0) : 0;
+  return share > 0 ? share : null;
+}
+
+export function joinItem(item: Item, personId: string, written: number | undefined, join: Join): Item | null {
+  if (joinShare(item, personId, written) === null) return null;
+  const others = without(item.overrides, personId);
+  return {
+    ...item,
+    participants: item.participants.includes(personId) ? item.participants : [...item.participants, personId],
+    overrides: written === undefined ? others : { ...others, [personId]: written },
+    joins: { ...item.joins, [personId]: join },
+  };
+}
+
+export function leaveItem(item: Item, personId: string): Item | null {
+  const participants = item.participants.filter((p) => p !== personId);
+  const overrides = without(item.overrides, personId);
+  if (participants.length === 0 || !splitItem(item.amountMinor, participants, overrides).ok) return null;
+  return withJoins({ ...item, participants, overrides }, without(item.joins ?? {}, personId));
+}
+
+export const joinerOf = (item: Item, hash: string) =>
+  Object.entries(item.joins ?? {}).find(([, join]) => join.hash === hash)?.[0];
 
 export function withoutOwnItem(doc: BillDoc, itemId: string, tokenHash: string): BillDoc | null {
   const item = doc.items.find((i) => i.id === itemId);
@@ -120,7 +268,8 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
   }
 
   const people = ids.map((id) => ({ id, share: share[id], paid: paid[id], net: paid[id] - share[id] }));
-  const shares = people.map((p) => p.share);
+  const active = new Set(activePeople(doc).map((p) => p.id));
+  const shares = people.filter((p) => active.has(p.id)).map((p) => p.share);
   const sameShare = shares.length > 0 && shares.every((s) => s === shares[0]) ? shares[0] : null;
 
   const balances: Allocation = Object.fromEntries(people.map((p) => [p.id, p.net]));

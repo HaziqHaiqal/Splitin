@@ -1,25 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary } from "@/lib/bill";
 import { saveDraft } from "@/lib/store";
+import { HistoryButton } from "./history";
+import { OwnerActions } from "./owner-actions";
 import type { SharedBillData } from "./shared-bill";
 
 export function Settled({
   bill,
   summary,
+  ownerToken,
   onReview,
 }: {
   bill: SharedBillData;
   summary: BillSummary;
+  ownerToken: string;
   onReview: () => void;
 }) {
   const { t, date } = useI18n();
   const router = useRouter();
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const newSplit = () => {
     saveDraft(null);
@@ -48,6 +54,14 @@ export function Settled({
       <button type="button" onClick={onReview} className="h-9 text-[13.5px] font-bold text-green-ink md:self-start">
         {t.settled.review}
       </button>
+      <HistoryButton
+        doc={bill.doc}
+        events={bill.events}
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        className="md:self-start"
+      />
+      <OwnerActions bill={bill} ownerToken={ownerToken} />
     </>
   );
   const deletes = (

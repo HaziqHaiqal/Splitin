@@ -1,17 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useToast } from "@/components/toast";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary, PlanLine } from "@/lib/bill";
-import { useDraft } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { HistoryButton } from "./history";
+import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
+import { OwnerActions } from "./owner-actions";
+import { PayForm } from "./pay-form";
 import type { SharedBillData } from "./shared-bill";
 
 export function Tracking({
@@ -27,8 +28,15 @@ export function Tracking({
 }) {
   const { t, money, time } = useI18n();
   const toast = useToast();
-  const draft = useDraft();
+  const desktop = useIsDesktop();
   const [pending, start] = useTransition();
+  const [paying, setPaying] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => e.actor === "owner");
+  const showHistory = (next: boolean) => {
+    if (next) changes.clear();
+    setHistoryOpen(next);
+  };
   const nameOf = (id: string) => bill.doc.people.find((p) => p.id === id)?.name ?? "?";
 
   const paid = summary.done.reduce((s, l) => s + l.amount, 0);
@@ -36,19 +44,30 @@ export function Tracking({
   const count = summary.done.length + summary.remaining.length;
   const url = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}` : "";
 
-  const markPaid = (line: PlanLine) =>
+  const pay = (payment: { from: string; to: string; amountMinor: number }) =>
     start(async () => {
-      const result = await addPayment(bill.id, { from: line.from, to: line.to, amountMinor: line.amount }, ownerToken);
+      const result = await addPayment(bill.id, payment, { ownerToken });
       if (!result.ok) return void toast({ message: t.common.generic });
+      setPaying(false);
       toast({
-        message: fmt(t.friend.marked, { name: nameOf(line.to) }),
-        action: { label: t.common.undo, onClick: () => void removePayment(bill.id, result.data.id, ownerToken) },
+        message: fmt(t.friend.marked, { name: nameOf(payment.to) }),
+        action: { label: t.common.undo, onClick: () => void removePayment(bill.id, result.data.id, { ownerToken }) },
       });
     });
 
+  const markPaid = (line: PlanLine) => pay({ from: line.from, to: line.to, amountMinor: line.amount });
+
+  const markedBy = (line: PlanLine) => {
+    if (line.markedBy === "owner") return fmt(t.track.youMarked, { time: time(line.paidAt!) });
+    const by = bill.events.find((e) => e.kind === "paid" && e.paymentId === line.paymentId)?.by;
+    return by
+      ? fmt(t.track.tappedPaid, { name: by, time: time(line.paidAt!) })
+      : fmt(t.track.markedPaid, { time: time(line.paidAt!) });
+  };
+
   const markUnpaid = (line: PlanLine) =>
     start(async () => {
-      const result = await removePayment(bill.id, line.paymentId!, ownerToken);
+      const result = await removePayment(bill.id, line.paymentId!, { ownerToken });
       toast({
         message: result.ok ? fmt(t.track.unmarked, { from: nameOf(line.from), to: nameOf(line.to) }) : t.common.generic,
       });
@@ -61,9 +80,21 @@ export function Tracking({
 
   const rows = [...summary.done.map((l) => ({ l, done: true })), ...summary.remaining.map((l) => ({ l, done: false }))];
 
+  const payForm = (bare: boolean) => (
+    <PayForm
+      doc={bill.doc}
+      bare={bare}
+      autoFocus={desktop}
+      pending={pending}
+      onSave={pay}
+      onCancel={() => setPaying(false)}
+    />
+  );
+
   const side = (
     <>
       <h1 className="m-0 text-[28px] font-extrabold tracking-[-0.025em]">{bill.doc.title}</h1>
+      <ChangesBanner count={changes.count} onShow={() => showHistory(true)} />
       <div>
         <div className="flex items-baseline justify-between text-[13px]">
           <span className="text-muted">
@@ -91,13 +122,7 @@ export function Tracking({
                 <b className="block text-[15px]">
                   {nameOf(l.from)} → {nameOf(l.to)}
                 </b>
-                <span className="mt-0.5 block text-[12px] text-muted">
-                  {done
-                    ? l.markedBy === "owner"
-                      ? fmt(t.track.youMarked, { time: time(l.paidAt!) })
-                      : fmt(t.track.tappedPaid, { name: nameOf(l.from), time: time(l.paidAt!) })
-                    : t.track.waiting}
-                </span>
+                <span className="mt-0.5 block text-[12px] text-muted">{done ? markedBy(l) : t.track.waiting}</span>
               </div>
               <span className="relative text-[15px] font-extrabold tabular">
                 <span className={cn(done && "text-faint line-through")}>{money(l.amount)}</span>
@@ -142,12 +167,14 @@ export function Tracking({
           </div>
         ))}
       </div>
-      <HistoryButton doc={bill.doc} events={bill.events} className="self-start" />
-      {draft?.billId === bill.id ? (
-        <Link href="/" className="text-[14px] font-bold text-green-ink no-underline">
-          {t.track.editBills}
-        </Link>
-      ) : null}
+      {desktop && paying ? payForm(false) : null}
+      <div className="flex flex-wrap items-center gap-x-4">
+        <HistoryButton doc={bill.doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />
+        <button type="button" onClick={() => setPaying(true)} className="h-9 text-[13.5px] font-bold text-green-ink">
+          {t.pay.ownerLink}
+        </button>
+      </div>
+      <OwnerActions bill={bill} ownerToken={ownerToken} />
     </>
   );
 
@@ -156,6 +183,7 @@ export function Tracking({
       phoneSide
       side={side}
       paper={<Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />}
+      panel={!desktop && paying ? payForm(true) : undefined}
       dock={
         <button
           type="button"
