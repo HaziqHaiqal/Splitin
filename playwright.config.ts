@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 const stub = "http://localhost:54399";
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./tests",
   outputDir: "./test-results",
   workers: 1,
   timeout: 60_000,
@@ -18,7 +18,7 @@ export default defineConfig({
     locale: "en-US",
   },
   webServer: [
-    { command: "node e2e/stub.mjs", port: 54399 },
+    { command: "node tests/stub.mjs", port: 54399 },
     {
       command: "next dev -p 3457",
       url: "http://localhost:3457/manifest.webmanifest",
