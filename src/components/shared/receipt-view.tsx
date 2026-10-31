@@ -589,14 +589,13 @@ export function ReceiptView({
         </div>
       ) : null}
       {myList}
-      {view ? (
-        body(false)
-      ) : canChange ? (
-        <div className="flex gap-2 self-start">
-          {changeButtons("h-[42px] border border-border bg-card px-4 text-[14px]")}
-        </div>
-      ) : null}
-      <div className="self-start">{history}</div>
+      {view ? body(false) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 self-start">
+        {canChange && !view ? (
+          <div className="flex gap-2">{changeButtons("h-[42px] border border-border bg-card px-4 text-[14px]")}</div>
+        ) : null}
+        {history}
+      </div>
     </>
   );
 

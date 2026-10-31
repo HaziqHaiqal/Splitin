@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { button, openAs, openBill, panel, payLine, pickMe, seed, sheet } from "./helpers";
+import { button, CODE, openAs, openBill, panel, payLine, pickMe, seed, seedWithCode, sheet } from "./helpers";
 
 test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 });
 test.beforeEach(() => seed());
@@ -19,4 +19,27 @@ test("the question on opening greets you, then your payment can be marked", asyn
   await expect(button(page, "Hi Najmi")).toBeVisible();
   await payLine(page, "NAJMI", "HAZIQ").click();
   await expect(sheet(page).getByRole("button", { name: "Mark paid" })).toBeVisible();
+});
+
+test("the cursor starts in Bill name, and the code replaces the form", async ({ page }) => {
+  await seedWithCode();
+  await page.goto("/");
+  await expect(page.getByLabel("Bill name")).toBeFocused();
+  await button(page, "Have a code?").click();
+  await expect(page.getByLabel("Enter your code")).toBeFocused();
+  await expect(page.getByLabel("Bill name")).toBeHidden();
+  await page.getByLabel("Enter your code").fill(CODE);
+  await expect(page).toHaveURL(new RegExp(`/bill/${CODE}$`));
+});
+
+test("History sits beside the buttons and stays when the form opens", async ({ page }) => {
+  await openAs(page, "Najmi");
+  const add = (await button(page, "Add bill").boundingBox())!;
+  const history = (await button(page, /^History/).boundingBox())!;
+  expect(history.x).toBeGreaterThan(add.x + add.width);
+  expect(Math.abs(history.y + history.height / 2 - (add.y + add.height / 2))).toBeLessThan(2);
+
+  await button(page, "Add bill").click();
+  await expect(page.getByText("Add what you paid")).toBeVisible();
+  await expect(button(page, /^History/)).toBeVisible();
 });

@@ -8,6 +8,7 @@ import { dockButton, PaperStub, PrinterPage } from "@/components/receipt/printer
 import { Receipt } from "@/components/receipt/receipt";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
+import { fieldClass } from "@/components/shared/panel-form";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -15,6 +16,7 @@ import type { BillDoc, PreviewItem } from "@/lib/bill";
 import { emptyDraft, saveDraft, updateDraft, useDraft } from "@/lib/store";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { BillForm } from "./bill-form";
+import { CodeForm, HomeIntro } from "./code-form";
 import { PersonSheet } from "./person-sheet";
 
 type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: number };
@@ -37,6 +39,7 @@ export function BillsHome() {
   const [freshId, setFreshId] = useState<string | null>(null);
   const [peopleKey, setPeopleKey] = useState(0);
   const [peopleFresh, setPeopleFresh] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
 
@@ -143,17 +146,28 @@ export function BillsHome() {
     />
   );
 
-  const start = (
-    <>
-      <h1 className="m-0 text-[30px] leading-[1.1] font-extrabold tracking-[-0.03em] whitespace-pre-line md:text-[40px]">
-        {t.home.startTitle}
-      </h1>
-      <p className="m-0 max-w-[44ch] text-[14px] leading-[1.5] text-muted">{t.home.startDesc}</p>
-      <StartForm title={doc.title} onStart={startBill} />
-    </>
+  const codeLink = (className?: string) => (
+    <button
+      type="button"
+      onClick={() => setEntering(true)}
+      className={cn("h-9 self-start text-[13.5px] font-bold text-green-ink", className)}
+    >
+      {t.home.haveCode}
+    </button>
+  );
+  const codeView = (
+    <CodeForm backLabel={hasPeople ? t.home.codeBackBill : t.home.codeBackNew} onBack={() => setEntering(false)} />
   );
 
-  const side = !hasPeople ? (
+  const start = (
+    <div className="flex flex-col md:max-w-[430px]">
+      <HomeIntro title={t.home.startTitle} desc={t.home.startDesc} />
+      <StartForm title={doc.title} autoFocus={desktop} onStart={startBill} />
+      {codeLink("mt-2.5 md:mt-5")}
+    </div>
+  );
+
+  const bills = !hasPeople ? (
     start
   ) : (
     <>
@@ -203,6 +217,16 @@ export function BillsHome() {
     </>
   );
 
+  const side = (
+    <>
+      <div className={entering ? "hidden" : "contents"}>
+        {bills}
+        {hasPeople ? codeLink() : null}
+      </div>
+      {entering ? codeView : null}
+    </>
+  );
+
   const shareButton = (
     <button
       type="button"
@@ -232,7 +256,21 @@ export function BillsHome() {
             </div>
           ) : undefined
         }
-        panel={!hasPeople ? <div className="flex flex-col gap-3">{start}</div> : formOpen ? billForm(true) : undefined}
+        phoneBelow={
+          hasPeople && !formOpen && !entering ? <div className="flex justify-center">{codeLink()}</div> : undefined
+        }
+        panel={
+          !hasPeople ? (
+            <>
+              <div className={entering ? "hidden" : undefined}>{start}</div>
+              {entering ? codeView : null}
+            </>
+          ) : entering ? (
+            codeView
+          ) : formOpen ? (
+            billForm(true)
+          ) : undefined
+        }
         dock={
           hasBills && !formOpen ? (
             <div className="grid grid-cols-[1fr_1.3fr] gap-2">
@@ -399,7 +437,15 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   );
 }
 
-function StartForm({ title: savedTitle, onStart }: { title: string; onStart: (title: string, names: string) => void }) {
+function StartForm({
+  title: savedTitle,
+  autoFocus,
+  onStart,
+}: {
+  title: string;
+  autoFocus: boolean;
+  onStart: (title: string, names: string) => void;
+}) {
   const { t } = useI18n();
   const [title, setTitle] = useState(savedTitle);
   const [names, setNames] = useState("");
@@ -418,17 +464,17 @@ function StartForm({ title: savedTitle, onStart }: { title: string; onStart: (ti
       onStart(title.trim(), names);
     }
   };
-  const label = "text-[11px] font-bold tracking-[0.06em] text-faint uppercase";
-  const field = "h-12 w-full rounded-xl border-[1.5px] bg-card px-[14px] text-[16px] text-ink outline-none";
-  const current = "border-green shadow-[0_0_0_4px_var(--green-soft)]";
+  const label = "text-[13px] font-semibold text-muted";
+  const field = cn(fieldClass, "h-12 font-medium");
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
+    <form onSubmit={submit} className="mt-[18px] flex flex-col gap-3.5 md:mt-7 md:gap-[18px]">
       <label className="flex flex-col gap-1.5">
         <span className={label}>{t.home.billName}</span>
         <input
           ref={titleInput}
           type="text"
           value={title}
+          autoFocus={autoFocus && !named}
           maxLength={60}
           onChange={(e) => {
             setTitle(e.target.value);
@@ -438,7 +484,7 @@ function StartForm({ title: savedTitle, onStart }: { title: string; onStart: (ti
           enterKeyHint="next"
           autoCapitalize="words"
           autoComplete="off"
-          className={cn(field, named ? "border-border" : current)}
+          className={field}
         />
         {missing ? <span className="text-[12.5px] font-semibold text-owe">{t.home.billNameMissing}</span> : null}
       </label>
@@ -452,18 +498,22 @@ function StartForm({ title: savedTitle, onStart }: { title: string; onStart: (ti
             id="start-names"
             type="text"
             value={names}
+            autoFocus={autoFocus && named}
             onChange={(e) => setNames(e.target.value)}
             placeholder={t.home.namesPlaceholder}
             autoCapitalize="words"
             autoComplete="off"
-            className={cn(field, "min-w-0 flex-1", named ? current : "border-border")}
+            className={cn(field, "flex-1")}
           />
-          <button type="submit" className="h-12 rounded-xl bg-green px-[18px] text-[15px] font-bold text-white">
+          <button
+            type="submit"
+            className="h-12 shrink-0 rounded-xl bg-green px-[18px] text-[15px] font-bold text-white"
+          >
             {t.common.add}
           </button>
         </div>
+        <p className="m-0 text-[12.5px] text-muted">{t.home.step1Hint}</p>
       </div>
-      <p className="m-0 text-[12.5px] text-muted">{t.home.step1Hint}</p>
     </form>
   );
 }

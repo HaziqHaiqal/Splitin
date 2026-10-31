@@ -31,6 +31,14 @@ export function parseNames(input: string): string[] {
     .filter(Boolean);
 }
 
+export const CODE_LENGTH = 8;
+export const isCode = (id: string) => id.length === CODE_LENGTH;
+
+export function codeFromInput(input: string) {
+  const code = input.split("/bill/").pop()!.split(/[?#]/)[0];
+  return code.replace(/[^a-z0-9]/gi, "");
+}
+
 export function newId(length = 8) {
   const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
   const bytes = crypto.getRandomValues(new Uint8Array(length));

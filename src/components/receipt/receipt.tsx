@@ -4,7 +4,7 @@ import Link from "next/link";
 import { forwardRef, Fragment, useId, type ReactNode } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { cn } from "@/lib/utils";
+import { cn, isCode } from "@/lib/utils";
 import {
   activePeople,
   itemSplitText,
@@ -449,6 +449,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             <Barcode />
             {billId ? (
               <div className="text-center" style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
+                {isCode(billId) ? (
+                  <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.08em", color: INK, marginBottom: 2 }}>
+                    {fmt(r.code, { code: billId })}
+                  </div>
+                ) : null}
                 <Link href={`/bill/${billId}`} className="underline underline-offset-2" style={{ color: "inherit" }}>
                   {host}/bill/{billId}
                 </Link>

@@ -1,6 +1,6 @@
 "use server";
 
-import { createHash, createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
 import { refresh } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { after } from "next/server";
@@ -22,20 +22,26 @@ import {
   type Person,
 } from "@/lib/bill";
 import { bankSchema, billDocSchema, itemSchema, MAX_ITEMS, MAX_PEOPLE, personNameSchema } from "@/lib/bill-schema";
+import { getBill, linkExpired } from "@/lib/data/bill";
 import { actorName, diffDocs, personName, type EventActor, type EventBody } from "@/lib/history";
 import { broadcastChange } from "@/lib/realtime-server";
 import { db } from "@/lib/supabase/server";
+import { CODE_LENGTH } from "@/lib/utils";
 
 type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
 const BILLS_PER_HOUR = 30;
 const FRIEND_CHANGES_PER_HOUR = 100;
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
 function randomId(length: number) {
   const bytes = randomBytes(length);
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
+
+const newCode = () =>
+  Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -110,7 +116,7 @@ export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ow
 
     const ownerToken = randomId(32);
     for (let attempt = 0; attempt < 3; attempt++) {
-      const id = randomId(10);
+      const id = newCode();
       const { error } = await db()
         .from("bills")
         .insert({ id, doc: parsed.data, owner_token_hash: hashToken(ownerToken), creator_hash: creatorHash });
@@ -121,6 +127,14 @@ export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ow
       if (error.code !== "23505") return { ok: false, error: "db" };
     }
     return { ok: false, error: "db" };
+  });
+}
+
+export async function findBill(code: string): Promise<Result<{ id: string }>> {
+  return guard(async () => {
+    const id = code.toUpperCase();
+    if (await getBill(id)) return { ok: true, data: { id } };
+    return { ok: false, error: (await linkExpired(id)) ? "expired" : "not_found" };
   });
 }
 

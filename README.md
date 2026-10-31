@@ -12,8 +12,8 @@ Split shared bills with friends or family. Name the bill, add the people and who
 
 - **Several bills, different payers.** For example, Afiq paid the electricity and Haziq paid the water and wifi.
 - **Equal split by default.** Change one person's amount and the rest re-splits, or leave someone out of a bill.
-- **Share to the group.** Send a receipt picture and a link through WhatsApp or the phone's share menu. Nothing is saved online until you share.
-- **Friends use the link.** They pick their name, see who to pay, and tap their payment once they've paid.
+- **Share to the group.** Send a receipt picture, a link and a short code through WhatsApp or the phone's share menu. Nothing is saved online until you share.
+- **Friends use the link or code.** They pick their name, see who to pay, and tap their payment once they've paid.
 - **Friends can add to the bill.** They can add a bill they paid, join the bills they're in, or add their own name if it's missing.
 - **The owner stays in control.** The owner can edit any bill, mark any payment, lock the bill, and use a private link to edit from a new phone.
 - **History.** Everyone with the link can see every change, with the name and time.

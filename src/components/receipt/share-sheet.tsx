@@ -7,6 +7,7 @@ import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
+import { isCode } from "@/lib/utils";
 
 const BACKDROP = "#0e131b";
 const MARGIN = 28;
@@ -54,7 +55,9 @@ export function ShareSheet({
   const [pasteHint, setPasteHint] = useState(false);
 
   const url = billId && typeof window !== "undefined" ? `${window.location.origin}/bill/${billId}` : "";
-  const message = `${fmt(t.share.message, { title })} ${url}`;
+  const code = billId && isCode(billId) ? billId : null;
+  const intro = fmt(t.share.message, { title: code ? fmt(t.share.titleWithCode, { title, code }) : title });
+  const message = `${intro} ${url}`;
 
   useEffect(() => {
     if (!open || !receiptRef.current) return;
@@ -120,19 +123,21 @@ export function ShareSheet({
     a.click();
   };
 
-  const copyLink = async () => {
+  const copy = async (text: string, done: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      toast({ message: t.share.linkCopied });
+      await navigator.clipboard.writeText(text);
+      toast({ message: done });
     } catch {
       toast({ message: t.common.generic });
     }
   };
 
+  const copyLink = () => copy(url, t.share.linkCopied);
+
   const more = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: fmt(t.share.message, { title }), url });
+        await navigator.share({ title, text: intro, url });
       } catch {}
     } else {
       await copyLink();
@@ -189,6 +194,19 @@ export function ShareSheet({
             {t.share.more}
           </button>
         </div>
+        {code ? (
+          <button
+            type="button"
+            onClick={() => copy(code, t.share.codeCopied)}
+            className="flex h-[52px] items-center gap-3 rounded-[14px] bg-field px-4 text-left"
+          >
+            <span className="text-[13px] font-bold text-muted">{t.share.code}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[16px] font-bold tracking-[0.08em] text-ink">
+              {code}
+            </span>
+            <span className="text-[13px] font-bold text-green-ink">{t.common.copy}</span>
+          </button>
+        ) : null}
         <div className="text-center text-[12px] text-muted">{t.share.note}</div>
       </div>
     </Sheet>

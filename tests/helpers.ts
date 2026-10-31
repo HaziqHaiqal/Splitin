@@ -77,6 +77,14 @@ export async function seed(doc: BillDoc = trip, rest: { payments?: Row[]; bill_e
 export const getDb = async (): Promise<Db> => (await fetch(`${STUB}/__db`)).json();
 export const saveDb = (db: Partial<Db>) => fetch(`${STUB}/__db`, { method: "POST", body: JSON.stringify(db) });
 export const serverDoc = async () => (await getDb()).bills[0].doc;
+
+export const CODE = "K7QM3XPH";
+export async function seedWithCode() {
+  await seed();
+  const db = await getDb();
+  db.bills[0].id = CODE;
+  await saveDb(db);
+}
 export const serverItem = async (id: string) => (await serverDoc()).items.find((i) => i.id === id);
 export const eventKinds = async () => (await getDb()).bill_events?.map((e) => e.kind) ?? [];
 export const collide = () => fetch(`${STUB}/__collide`);
