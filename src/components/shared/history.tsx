@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { Sheet } from "@/components/sheet";
 import { fmt } from "@/i18n";
@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n/client";
 import { ownerOf, type BillDoc } from "@/lib/bill";
 import type { BillEvent, ItemChanges } from "@/lib/history";
 import { getSeen, setSeen } from "@/lib/store";
-import { cn, initial } from "@/lib/utils";
+import { avatarColor, cn, initial } from "@/lib/utils";
 
 type Entry = {
   text: string;
@@ -17,20 +17,21 @@ type Entry = {
   tone?: "paid" | "faded";
 };
 
-export function HistoryRow({
+export function HistoryRun({
   who,
   color,
-  text,
-  notes = [],
-  amount,
-  tone,
-  at,
   className,
-}: Entry & { who: string; color?: number; at?: string; className?: string }) {
-  const { t, money, time } = useI18n();
-  const [before, ...after] = text.split("{who}");
+  children,
+}: {
+  who: string;
+  color?: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  const { t } = useI18n();
+  const shade = color === undefined ? undefined : avatarColor(color);
   return (
-    <li className={cn("flex items-start gap-3", className)}>
+    <div className={cn("flex gap-2", className)}>
       {color === undefined ? (
         <span
           aria-hidden
@@ -41,41 +42,84 @@ export function HistoryRow({
       ) : (
         <Avatar name={who} color={color} size={30} />
       )}
-      <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        <p className="m-0 text-[14px] leading-[1.4] font-medium text-ink">
-          {before}
-          <b className="font-extrabold">{who}</b>
-          {after.join("{who}")}
-        </p>
-        {notes.map((note) => (
-          <p key={note} className="m-0 mt-0.5 text-[12.5px] leading-[1.4] text-muted">
-            {note}
-          </p>
-        ))}
-        {at ? (
-          <time dateTime={at} className="mt-0.5 block text-[12px] text-muted">
-            {time(at)}
-          </time>
-        ) : null}
-      </div>
-      {amount === undefined ? null : (
-        <span
+      <div className="min-w-0 flex-1">
+        <div
+          aria-hidden
+          style={shade && ({ "--name": shade.fg, "--name-dark": shade.dark } as CSSProperties)}
           className={cn(
-            "shrink-0 text-[14px] leading-[1.4] font-bold whitespace-nowrap tabular-nums",
-            tone === "paid" ? "text-green-ink" : tone === "faded" ? "text-muted" : "text-ink",
+            "mb-0.5 truncate text-[12px] font-extrabold",
+            shade ? "[color:var(--name)] dark:[color:var(--name-dark)]" : "text-muted",
           )}
         >
-          {money(amount)}
-        </span>
+          {who}
+        </div>
+        <ul className="m-0 flex list-none flex-col items-start gap-[3px] p-0">{children}</ul>
+      </div>
+    </div>
+  );
+}
+
+export function HistoryBubble({ who, text, notes = [], amount, tone, at }: Entry & { who: string; at?: string }) {
+  const { money, time } = useI18n();
+  return (
+    <li
+      className={cn(
+        "max-w-[290px] rounded-[14px] px-[11px] pt-[7px] pb-1.5 text-[14px] leading-[1.35] font-medium [overflow-wrap:anywhere] first:rounded-tl-[4px]",
+        tone === "paid" ? "bg-green-soft text-green-soft-ink" : "bg-chip text-ink",
       )}
+    >
+      <p className="m-0">
+        <span className="sr-only">{who} </span>
+        {text.replace("{who} ", "")}
+        {amount === undefined ? null : (
+          <>
+            {" "}
+            <span
+              className={cn(
+                "whitespace-nowrap tabular-nums",
+                tone === "faded" ? "font-bold text-muted line-through" : "font-extrabold",
+              )}
+            >
+              {money(amount)}
+            </span>
+          </>
+        )}
+      </p>
+      {notes.map((note) => (
+        <p key={note} className="m-0 mt-0.5 text-[12.5px] leading-[1.4] text-muted">
+          {note}
+        </p>
+      ))}
+      {at ? (
+        <time
+          dateTime={at}
+          className={cn("mt-px block text-right text-[11px]", tone === "paid" ? "opacity-75" : "text-muted")}
+        >
+          {time(at)}
+        </time>
+      ) : null}
     </li>
   );
 }
 
+const pill =
+  "mx-auto my-0 w-fit rounded-[12px] bg-chip px-2.5 py-[3px] text-center text-[11.5px] font-semibold text-muted";
+
+const NOTICES: BillEvent["kind"][] = [
+  "created",
+  "title_changed",
+  "person_added",
+  "person_removed",
+  "person_renamed",
+  "person_joined",
+  "locked",
+  "unlocked",
+];
+
 const dayOf = (at: string | Date) => new Date(at).toDateString();
 
 function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
-  const { t, money, date } = useI18n();
+  const { t, money, date, time } = useI18n();
   const h = t.history;
   const owner = ownerOf(doc)?.name ?? h.owner;
 
@@ -161,27 +205,41 @@ function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
     else days.push([e]);
   }
 
+  const colorOf = (who: string) => doc.people.find((p) => p.name === who)?.color;
+
+  const runsOf = (day: BillEvent[]) => {
+    const runs: BillEvent[][] = [];
+    for (const e of day) {
+      const last = runs[runs.length - 1];
+      const joins = last && !NOTICES.includes(e.kind) && !NOTICES.includes(last[0].kind);
+      if (joins && whoDid(last[0]) === whoDid(e)) last.push(e);
+      else runs.push([e]);
+    }
+    return runs;
+  };
+
   return (
     <div className="flex flex-col gap-5">
       {days.map((day) => (
-        <section key={day[0].id}>
-          <h3 className="m-0 pt-1 pb-2.5 text-[11px] font-bold tracking-[0.06em] text-muted uppercase">
-            {dayLabel(day[0].createdAt)}
-          </h3>
-          <ul className="m-0 flex list-none flex-col gap-4 p-0">
-            {day.map((e) => {
-              const who = whoDid(e);
+        <section key={day[0].id} className="flex flex-col gap-3">
+          <h3 className={pill}>{dayLabel(day[0].createdAt)}</h3>
+          {runsOf(day).map((run) => {
+            const who = whoDid(run[0]);
+            if (NOTICES.includes(run[0].kind))
               return (
-                <HistoryRow
-                  key={e.id}
-                  who={who}
-                  color={doc.people.find((p) => p.name === who)?.color}
-                  at={e.createdAt}
-                  {...entry(e, who)}
-                />
+                <p key={run[0].id} className={cn(pill, "max-w-[90%] [overflow-wrap:anywhere]")}>
+                  {entry(run[0], who).text.replace("{who}", who)} ·{" "}
+                  <time dateTime={run[0].createdAt}>{time(run[0].createdAt)}</time>
+                </p>
               );
-            })}
-          </ul>
+            return (
+              <HistoryRun key={run[0].id} who={who} color={colorOf(who)}>
+                {run.map((e) => (
+                  <HistoryBubble key={e.id} who={who} at={e.createdAt} {...entry(e, who)} />
+                ))}
+              </HistoryRun>
+            );
+          })}
         </section>
       ))}
     </div>

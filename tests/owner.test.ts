@@ -427,6 +427,35 @@ test.describe("people on the owner's phone", () => {
 });
 
 test.describe("History", () => {
+  test("reads like a group chat", async ({ page }) => {
+    const event = (kind: string, minutesAgo: number, data: Record<string, unknown>) => ({
+      id: crypto.randomUUID(),
+      bill_id: BILL,
+      kind,
+      actor: "friend",
+      created_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+      data,
+    });
+    await seed(trip, {
+      bill_events: [
+        event("paid", 1, { from: "Najmi", to: "Haziq", amountMinor: 10000, by: "Najmi" }),
+        event("item_added", 2, { name: "Snacks", amountMinor: 1000, payer: "Najmi", by: "Najmi" }),
+        event("person_joined", 3, { name: "Aiman" }),
+        event("unpaid", 4, { from: "Afiq", to: "Haziq", amountMinor: 10000, by: "Afiq" }),
+      ],
+    });
+    await openBill(page);
+    const list = await openHistory(page);
+
+    const runs = list.getByRole("list");
+    await expect(runs).toHaveCount(2);
+    await expect(runs.first().getByRole("listitem")).toHaveCount(2);
+    await expect(runs.first().getByRole("listitem").first()).toContainText("Najmi paid Haziq");
+    await expect(runs.nth(1)).toContainText("Afiq undid their payment to Haziq");
+    await expect(list.getByText("Aiman joined the bill")).toBeVisible();
+    await expect(list.getByRole("listitem").filter({ hasText: "Aiman" })).toHaveCount(0);
+  });
+
   test("groups changes by day, and doesn't say a name twice", async ({ page }) => {
     const noon = (daysAgo: number) => {
       const day = new Date();

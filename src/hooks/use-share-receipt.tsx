@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { publishBill } from "@/app/actions";
-import { NameRow, NotListedRow } from "@/components/name-row";
+import { NameChip, NotListedChip } from "@/components/name-chip";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
@@ -60,11 +60,11 @@ export function useShareReceipt(draft: Draft | null | undefined) {
       />
       <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
         <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
-        <div className="flex flex-col">
+        <div className="flex flex-wrap gap-2">
           {draft.doc.people.map((p) => (
-            <NameRow key={p.id} name={p.name} color={p.color} onClick={() => pickOwner(p.id)} />
+            <NameChip key={p.id} name={p.name} color={p.color} onClick={() => pickOwner(p.id)} />
           ))}
-          <NotListedRow onClick={() => pickOwner(null)} />
+          <NotListedChip onClick={() => pickOwner(null)} />
         </div>
       </Sheet>
     </>

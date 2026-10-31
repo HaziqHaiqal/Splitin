@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
-import { HistoryRow } from "@/components/shared/history";
+import { HistoryBubble, HistoryRun } from "@/components/shared/history";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
@@ -708,14 +708,17 @@ function HistoryDemo() {
       <div className="pb-2 text-[13px] font-extrabold text-ink">
         {h.title} · {count}
       </div>
-      <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+      <div className="flex flex-col gap-2.5">
         {rows
           .slice(0, count)
           .reverse()
-          .map((row, i) => (
-            <HistoryRow key={row.text} {...row} className={i === 0 ? "animate-rise" : undefined} />
+          .slice(0, 2)
+          .map(({ color, ...row }, i) => (
+            <HistoryRun key={row.text} who={row.who} color={color} className={i === 0 ? "animate-rise" : undefined}>
+              <HistoryBubble {...row} />
+            </HistoryRun>
           ))}
-      </ul>
+      </div>
     </div>
   );
 }

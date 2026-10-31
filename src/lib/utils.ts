@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const AVATAR_COLORS = [
-  { bg: "#dcfce7", fg: "#166534" },
-  { bg: "#e5eef9", fg: "#2c5d93" },
-  { bg: "#f8ecdd", fg: "#94560f" },
-  { bg: "#f0e7f7", fg: "#6a3a8e" },
-  { bg: "#fde4e4", fg: "#9b2c2c" },
-  { bg: "#d9f2f1", fg: "#1d6b68" },
-  { bg: "#fdf3c7", fg: "#7a5a00" },
-  { bg: "#e6e8fb", fg: "#3b3f9e" },
+  { bg: "#dcfce7", fg: "#166534", dark: "#86efac" },
+  { bg: "#e5eef9", fg: "#2c5d93", dark: "#93c5fd" },
+  { bg: "#f8ecdd", fg: "#94560f", dark: "#fbbf7a" },
+  { bg: "#f0e7f7", fg: "#6a3a8e", dark: "#d8b4fe" },
+  { bg: "#fde4e4", fg: "#9b2c2c", dark: "#fca5a5" },
+  { bg: "#d9f2f1", fg: "#1d6b68", dark: "#5eead4" },
+  { bg: "#fdf3c7", fg: "#7a5a00", dark: "#fcd34d" },
+  { bg: "#e6e8fb", fg: "#3b3f9e", dark: "#a5b4fc" },
 ] as const;
 
 export function avatarColor(index: number) {

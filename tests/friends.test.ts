@@ -105,6 +105,8 @@ test.describe("who are you", () => {
     await expect(list.getByRole("button")).toHaveText([/Najmi$/, /Afiq$/, "Not on the list", "Just looking"]);
     for (const row of await list.getByRole("button").all())
       expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const top = (name: string) => list.getByRole("button", { name }).evaluate((el) => (el as HTMLElement).offsetTop);
+    expect(await top("Afiq")).toBe(await top("Najmi"));
   });
 
   test("a phone that already has a name is not asked", async ({ browser }) => {

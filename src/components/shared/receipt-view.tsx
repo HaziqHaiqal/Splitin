@@ -11,7 +11,7 @@ import {
   setMyDetails,
   type MyBillChanges,
 } from "@/app/actions";
-import { NameRow, NotListedRow } from "@/components/name-row";
+import { NameChip, NotListedChip } from "@/components/name-chip";
 import { TopBar } from "@/components/header";
 import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
@@ -479,13 +479,13 @@ export function ReceiptView({
       case "who":
         return (
           <>
-            <div className="flex flex-col">
+            <div className="flex flex-wrap gap-2">
               {others
                 .filter((p) => p.id !== ask.hide)
                 .map((p) => (
-                  <NameRow key={p.id} name={p.name} color={p.color} onClick={() => pick(p.id)} />
+                  <NameChip key={p.id} name={p.name} color={p.color} onClick={() => pick(p.id)} />
                 ))}
-              {locked ? null : <NotListedRow onClick={notListed} />}
+              {locked ? null : <NotListedChip onClick={notListed} />}
             </div>
             {ask.first || ask.hide ? (
               <button type="button" onClick={forgetMe} className="h-11 shrink-0 text-[15px] font-bold text-muted">
