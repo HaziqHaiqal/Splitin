@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
-import { button, openBill, panel, pickMe, seed, trip } from "./helpers";
+import { choose, openBill, panel, pickMe, seed, trip } from "./helpers";
 
 const people = Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, name: `Person number ${i}`, color: i }));
 
@@ -26,7 +26,7 @@ test("the page stays still behind the form while typing", async ({ page }) => {
   });
   const cdp = await page.context().newCDPSession(page);
   await openBill(page);
-  await button(page, "Add what I paid").click();
+  await choose(page, "Add what I paid");
   await pickMe(page, "Person number 1");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
@@ -87,7 +87,7 @@ test("the page stays still behind the form while typing", async ({ page }) => {
 test("every form input is at least 16px, so iPhone does not zoom", async ({ page }) => {
   await seed();
   await openBill(page);
-  await button(page, "Add what I paid").click();
+  await choose(page, "Add what I paid");
   await pickMe(page, "Najmi");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();

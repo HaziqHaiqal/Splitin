@@ -3,8 +3,10 @@ import {
   addName,
   BILL,
   button,
+  choose,
   dinner,
   eventKinds,
+  fromMore,
   getDb,
   hotel,
   newPhone,
@@ -52,7 +54,7 @@ test.describe("sharing", () => {
     const friend = await newPhone(browser);
     await friend.goto(`/bill/${published.id}`);
     await expect(text(friend, "SHARED BY NAJMI")).toBeVisible();
-    await button(friend, "Add what I paid").click();
+    await choose(friend, "Add what I paid");
     const who = sheet(friend);
     await expect(who.getByRole("button", { name: "Haziq" })).toBeVisible();
     await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
@@ -91,7 +93,7 @@ test.describe("saving over friends' changes", () => {
 
     const friend = await newPhone(browser);
     await openBill(friend);
-    await button(friend, "Join a bill").click();
+    await choose(friend, "Join a bill");
     await addName(friend, "Aiman");
     const form = panel(friend);
     await form.getByRole("checkbox", { name: "Hotel" }).click();
@@ -190,7 +192,7 @@ test.describe("owner screen", () => {
 
   test("records a different amount", async ({ browser }) => {
     const owner = await tracking(browser);
-    await button(owner, "Record a different amount").click();
+    await fromMore(owner, "Record a different amount");
     const form = panel(owner);
     await form.getByRole("button", { name: "Najmi" }).first().click();
     await form.getByRole("button", { name: "Haziq" }).nth(1).click();
@@ -212,23 +214,23 @@ test.describe("owner screen", () => {
 
   test("locks and unlocks the bill", async ({ browser, page }) => {
     const owner = await tracking(browser);
-    await button(owner, "Lock bill").click();
+    await fromMore(owner, "Lock bill");
     await settled(async () => (await serverDoc()).locked, true);
     await openBill(page);
     await expect(text(page, "Haziq locked this bill")).toBeVisible();
 
-    await button(owner, "Unlock bill").click();
+    await fromMore(owner, "Unlock bill");
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(page);
-    await expect(button(page, "Add what I paid")).toBeVisible();
+    await expect(button(page, "Add or join a bill")).toBeVisible();
     expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
   });
 
   test("shows a banner for friends' changes only", async ({ browser, page }) => {
     const owner = await tracking(browser);
-    await button(owner, "Lock bill").click();
+    await fromMore(owner, "Lock bill");
     await settled(async () => (await serverDoc()).locked, true);
-    await button(owner, "Unlock bill").click();
+    await fromMore(owner, "Unlock bill");
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(owner);
     await expect(button(owner, "View receipt")).toBeVisible();
@@ -247,8 +249,10 @@ test.describe("owner screen", () => {
     await openBill(owner);
     await expect(text(owner, "Everyone")).toBeVisible();
     await expect(button(owner, /^History/)).toBeVisible();
-    await expect(button(owner, "Owner link")).toBeVisible();
-    await expect(button(owner, "Lock bill")).toBeVisible();
+    await owner.getByRole("button", { name: "More", exact: true }).click();
+    await expect(sheet(owner).getByRole("button", { name: "Copy owner link" })).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Lock bill" })).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Record a different amount" })).toHaveCount(0);
   });
 });
 
@@ -265,7 +269,7 @@ test.describe("owner link and editing", () => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=wrongwrongwrongwrongwrong`);
     await expect(text(phone, "Something went wrong")).toBeVisible();
-    await expect(button(phone, "Add what I paid")).toBeVisible();
+    await expect(button(phone, "Add or join a bill")).toBeVisible();
     expect(await phone.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
   });
 
@@ -273,10 +277,9 @@ test.describe("owner link and editing", () => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await openBill(owner);
-    await button(owner, "Owner link").click();
-    await expect(sheet(owner).getByRole("heading", { name: "Your owner link" })).toBeVisible();
-    await sheet(owner).getByRole("button", { name: "Copy link" }).click();
+    await fromMore(owner, "Copy owner link");
     await expect(text(owner, "Copied")).toBeVisible();
+    expect(await owner.evaluate(() => navigator.clipboard.readText())).toContain(`#owner=${TOKEN}`);
   });
 
   test("Edit bills brings the shared bill back to a phone that lost it", async ({ browser }) => {

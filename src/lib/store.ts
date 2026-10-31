@@ -91,7 +91,7 @@ const meKey = (billId: string) => `splitin:me:${billId}`;
 
 export const useMe = (billId: string) => useStored(meKey(billId));
 export const getMe = (billId: string) => read(meKey(billId)) ?? undefined;
-export const setMe = (billId: string, personId: string) => write(meKey(billId), personId);
+export const setMe = (billId: string, personId: string | null) => write(meKey(billId), personId);
 
 function parseTokens(raw: string | null | undefined): Record<string, string> {
   try {

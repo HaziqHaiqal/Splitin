@@ -170,11 +170,8 @@ export function Tracking({
       {desktop && paying ? payForm(false) : null}
       <div className="flex flex-wrap items-center gap-x-4">
         <HistoryButton doc={bill.doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />
-        <button type="button" onClick={() => setPaying(true)} className="h-9 text-[13.5px] font-bold text-green-ink">
-          {t.pay.ownerLink}
-        </button>
+        <OwnerActions bill={bill} ownerToken={ownerToken} onRecord={() => setPaying(true)} />
       </div>
-      <OwnerActions bill={bill} ownerToken={ownerToken} />
     </>
   );
 

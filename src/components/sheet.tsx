@@ -18,6 +18,30 @@ export function Sheet(props: SheetProps) {
   return desktop ? <Modal {...props} /> : <BottomSheet {...props} />;
 }
 
+export function SheetOption({
+  title,
+  desc,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  desc: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex shrink-0 flex-col gap-0.5 rounded-xl bg-chip px-3.5 py-3 text-left disabled:opacity-60"
+    >
+      <span className="text-[15px] font-bold text-ink">{title}</span>
+      <span className="text-[12.5px] leading-[1.4] text-muted">{desc}</span>
+    </button>
+  );
+}
+
 function BottomSheet({ open, onOpenChange, title, children }: SheetProps) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>

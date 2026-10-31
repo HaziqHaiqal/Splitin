@@ -4,25 +4,32 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { setBillLock } from "@/app/actions";
-import { Sheet } from "@/components/sheet";
+import { Sheet, SheetOption } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
 import { latestFriendChange } from "@/lib/bill";
 import { getDraft, saveDraft, useDraft } from "@/lib/store";
 import type { SharedBillData } from "./shared-bill";
 
-const action = "h-9 text-[13.5px] font-bold text-green-ink disabled:opacity-60";
+const action = "h-9 text-[13.5px] font-bold text-green-ink";
 
-export function OwnerActions({ bill, ownerToken }: { bill: SharedBillData; ownerToken: string }) {
+export function OwnerActions({
+  bill,
+  ownerToken,
+  onRecord,
+}: {
+  bill: SharedBillData;
+  ownerToken: string;
+  onRecord?: () => void;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const router = useRouter();
   const draft = useDraft();
   const [pending, start] = useTransition();
-  const [linkOpen, setLinkOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
   const locked = Boolean(bill.doc.locked);
-  const link = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}#owner=${ownerToken}` : "";
 
   const editHere = () => {
     saveDraft({ doc: bill.doc, billId: bill.id, seenAt: latestFriendChange(bill.doc) });
@@ -34,9 +41,15 @@ export function OwnerActions({ bill, ownerToken }: { bill: SharedBillData; owner
     else editHere();
   };
 
-  const copy = async () => {
+  const record = () => {
+    setMoreOpen(false);
+    if (onRecord) requestAnimationFrame(onRecord);
+  };
+
+  const copyLink = async () => {
+    setMoreOpen(false);
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(`${window.location.origin}/bill/${bill.id}#owner=${ownerToken}`);
       toast({ message: t.common.copied });
     } catch {
       toast({ message: t.common.generic });
@@ -46,13 +59,14 @@ export function OwnerActions({ bill, ownerToken }: { bill: SharedBillData; owner
   const toggleLock = () =>
     start(async () => {
       const result = await setBillLock(bill.id, ownerToken, !locked);
+      setMoreOpen(false);
       toast({ message: result.ok ? (locked ? t.track.unlockedNote : t.track.lockedNote) : t.common.generic });
     });
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4">
+    <>
       {draft?.billId === bill.id ? (
-        <Link href="/" className="inline-flex h-9 items-center text-[13.5px] font-bold text-green-ink no-underline">
+        <Link href="/" className={`${action} inline-flex items-center no-underline`}>
           {t.track.editBills}
         </Link>
       ) : (
@@ -60,18 +74,21 @@ export function OwnerActions({ bill, ownerToken }: { bill: SharedBillData; owner
           {t.track.editBills}
         </button>
       )}
-      <button type="button" onClick={() => setLinkOpen(true)} className={action}>
-        {t.track.ownerLink}
-      </button>
-      <button type="button" disabled={pending} onClick={toggleLock} className={action}>
-        {locked ? t.track.unlock : t.track.lock}
+      <button type="button" onClick={() => setMoreOpen(true)} className={action}>
+        {t.track.more}
       </button>
 
-      <Sheet open={linkOpen} onOpenChange={setLinkOpen} title={t.track.ownerLinkTitle}>
-        <p className="m-0 text-[14px] leading-[1.5] text-muted">{t.track.ownerLinkDesc}</p>
-        <button type="button" onClick={copy} className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white">
-          {t.share.copyLink}
-        </button>
+      <Sheet open={moreOpen} onOpenChange={setMoreOpen} title={t.track.more}>
+        <div className="flex flex-col gap-2">
+          {onRecord ? <SheetOption title={t.pay.ownerLink} desc={t.pay.desc} onClick={record} /> : null}
+          <SheetOption title={t.track.ownerLink} desc={t.track.ownerLinkDesc} onClick={copyLink} />
+          <SheetOption
+            title={locked ? t.track.unlock : t.track.lock}
+            desc={locked ? t.track.unlockDesc : t.track.lockDesc}
+            disabled={pending}
+            onClick={toggleLock}
+          />
+        </div>
       </Sheet>
 
       <Sheet open={replaceOpen} onOpenChange={setReplaceOpen} title={t.track.replaceTitle}>
@@ -89,6 +106,6 @@ export function OwnerActions({ bill, ownerToken }: { bill: SharedBillData; owner
           </button>
         </div>
       </Sheet>
-    </div>
+    </>
   );
 }

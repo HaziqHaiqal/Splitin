@@ -13,13 +13,11 @@ export function HistoryButton({
   events,
   open,
   onOpenChange,
-  className,
 }: {
   doc: BillDoc;
   events: BillEvent[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  className?: string;
 }) {
   const { t, money, date, time } = useI18n();
   const h = t.history;
@@ -77,11 +75,7 @@ export function HistoryButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => onOpenChange(true)}
-        className={`h-9 text-[13.5px] font-bold text-green-ink ${className ?? ""}`}
-      >
+      <button type="button" onClick={() => onOpenChange(true)} className="h-9 text-[13.5px] font-bold text-green-ink">
         {h.title}
         {events.length > 0 ? ` · ${events.length}` : ""}
       </button>

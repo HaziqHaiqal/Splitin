@@ -54,14 +54,10 @@ export function Settled({
       <button type="button" onClick={onReview} className="h-9 text-[13.5px] font-bold text-green-ink md:self-start">
         {t.settled.review}
       </button>
-      <HistoryButton
-        doc={bill.doc}
-        events={bill.events}
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        className="md:self-start"
-      />
-      <OwnerActions bill={bill} ownerToken={ownerToken} />
+      <div className="flex flex-wrap items-center justify-center gap-x-4 md:justify-start md:self-start">
+        <HistoryButton doc={bill.doc} events={bill.events} open={historyOpen} onOpenChange={setHistoryOpen} />
+        <OwnerActions bill={bill} ownerToken={ownerToken} />
+      </div>
     </>
   );
   const deletes = (

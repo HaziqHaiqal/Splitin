@@ -463,9 +463,9 @@ export async function addPayment(
       if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
       const summary = summarize(doc, await loadPayments(id));
       const { from, to, amountMinor } = parsed.data;
-      const allowed = different
-        ? amountMinor <= summary.total
-        : summary.remaining.some((l) => l.from === from && l.to === to && l.amount === amountMinor);
+      const allowed = summary.remaining.some(
+        (l) => l.from === from && l.to === to && (different ? amountMinor <= summary.total : l.amount === amountMinor),
+      );
       if (!allowed) return { ok: false, error: "invalid" };
     }
 

@@ -503,7 +503,7 @@ function PayDemo() {
 
 function AddDemo() {
   const { t, money } = useI18n();
-  const [stage, setStage] = useState<"add" | "who" | "mine">("add");
+  const [stage, setStage] = useState<"add" | "who" | "change" | "mine">("add");
   const [who, setWho] = useState(NAMES[1]);
 
   if (stage === "add") {
@@ -523,25 +523,36 @@ function AddDemo() {
     );
   }
 
-  if (stage === "who") {
+  if (stage === "who" || stage === "change") {
     return (
       <div className="flex flex-col items-center gap-2.5">
         <div className="text-[15px] font-extrabold text-ink">{t.friend.whoTitle}</div>
         <div className="flex flex-wrap justify-center gap-2">
-          {NAMES.slice(0, 3).map((name, i) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => {
-                setWho(name);
-                setStage("mine");
-              }}
-              className={cn(press, "rounded-full")}
-            >
-              <Chip name={name} color={i} />
-            </button>
-          ))}
+          {NAMES.slice(0, 3).map((name, i) =>
+            stage === "change" && name === who ? null : (
+              <button
+                key={name}
+                type="button"
+                onClick={() => {
+                  setWho(name);
+                  setStage("mine");
+                }}
+                className={cn(press, "rounded-full")}
+              >
+                <Chip name={name} color={i} />
+              </button>
+            ),
+          )}
         </div>
+        {stage === "change" ? (
+          <button
+            type="button"
+            onClick={() => setStage("add")}
+            className="h-7 text-[12px] font-bold text-green-soft-ink"
+          >
+            {t.friend.clearMe}
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -567,7 +578,11 @@ function AddDemo() {
           </button>
         </div>
       </div>
-      <button type="button" onClick={() => setStage("who")} className="h-7 text-[12px] font-bold text-green-soft-ink">
+      <button
+        type="button"
+        onClick={() => setStage("change")}
+        className="h-7 text-[12px] font-bold text-green-soft-ink"
+      >
         {fmt(t.friend.notYou, { name: who })}
       </button>
     </div>

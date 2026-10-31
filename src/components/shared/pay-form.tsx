@@ -9,8 +9,7 @@ import { fieldClass, PanelForm, SubmitButton } from "./panel-form";
 
 export function PayForm({
   doc,
-  from: startFrom,
-  to: startTo,
+  fixed,
   bare,
   autoFocus,
   pending,
@@ -18,8 +17,7 @@ export function PayForm({
   onCancel,
 }: {
   doc: BillDoc;
-  from?: string;
-  to?: string;
+  fixed?: { from: string; to: string };
   bare: boolean;
   autoFocus: boolean;
   pending: boolean;
@@ -27,11 +25,12 @@ export function PayForm({
   onCancel: () => void;
 }) {
   const { t } = useI18n();
-  const [from, setFrom] = useState(startFrom ?? "");
-  const [to, setTo] = useState(startTo ?? "");
+  const [from, setFrom] = useState(fixed?.from ?? "");
+  const [to, setTo] = useState(fixed?.to ?? "");
   const [amount, setAmount] = useState("");
   const amountMinor = parseMoney(amount, "MYR") ?? 0;
   const ready = Boolean(from && to) && from !== to && amountMinor > 0;
+  const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
   return (
     <PanelForm
@@ -43,14 +42,22 @@ export function PayForm({
       }}
     >
       <p className="m-0 text-[12.5px] text-muted">{t.pay.desc}</p>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-        <PersonChips people={doc.people} value={from} onChange={setFrom} bare={bare} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[12.5px] text-muted">{t.pay.to}</span>
-        <PersonChips people={doc.people} value={to} onChange={setTo} bare={bare} />
-      </div>
+      {fixed ? (
+        <b className="text-[15px]">
+          {nameOf(fixed.from)} → {nameOf(fixed.to)}
+        </b>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
+            <PersonChips people={doc.people} value={from} onChange={setFrom} bare={bare} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[12.5px] text-muted">{t.pay.to}</span>
+            <PersonChips people={doc.people} value={to} onChange={setTo} bare={bare} />
+          </div>
+        </>
+      )}
       <input
         type="text"
         inputMode="numeric"

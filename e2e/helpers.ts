@@ -123,8 +123,18 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
+export async function choose(page: Page, option: "Add what I paid" | "Join a bill") {
+  await button(page, "Add or join a bill").click();
+  await sheet(page).getByRole("button", { name: option }).click();
+}
+
+export async function fromMore(page: Page, option: string) {
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await sheet(page).getByRole("button", { name: option }).click();
+}
+
 export async function startAdding(page: Page, name: string, digits: string, me?: string) {
-  await button(page, "Add what I paid").click();
+  await choose(page, "Add what I paid");
   if (me) await pickMe(page, me);
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
@@ -136,7 +146,7 @@ export async function startAdding(page: Page, name: string, digits: string, me?:
 export const submit = (form: ReturnType<typeof panel>) => form.locator("button[type=submit]").click();
 
 export async function openJoin(page: Page, me?: string) {
-  await button(page, "Join a bill").click();
+  await choose(page, "Join a bill");
   if (me) await pickMe(page, me);
   const form = panel(page);
   await expect(form.getByText("Which bills are you in?")).toBeVisible();

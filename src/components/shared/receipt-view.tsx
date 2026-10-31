@@ -17,7 +17,7 @@ import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
-import { Sheet } from "@/components/sheet";
+import { Sheet, SheetOption } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
@@ -34,9 +34,12 @@ import type { SharedBillData } from "./shared-bill";
 type View =
   | { kind: "add" }
   | { kind: "join" }
-  | { kind: "pay"; from?: string; to?: string }
+  | { kind: "pay"; from: string; to: string }
   | { kind: "name"; then: () => void }
   | { kind: "bank"; personId: string };
+
+type Ask =
+  { kind: "who"; then: () => void; hide?: string | null } | { kind: "choose" } | { kind: "confirm"; line: PlanLine };
 
 export function ReceiptView({
   bill,
@@ -49,8 +52,8 @@ export function ReceiptView({
 }) {
   const { t, money, date } = useI18n();
   const toast = useToast();
-  const [line, setLine] = useState<PlanLine | null>(null);
-  const [open, setOpen] = useState(false);
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const [asking, setAsking] = useState(false);
   const [pending, start] = useTransition();
   const [view, setView] = useState<View | null>(null);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
@@ -63,7 +66,6 @@ export function ReceiptView({
   const myJoins = useMyJoins(bill.id);
   const myNames = useMyNames(bill.id);
   const me = useMe(bill.id);
-  const [asking, setAsking] = useState<{ then: () => void } | null>(null);
 
   const doc =
     newMe && !bill.doc.people.some((p) => p.id === newMe.id)
@@ -81,22 +83,34 @@ export function ReceiptView({
     setHistoryOpen(next);
   };
 
-  const withMe = (then: () => void) => (myName ? then() : setAsking({ then }));
+  const showAsk = (next: Ask) => {
+    setAsk(next);
+    setAsking(true);
+  };
+  const withMe = (then: () => void) => (myName ? then() : showAsk({ kind: "who", then }));
   const pick = (id: string) => {
     setMe(bill.id, id);
-    setAsking(null);
-    asking?.then();
+    setAsking(false);
+    if (ask?.kind === "who") ask.then();
   };
   const notListed = () => {
-    const then = asking?.then ?? (() => undefined);
-    setAsking(null);
+    const then = ask?.kind === "who" ? ask.then : () => undefined;
+    setAsking(false);
     requestAnimationFrame(() => setView({ kind: "name", then }));
+  };
+  const forgetMe = () => {
+    setMe(bill.id, null);
+    setAsking(false);
   };
   const openView = (next: View) =>
     requestAnimationFrame(() => {
       setView(next);
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+  const choose = (kind: "add" | "join") => {
+    setAsking(false);
+    withMe(() => openView({ kind }));
+  };
 
   const summary = summarize(doc, bill.payments);
 
@@ -126,7 +140,7 @@ export function ReceiptView({
     start(async () => {
       const byId = getMe(bill.id);
       const result = await addPayment(bill.id, payment, { byId, different });
-      setOpen(false);
+      setAsking(false);
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setView(null);
       const { id, undoKey } = result.data;
@@ -138,10 +152,6 @@ export function ReceiptView({
         },
       });
     });
-
-  const confirm = () => {
-    if (line) pay({ from: line.from, to: line.to, amountMinor: line.amount }, false);
-  };
 
   const addItem = (item: Item, newPeople: readonly Person[] = []) =>
     start(async () => {
@@ -318,27 +328,16 @@ export function ReceiptView({
     friend && myName ? (
       <button
         type="button"
-        onClick={() => setAsking({ then: () => undefined })}
+        onClick={() => showAsk({ kind: "who", then: () => undefined, hide: me })}
         className="h-9 text-[13.5px] font-bold text-muted"
       >
         {fmt(t.friend.notYou, { name: myName })}
       </button>
     ) : null;
 
-  const differentAmount = friend ? (
-    <button
-      type="button"
-      onClick={() => withMe(() => openView({ kind: "pay", from: me && myName ? me : undefined }))}
-      className="h-9 text-[13.5px] font-bold text-green-ink"
-    >
-      {t.pay.link}
-    </button>
-  ) : null;
-
   const links = (
     <>
       {history}
-      {differentAmount}
       {changeMe}
     </>
   );
@@ -379,8 +378,7 @@ export function ReceiptView({
         return (
           <PayForm
             doc={doc}
-            from={view.from}
-            to={view.to}
+            fixed={view}
             bare={bare}
             autoFocus={desktop}
             pending={pending}
@@ -413,32 +411,96 @@ export function ReceiptView({
     }
   };
 
-  const addButton = (className: string) => (
+  const canChange = friend && !locked;
+  const canJoin = doc.items.length > 0;
+
+  const changeButton = (className: string) => (
     <button
       type="button"
       disabled={pending}
-      onClick={() => withMe(() => openView({ kind: "add" }))}
+      onClick={() => (canJoin ? showAsk({ kind: "choose" }) : withMe(() => openView({ kind: "add" })))}
       className={`inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
     >
       <PlusIcon size={16} />
-      {t.friend.addPaid}
+      {canJoin ? t.friend.addOrJoin : t.friend.addPaid}
     </button>
   );
 
-  const joinButton = (className: string) => (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={() => withMe(() => openView({ kind: "join" }))}
-      className={`inline-flex items-center justify-center rounded-xl border border-border bg-card font-bold whitespace-nowrap text-ink disabled:opacity-60 ${className}`}
-    >
-      {t.friend.joinBill}
-    </button>
-  );
-
-  const canChange = friend && !locked;
-  const canJoin = canChange && doc.items.length > 0;
-  const dockShadow = "h-12 w-full text-[14.5px] shadow-[0_4px_14px_rgba(55,53,47,0.10)]";
+  const askBody = () => {
+    if (!ask) return null;
+    switch (ask.kind) {
+      case "who":
+        return (
+          <>
+            <p className="m-0 text-[14px] text-muted">{t.friend.whoDesc}</p>
+            <div className="flex flex-col gap-2">
+              {doc.people
+                .filter((p) => p.id !== doc.ownerId && p.id !== ask.hide)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => pick(p.id)}
+                    className="flex h-12 shrink-0 items-center gap-2.5 rounded-xl bg-chip px-2.5 text-left text-[15px] font-bold text-ink"
+                  >
+                    <Avatar name={p.name} color={p.color} size={30} />
+                    <span className="min-w-0 truncate">{p.name}</span>
+                  </button>
+                ))}
+              {locked ? null : (
+                <button type="button" onClick={notListed} className="h-11 text-[15px] font-bold text-muted">
+                  {t.friend.notListed}
+                </button>
+              )}
+              {ask.hide ? (
+                <button type="button" onClick={forgetMe} className="h-11 text-[15px] font-bold text-muted">
+                  {t.friend.clearMe}
+                </button>
+              ) : null}
+            </div>
+          </>
+        );
+      case "choose":
+        return (
+          <div className="flex flex-col gap-2">
+            <SheetOption title={t.friend.addPaid} desc={t.friend.addPaidDesc} onClick={() => choose("add")} />
+            <SheetOption title={t.friend.joinBill} desc={t.friend.joinBillDesc} onClick={() => choose("join")} />
+          </div>
+        );
+      case "confirm": {
+        const { line } = ask;
+        return (
+          <>
+            <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
+            <p className="m-0 text-[14px] text-muted">{t.friend.confirmDesc}</p>
+            <div className="flex flex-col gap-1.5 pt-1">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => pay({ from: line.from, to: line.to, amountMinor: line.amount }, false)}
+                className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60"
+              >
+                {t.track.markPaid}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsking(false);
+                  openView({ kind: "pay", from: line.from, to: line.to });
+                }}
+                className="h-11 text-[15px] font-bold text-green-ink"
+              >
+                {t.pay.different}
+              </button>
+              <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
+                {t.friend.cancel}
+              </button>
+            </div>
+          </>
+        );
+      }
+    }
+  };
 
   const side = (
     <>
@@ -480,14 +542,7 @@ export function ReceiptView({
         </div>
       ) : null}
       {myList}
-      {view ? (
-        body(false)
-      ) : canChange ? (
-        <div className="flex flex-wrap gap-2">
-          {addButton("h-[42px] px-4 text-[14px]")}
-          {canJoin ? joinButton("h-[42px] px-4 text-[14px]") : null}
-        </div>
-      ) : null}
+      {view ? body(false) : canChange ? changeButton("h-[42px] self-start px-4 text-[14px]") : null}
       <div className="flex flex-wrap items-center gap-x-4 self-start">{links}</div>
     </>
   );
@@ -510,16 +565,9 @@ export function ReceiptView({
         phoneBelow={<div className="flex flex-wrap justify-center gap-x-4">{links}</div>}
         panel={friend && view ? body(true) : undefined}
         dock={
-          canChange && !view ? (
-            canJoin ? (
-              <div className="grid grid-cols-[1.25fr_1fr] gap-2">
-                {addButton(dockShadow)}
-                {joinButton(dockShadow)}
-              </div>
-            ) : (
-              addButton(dockShadow)
-            )
-          ) : undefined
+          canChange && !view
+            ? changeButton("h-12 w-full text-[14.5px] shadow-[0_4px_14px_rgba(55,53,47,0.10)]")
+            : undefined
         }
         paper={
           <Receipt
@@ -531,89 +579,25 @@ export function ReceiptView({
             preview={view?.kind === "add" ? preview : null}
             freshItemId={freshId}
             hint={friend && summary.remaining.length > 0 ? t.friend.tapHint : undefined}
-            onLine={
-              friend
-                ? (l) =>
-                    withMe(() => {
-                      setLine(l);
-                      setOpen(true);
-                    })
-                : undefined
-            }
+            onLine={friend ? (line) => withMe(() => showAsk({ kind: "confirm", line })) : undefined}
           />
         }
       />
       {friend ? (
         <Sheet
-          open={open || asking !== null}
-          onOpenChange={(next) => {
-            if (next) return;
-            setOpen(false);
-            setAsking(null);
-          }}
+          open={asking}
+          onOpenChange={setAsking}
           title={
-            asking
+            ask?.kind === "who"
               ? t.friend.whoTitle
-              : line
-                ? fmt(t.friend.confirmTitle, { from: nameOf(line.from), to: nameOf(line.to) })
-                : ""
+              : ask?.kind === "choose"
+                ? t.friend.chooseTitle
+                : ask
+                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                  : ""
           }
         >
-          {asking ? (
-            <>
-              <p className="m-0 text-[14px] text-muted">{t.friend.whoDesc}</p>
-              <div className="flex flex-col gap-2">
-                {doc.people
-                  .filter((p) => p.id !== doc.ownerId)
-                  .map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => pick(p.id)}
-                      className="flex h-12 shrink-0 items-center gap-2.5 rounded-xl bg-chip px-2.5 text-left text-[15px] font-bold text-ink"
-                    >
-                      <Avatar name={p.name} color={p.color} size={30} />
-                      <span className="min-w-0 truncate">{p.name}</span>
-                    </button>
-                  ))}
-                {locked ? null : (
-                  <button type="button" onClick={notListed} className="h-11 text-[15px] font-bold text-muted">
-                    {t.friend.notListed}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">
-                {line ? money(line.amount) : ""}
-              </div>
-              <p className="m-0 text-[14px] text-muted">{t.friend.confirmDesc}</p>
-              <div className="flex flex-col gap-1.5 pt-1">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={confirm}
-                  className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60"
-                >
-                  {t.track.markPaid}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    if (line) openView({ kind: "pay", from: line.from, to: line.to });
-                  }}
-                  className="h-11 text-[15px] font-bold text-green-ink"
-                >
-                  {t.pay.different}
-                </button>
-                <button type="button" onClick={() => setOpen(false)} className="h-11 text-[15px] font-bold text-muted">
-                  {t.friend.cancel}
-                </button>
-              </div>
-            </>
-          )}
+          {askBody()}
         </Sheet>
       ) : null}
     </>
