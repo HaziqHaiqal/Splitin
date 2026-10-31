@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { publishBill } from "@/app/actions";
-import { Avatar } from "@/components/avatar";
+import { NameRow, NotListedRow } from "@/components/name-row";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
@@ -60,21 +60,11 @@ export function useShareReceipt(draft: Draft | null | undefined) {
       />
       <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
         <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           {draft.doc.people.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => pickOwner(p.id)}
-              className="flex h-12 shrink-0 items-center gap-2.5 rounded-xl bg-chip px-2.5 text-left text-[15px] font-bold text-ink"
-            >
-              <Avatar name={p.name} color={p.color} size={30} />
-              <span className="min-w-0 truncate">{p.name}</span>
-            </button>
+            <NameRow key={p.id} name={p.name} color={p.color} onClick={() => pickOwner(p.id)} />
           ))}
-          <button type="button" onClick={() => pickOwner(null)} className="h-11 text-[15px] font-bold text-muted">
-            {t.friend.notListed}
-          </button>
+          <NotListedRow onClick={() => pickOwner(null)} />
         </div>
       </Sheet>
     </>

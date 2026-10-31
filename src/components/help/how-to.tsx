@@ -508,7 +508,7 @@ function PayDemo() {
           }}
           className="h-7 text-[12px] font-bold text-green-soft-ink"
         >
-          {me ? t.friend.clearMe : t.friend.justLooking}
+          {t.friend.justLooking}
         </button>
       </div>
     );

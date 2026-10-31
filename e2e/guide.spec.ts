@@ -12,7 +12,6 @@ const languages = [
     looking: "Just looking",
     pick: "Paid? Tap to pick your name",
     hi: "Hi Afiq",
-    clear: "Clear",
   },
   {
     locale: "ms",
@@ -24,12 +23,11 @@ const languages = [
     looking: "Tengok sahaja",
     pick: "Dah bayar? Ketik untuk pilih nama anda",
     hi: "Hai Afiq",
-    clear: "Kosongkan",
   },
 ];
 
-for (const { locale, help, next, step, all, none, looking, pick, hi, clear } of languages) {
-  test(`the guide's name menu hides your name and has Clear (${locale})`, async ({ page, context, baseURL }) => {
+for (const { locale, help, next, step, all, none, looking, pick, hi } of languages) {
+  test(`the guide's name menu hides your name (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
     await page.getByRole("button", { name: help }).click();
@@ -40,7 +38,7 @@ for (const { locale, help, next, step, all, none, looking, pick, hi, clear } of 
     await guide.getByRole("button", { name: hi }).click();
     await expect(guide.getByRole("button", { name: "Najmi" })).toBeVisible();
     await expect(guide.getByRole("button", { name: "Afiq" })).toHaveCount(0);
-    await guide.getByRole("button", { name: clear, exact: true }).click();
+    await guide.getByRole("button", { name: looking }).click();
     await expect(guide.getByRole("button", { name: pick })).toBeVisible();
     await expect(guide.getByRole("button", { name: next, exact: true })).toBeInViewport();
   });

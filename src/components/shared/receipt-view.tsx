@@ -11,7 +11,7 @@ import {
   setMyDetails,
   type MyBillChanges,
 } from "@/app/actions";
-import { Avatar } from "@/components/avatar";
+import { NameRow, NotListedRow } from "@/components/name-row";
 import { TopBar } from "@/components/header";
 import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
@@ -479,41 +479,19 @@ export function ReceiptView({
       case "who":
         return (
           <>
-            <p className="m-0 text-[14px] text-muted">{t.friend.whoDesc}</p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col">
               {others
                 .filter((p) => p.id !== ask.hide)
                 .map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => pick(p.id)}
-                    className="flex h-12 shrink-0 items-center gap-2.5 rounded-xl bg-chip px-2.5 text-left text-[15px] font-bold text-ink"
-                  >
-                    <Avatar name={p.name} color={p.color} size={30} />
-                    <span className="min-w-0 truncate">{p.name}</span>
-                  </button>
+                  <NameRow key={p.id} name={p.name} color={p.color} onClick={() => pick(p.id)} />
                 ))}
-              {locked ? null : (
-                <button type="button" onClick={notListed} className="h-11 text-[15px] font-bold text-muted">
-                  {t.friend.notListed}
-                </button>
-              )}
-              {ask.hide ? (
-                <button type="button" onClick={forgetMe} className="h-11 text-[15px] font-bold text-muted">
-                  {t.friend.clearMe}
-                </button>
-              ) : null}
-              {ask.first ? (
-                <button
-                  type="button"
-                  onClick={() => setAsking(false)}
-                  className="h-11 text-[15px] font-bold text-muted"
-                >
-                  {t.friend.justLooking}
-                </button>
-              ) : null}
+              {locked ? null : <NotListedRow onClick={notListed} />}
             </div>
+            {ask.first || ask.hide ? (
+              <button type="button" onClick={forgetMe} className="h-11 shrink-0 text-[15px] font-bold text-muted">
+                {t.friend.justLooking}
+              </button>
+            ) : null}
           </>
         );
       case "confirm": {

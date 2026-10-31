@@ -97,6 +97,16 @@ test.describe("who are you", () => {
     await expect(page.getByText("Paid? ")).toHaveCount(0);
   });
 
+  test("the question is just the names and one way out", async ({ page }) => {
+    await openFresh(page);
+    const list = sheet(page);
+    await expect(list.getByRole("heading", { name: "Who are you?" })).toBeVisible();
+    await expect(list.locator("p:not(.sr-only)")).toHaveCount(0);
+    await expect(list.getByRole("button")).toHaveText([/Najmi$/, /Afiq$/, "Not on the list", "Just looking"]);
+    for (const row of await list.getByRole("button").all())
+      expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  });
+
   test("a phone that already has a name is not asked", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
@@ -105,11 +115,11 @@ test.describe("who are you", () => {
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
 
-  test("clearing a name does not bring the question back", async ({ browser }) => {
+  test("leaving your name does not bring the question back", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
     await button(phone, "Hi Najmi").click();
-    await sheet(phone).getByRole("button", { name: "Clear", exact: true }).click();
+    await sheet(phone).getByRole("button", { name: "Just looking" }).click();
     await expect(button(phone, "Paid? Tap to pick your name")).toBeVisible();
     await phone.reload();
     await expect(button(phone, "Paid? Tap to pick your name")).toBeVisible();
@@ -150,7 +160,7 @@ test.describe("who are you", () => {
     await expect(button(page, "Hi Afiq")).toBeVisible();
   });
 
-  test("tapping your name hides it from the list and can clear it", async ({ page }) => {
+  test("tapping your name hides it from the list and can leave it", async ({ page }) => {
     await openAs(page, "Najmi");
     await submit(await startAdding(page, "Snacks", "1000"));
     await expect(button(page, "Delete")).toBeVisible();
@@ -159,7 +169,7 @@ test.describe("who are you", () => {
     const list = sheet(page);
     await expect(list.getByRole("button", { name: "Afiq" })).toBeVisible();
     await expect(list.getByRole("button", { name: "Najmi" })).toHaveCount(0);
-    await list.getByRole("button", { name: "Clear", exact: true }).click();
+    await list.getByRole("button", { name: "Just looking" }).click();
 
     await expect(button(page, "Hi Najmi")).toHaveCount(0);
     await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
@@ -168,7 +178,7 @@ test.describe("who are you", () => {
 
     await choose(page, "Join bill");
     await expect(sheet(page).getByRole("button", { name: "Najmi" })).toBeVisible();
-    await expect(sheet(page).getByRole("button", { name: "Clear", exact: true })).toHaveCount(0);
+    await expect(sheet(page).getByRole("button", { name: "Just looking" })).toHaveCount(0);
   });
 
   test("the name sits above the receipt, with History below and a flat bar", async ({ page }) => {
