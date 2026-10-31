@@ -309,7 +309,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 className="-mx-1.5 mt-1 flex w-[calc(100%+12px)] items-center justify-between gap-2 rounded-md bg-[#f3f2ef] px-1.5 py-1.5 text-left font-sans text-[11.5px] font-semibold transition-colors hover:bg-[#ebeae6]"
               >
                 {hint}
-                <span style={{ color: MUTED }}>›</span>
+                <span className="inline-block animate-arrow">›</span>
               </button>
             ) : hint ? (
               <div className="font-sans text-[11.5px] font-semibold" style={{ color: MUTED }}>
@@ -338,7 +338,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                       right={
                         <span style={l.paid ? { textDecoration: "line-through", color: MUTED } : undefined}>
                           {plain(l.amount)}
-                          {tappable ? <span style={{ color: MUTED, marginLeft: 6 }}>›</span> : null}
+                          {tappable ? (
+                            <span className="inline-block animate-arrow" style={{ marginLeft: 2 }}>
+                              ›
+                            </span>
+                          ) : null}
                         </span>
                       }
                     />

@@ -15,7 +15,7 @@ import { Avatar } from "@/components/avatar";
 import { TopBar } from "@/components/header";
 import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
-import { PrinterPage } from "@/components/receipt/printer";
+import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
@@ -607,9 +607,7 @@ export function ReceiptView({
         phoneBelow={<div className="flex justify-center">{history}</div>}
         panel={friend && view ? body(true) : undefined}
         dock={
-          canChange && !view ? (
-            <div className="flex gap-2">{changeButtons("h-12 flex-1 bg-chip text-[15px]")}</div>
-          ) : undefined
+          canChange && !view ? <div className="flex gap-2">{changeButtons(`flex-1 ${dockButton}`)}</div> : undefined
         }
         paper={
           <Receipt

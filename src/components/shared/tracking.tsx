@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
-import { PrinterPage } from "@/components/receipt/printer";
+import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useToast } from "@/components/toast";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
@@ -184,11 +184,7 @@ export function Tracking({
       paper={<Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />}
       panel={!desktop && paying ? payForm(true) : undefined}
       dock={
-        <button
-          type="button"
-          onClick={onViewReceipt}
-          className="h-12 w-full rounded-xl bg-chip text-[15px] font-bold text-ink"
-        >
+        <button type="button" onClick={onViewReceipt} className={cn("w-full", dockButton)}>
           {t.track.viewReceipt}
         </button>
       }

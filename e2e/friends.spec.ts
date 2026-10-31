@@ -578,6 +578,21 @@ test.describe("paying", () => {
     await expect(page.getByRole("heading", { name: /^Are you/ })).toHaveCount(0);
   });
 
+  test("only the arrow moves on what you can tap", async ({ page }) => {
+    const animation = (el: Element) => getComputedStyle(el).animationName;
+    await openBill(page);
+    const hint = button(page, "Paid? Tap to pick your name");
+    expect(await hint.getByText("›").evaluate(animation)).toBe("arrow");
+    expect(await hint.evaluate(animation)).toBe("none");
+
+    await hint.click();
+    await pickMe(page, "Najmi");
+    const line = payLine(page, "NAJMI", "HAZIQ");
+    await expect(line).toBeVisible();
+    expect(await line.getByText("›").evaluate(animation)).toBe("arrow");
+    expect(await line.evaluate(animation)).toBe("none");
+  });
+
   test("Just looking cannot tap a payment until a name is chosen", async ({ page }) => {
     await openBill(page);
     await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();

@@ -10,6 +10,8 @@ import { BigStamp, Zigzag } from "./receipt";
 const INK = "#37352f";
 const MUTED = "#6b6a65";
 
+export const dockButton = "h-12 rounded-xl border border-raised-edge bg-raised text-[15px] font-bold text-ink";
+
 export function Printer({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[400px]">
@@ -173,7 +175,7 @@ export function PrinterPage({
                 }
               : undefined
           }
-          className="fixed inset-x-0 bottom-0 z-20 max-h-[74dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-border bg-card px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(55,53,47,0.08)]"
+          className="fixed inset-x-0 bottom-0 z-20 max-h-[74dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-sheet-edge bg-card px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_var(--sheet-shadow)]"
         >
           {panel}
         </div>

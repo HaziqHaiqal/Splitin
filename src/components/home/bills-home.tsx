@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
 import { CheckIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
-import { PaperStub, PrinterPage } from "@/components/receipt/printer";
+import { dockButton, PaperStub, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
@@ -239,7 +239,7 @@ export function BillsHome() {
               <button
                 type="button"
                 onClick={openAdd}
-                className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-chip text-[15px] font-bold text-ink"
+                className={cn("inline-flex items-center justify-center gap-1.5", dockButton)}
               >
                 <PlusIcon size={16} />
                 {t.home.nextBill}
