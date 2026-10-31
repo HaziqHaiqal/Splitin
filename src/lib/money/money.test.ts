@@ -8,6 +8,8 @@ import {
   simplifyDebts,
   splitByWeights,
   splitEqual,
+  toAutoPointInput,
+  toInputValue,
   type Allocation,
 } from "./index";
 
@@ -171,5 +173,31 @@ describe("format / parse", () => {
     expect(parseMoney("abc", "MYR")).toBeNull();
     expect(parseMoney("1500", "JPY")).toBe(1500);
     expect(parseMoney("1.5", "JPY")).toBeNull();
+  });
+
+  it("places the point automatically while typing", () => {
+    expect(toAutoPointInput("1", "MYR")).toBe("0.01");
+    expect(toAutoPointInput("0.012", "MYR")).toBe("0.12");
+    expect(toAutoPointInput("0.125", "MYR")).toBe("1.25");
+    expect(toAutoPointInput("1.250", "MYR")).toBe("12.50");
+    expect(toAutoPointInput("12.503", "MYR")).toBe("125.03");
+  });
+
+  it("shifts back on delete and clears at zero", () => {
+    expect(toAutoPointInput("12.5", "MYR")).toBe("1.25");
+    expect(toAutoPointInput("0.0", "MYR")).toBe("");
+    expect(toAutoPointInput("", "MYR")).toBe("");
+    expect(toAutoPointInput("0", "MYR")).toBe("");
+  });
+
+  it("ignores non-digits and keeps prefilled values stable", () => {
+    expect(toAutoPointInput("12.50.", "MYR")).toBe("12.50");
+    expect(toAutoPointInput("abc", "MYR")).toBe("");
+    expect(toAutoPointInput(toInputValue(1250, "MYR"), "MYR")).toBe("12.50");
+    expect(parseMoney(toAutoPointInput("1250", "MYR"), "MYR")).toBe(1250);
+  });
+
+  it("adds no point for zero-decimal currencies", () => {
+    expect(toAutoPointInput("1500", "JPY")).toBe("1500");
   });
 });

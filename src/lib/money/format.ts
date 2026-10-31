@@ -60,6 +60,15 @@ export function toInputValue(minor: number, currency: string): string {
   return (minor / 10 ** digits).toFixed(digits);
 }
 
+export function toAutoPointInput(input: string, currency: string): string {
+  const typed = input.replace(/\D/g, "").replace(/^0+/, "");
+  if (!typed) return "";
+  const digits = currencyDigits(currency);
+  if (digits === 0) return typed;
+  const padded = typed.padStart(digits + 1, "0");
+  return `${padded.slice(0, -digits)}.${padded.slice(-digits)}`;
+}
+
 export function parseMoney(input: string, currency: string): number | null {
   const digits = currencyDigits(currency);
   const cleaned = input.replace(/[\s,]/g, "");

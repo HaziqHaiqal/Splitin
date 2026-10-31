@@ -7,10 +7,10 @@ import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem, type BillDoc, type Item } from "@/lib/bill";
-import { parseMoney, toInputValue } from "@/lib/money";
+import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
 import { cn, newId } from "@/lib/utils";
 
-const cleanMoney = (v: string) => v.replace(/[^\d.,]/g, "");
+const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 const parse = (v: string) => parseMoney(v, "MYR");
 
 export function BillForm({
@@ -217,11 +217,11 @@ export function BillForm({
         />
         <input
           type="text"
-          inputMode="decimal"
+          inputMode="numeric"
           value={amount}
           aria-label={t.bill.amount}
           placeholder="0.00"
-          onChange={(e) => setAmount(cleanMoney(e.target.value))}
+          onChange={(e) => setAmount(autoPoint(e.target.value))}
           className={cn(field, "text-[16px] font-extrabold tabular")}
         />
       </div>
@@ -297,7 +297,7 @@ export function BillForm({
                 {isEditing || isSet ? (
                   <input
                     type="text"
-                    inputMode="decimal"
+                    inputMode="numeric"
                     autoFocus={isEditing}
                     aria-label={fmt(t.bill.amountOf, { name: p.name })}
                     value={isEditing ? editing.value : toInputValue(liveOverrides[p.id] ?? 0, "MYR")}
@@ -308,7 +308,7 @@ export function BillForm({
                       }
                     }}
                     onChange={(e) =>
-                      setEditing({ id: p.id, value: cleanMoney(e.target.value), start: editing?.start ?? "" })
+                      setEditing({ id: p.id, value: autoPoint(e.target.value), start: editing?.start ?? "" })
                     }
                     onBlur={commitEditing}
                     onKeyDown={(e) => {
