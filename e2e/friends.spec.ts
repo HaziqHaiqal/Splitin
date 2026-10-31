@@ -703,7 +703,7 @@ test.describe("paying", () => {
     await settled(paymentsOf, [{ from: "a", to: "h", amountMinor: 10000 }]);
     await expect(button(page, /^History · 1/)).toBeVisible();
     const list = await openHistory(page);
-    await expect(list.getByText(/Afiq marked/)).toBeVisible();
+    await expect(list.getByText("Afiq paid Haziq")).toBeVisible();
   });
 });
 

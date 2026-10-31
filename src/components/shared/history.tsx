@@ -1,12 +1,192 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Avatar } from "@/components/avatar";
 import { Sheet } from "@/components/sheet";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { ownerOf, type BillDoc } from "@/lib/bill";
 import type { BillEvent, ItemChanges } from "@/lib/history";
 import { getSeen, setSeen } from "@/lib/store";
+import { cn, initial } from "@/lib/utils";
+
+type Entry = {
+  text: string;
+  notes?: string[];
+  amount?: number;
+  tone?: "paid" | "faded";
+};
+
+export function HistoryRow({
+  who,
+  color,
+  text,
+  notes = [],
+  amount,
+  tone,
+  at,
+  className,
+}: Entry & { who: string; color?: number; at?: string; className?: string }) {
+  const { t, money, time } = useI18n();
+  const [before, ...after] = text.split("{who}");
+  return (
+    <li className={cn("flex items-start gap-3", className)}>
+      {color === undefined ? (
+        <span
+          aria-hidden
+          className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-full bg-chip text-[12px] font-extrabold text-muted"
+        >
+          {who === t.history.friend ? "?" : initial(who)}
+        </span>
+      ) : (
+        <Avatar name={who} color={color} size={30} />
+      )}
+      <div className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+        <p className="m-0 text-[14px] leading-[1.4] font-medium text-ink">
+          {before}
+          <b className="font-extrabold">{who}</b>
+          {after.join("{who}")}
+        </p>
+        {notes.map((note) => (
+          <p key={note} className="m-0 mt-0.5 text-[12.5px] leading-[1.4] text-muted">
+            {note}
+          </p>
+        ))}
+        {at ? (
+          <time dateTime={at} className="mt-0.5 block text-[12px] text-muted">
+            {time(at)}
+          </time>
+        ) : null}
+      </div>
+      {amount === undefined ? null : (
+        <span
+          className={cn(
+            "shrink-0 text-[14px] leading-[1.4] font-bold whitespace-nowrap tabular-nums",
+            tone === "paid" ? "text-green-ink" : tone === "faded" ? "text-muted" : "text-ink",
+          )}
+        >
+          {money(amount)}
+        </span>
+      )}
+    </li>
+  );
+}
+
+const dayOf = (at: string | Date) => new Date(at).toDateString();
+
+function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
+  const { t, money, date } = useI18n();
+  const h = t.history;
+  const owner = ownerOf(doc)?.name ?? h.owner;
+
+  const changeList = (changes: ItemChanges) => {
+    const parts: string[] = [];
+    if (changes.name) parts.push(fmt(h.changeName, { from: changes.name[0], to: changes.name[1] }));
+    if (changes.amount)
+      parts.push(fmt(h.changeAmount, { from: money(changes.amount[0]), to: money(changes.amount[1]) }));
+    if (changes.payer) parts.push(fmt(h.changePayer, { from: changes.payer[0], to: changes.payer[1] }));
+    if (changes.split) parts.push(h.changeSplit);
+    return parts;
+  };
+
+  const whoDid = (e: BillEvent) => {
+    if (e.kind === "person_joined") return e.name;
+    return e.actor === "owner" ? owner : (e.by ?? h.friend);
+  };
+
+  const entry = (e: BillEvent, who: string): Entry => {
+    switch (e.kind) {
+      case "created":
+        return { text: h.created };
+      case "item_added":
+        return {
+          text: fmt(h.itemAdded, { name: e.name }),
+          notes: [fmt(h.paidBy, { payer: e.payer })],
+          amount: e.amountMinor,
+        };
+      case "item_deleted":
+        return { text: fmt(h.itemDeleted, { name: e.name }), amount: e.amountMinor, tone: "faded" };
+      case "item_edited":
+        return { text: fmt(h.itemEdited, { name: e.name }), notes: changeList(e.changes) };
+      case "title_changed":
+        return { text: fmt(h.titleChanged, { to: e.to }) };
+      case "person_added":
+        return { text: fmt(h.personAdded, { name: e.name }) };
+      case "person_removed":
+        return { text: fmt(h.personRemoved, { name: e.name }) };
+      case "person_renamed":
+        return { text: fmt(h.personRenamed, { from: e.from, to: e.to }) };
+      case "person_details":
+        return { text: who === e.name ? h.ownDetails : fmt(h.personDetails, { name: e.name }) };
+      case "person_joined":
+        return { text: h.personJoined };
+      case "bill_joined":
+        return { text: fmt(h.billJoined, { name: e.name }), amount: e.amountMinor };
+      case "bill_left":
+        return { text: fmt(h.billLeft, { name: e.name }) };
+      case "share_changed":
+        return { text: fmt(h.shareChanged, { name: e.name }), notes: [`${money(e.from)} → ${money(e.to)}`] };
+      case "locked":
+        return { text: h.locked };
+      case "unlocked":
+        return { text: h.unlocked };
+      case "paid":
+        return {
+          text: fmt(who === e.from ? h.paid : h.paidFor, { from: e.from, to: e.to }),
+          amount: e.amountMinor,
+          tone: "paid",
+        };
+      case "unpaid":
+        return {
+          text: fmt(who === e.from ? h.unpaid : h.unpaidFor, { from: e.from, to: e.to }),
+          amount: e.amountMinor,
+          tone: "faded",
+        };
+    }
+  };
+
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const dayLabel = (at: string) => {
+    if (dayOf(at) === dayOf(today)) return h.today;
+    if (dayOf(at) === dayOf(yesterday)) return h.yesterday;
+    return date(at, { day: "numeric", month: "short" });
+  };
+
+  const days: BillEvent[][] = [];
+  for (const e of events) {
+    const last = days[days.length - 1];
+    if (last && dayOf(last[0].createdAt) === dayOf(e.createdAt)) last.push(e);
+    else days.push([e]);
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      {days.map((day) => (
+        <section key={day[0].id}>
+          <h3 className="m-0 pt-1 pb-2.5 text-[11px] font-bold tracking-[0.06em] text-muted uppercase">
+            {dayLabel(day[0].createdAt)}
+          </h3>
+          <ul className="m-0 flex list-none flex-col gap-4 p-0">
+            {day.map((e) => {
+              const who = whoDid(e);
+              return (
+                <HistoryRow
+                  key={e.id}
+                  who={who}
+                  color={doc.people.find((p) => p.name === who)?.color}
+                  at={e.createdAt}
+                  {...entry(e, who)}
+                />
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export function HistoryButton({
   doc,
@@ -19,59 +199,8 @@ export function HistoryButton({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { t, money, date, time } = useI18n();
+  const { t } = useI18n();
   const h = t.history;
-  const owner = ownerOf(doc)?.name ?? h.owner;
-
-  const changeList = (changes: ItemChanges) => {
-    const parts: string[] = [];
-    if (changes.name) parts.push(fmt(h.changeName, { from: changes.name[0], to: changes.name[1] }));
-    if (changes.amount)
-      parts.push(fmt(h.changeAmount, { from: money(changes.amount[0]), to: money(changes.amount[1]) }));
-    if (changes.payer) parts.push(fmt(h.changePayer, { from: changes.payer[0], to: changes.payer[1] }));
-    if (changes.split) parts.push(h.changeSplit);
-    return parts.join(", ");
-  };
-
-  const line = (e: BillEvent) => {
-    const who = e.actor === "owner" ? owner : (e.by ?? h.friend);
-    switch (e.kind) {
-      case "created":
-        return fmt(h.created, { who });
-      case "item_added":
-        return fmt(h.itemAdded, { who, name: e.name, amount: money(e.amountMinor), payer: e.payer });
-      case "item_deleted":
-        return fmt(h.itemDeleted, { who, name: e.name, amount: money(e.amountMinor) });
-      case "item_edited":
-        return `${fmt(h.itemEdited, { who, name: e.name })}: ${changeList(e.changes)}`;
-      case "title_changed":
-        return fmt(h.titleChanged, { who, to: e.to });
-      case "person_added":
-        return fmt(h.personAdded, { who, name: e.name });
-      case "person_removed":
-        return fmt(h.personRemoved, { who, name: e.name });
-      case "person_renamed":
-        return fmt(h.personRenamed, { who, from: e.from, to: e.to });
-      case "person_details":
-        return fmt(h.personDetails, { who, name: e.name });
-      case "person_joined":
-        return fmt(h.personJoined, { name: e.name });
-      case "bill_joined":
-        return fmt(h.billJoined, { who, name: e.name, amount: money(e.amountMinor) });
-      case "bill_left":
-        return fmt(h.billLeft, { who, name: e.name });
-      case "share_changed":
-        return fmt(h.shareChanged, { who, name: e.name, from: money(e.from), to: money(e.to) });
-      case "locked":
-        return fmt(h.locked, { who });
-      case "unlocked":
-        return fmt(h.unlocked, { who });
-      case "paid":
-        return fmt(h.paid, { who, from: e.from, to: e.to, amount: money(e.amountMinor) });
-      case "unpaid":
-        return fmt(h.unpaid, { who, from: e.from, to: e.to, amount: money(e.amountMinor) });
-    }
-  };
 
   return (
     <>
@@ -83,16 +212,7 @@ export function HistoryButton({
         {events.length === 0 ? (
           <p className="m-0 text-[14px] text-muted">{h.empty}</p>
         ) : (
-          <ul className="m-0 flex list-none flex-col p-0">
-            {events.map((e, i) => (
-              <li key={e.id} className={`py-2.5 ${i > 0 ? "border-t border-line" : ""}`}>
-                <span className="block text-[14px] leading-[1.45]">{line(e)}</span>
-                <span className="mt-0.5 block text-[12px] text-muted">
-                  {date(e.createdAt, { day: "numeric", month: "short" })} · {time(e.createdAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <HistoryList doc={doc} events={events} />
         )}
       </Sheet>
     </>

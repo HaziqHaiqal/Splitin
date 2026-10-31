@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
+import { HistoryRow } from "@/components/shared/history";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
@@ -683,9 +684,14 @@ function HistoryDemo() {
   const h = t.history;
   const [count, setCount] = useState(1);
   const rows = [
-    fmt(h.itemAdded, { who: "Afiq", name: t.help.demoBills[1], amount: money(5000), payer: "Afiq" }),
-    fmt(h.paid, { who: "Najmi", from: "Najmi", to: "Haziq", amount: money(11845) }),
-    `${fmt(h.itemEdited, { who: "Haziq", name: "Wifi" })}: ${fmt(h.changeAmount, { from: money(9220), to: money(12000) })}`,
+    { who: "Afiq", color: 2, text: fmt(h.itemAdded, { name: t.help.demoBills[1] }), amount: 5000 },
+    { who: "Najmi", color: 1, text: fmt(h.paid, { to: "Haziq" }), amount: 11845, tone: "paid" as const },
+    {
+      who: "Haziq",
+      color: 0,
+      text: fmt(h.itemEdited, { name: "Wifi" }),
+      notes: [fmt(h.changeAmount, { from: money(9220), to: money(12000) })],
+    },
   ];
   const next = () => setCount(count === rows.length ? 1 : count + 1);
   return (
@@ -699,23 +705,17 @@ function HistoryDemo() {
       }}
       className={cn(mini, "w-full max-w-[290px] cursor-pointer px-3 py-2.5")}
     >
-      <div className="pb-0.5 text-[13px] font-extrabold text-ink">
+      <div className="pb-2 text-[13px] font-extrabold text-ink">
         {h.title} · {count}
       </div>
-      {rows
-        .slice(0, count)
-        .reverse()
-        .map((row, i) => (
-          <div
-            key={row}
-            className={cn(
-              "py-1.5 text-[12px] leading-[1.4] text-ink",
-              i === 0 ? "animate-rise" : "border-t border-line",
-            )}
-          >
-            {row}
-          </div>
-        ))}
+      <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+        {rows
+          .slice(0, count)
+          .reverse()
+          .map((row, i) => (
+            <HistoryRow key={row.text} {...row} className={i === 0 ? "animate-rise" : undefined} />
+          ))}
+      </ul>
     </div>
   );
 }

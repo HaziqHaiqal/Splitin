@@ -427,6 +427,45 @@ test.describe("people on the owner's phone", () => {
 });
 
 test.describe("History", () => {
+  test("groups changes by day, and doesn't say a name twice", async ({ page }) => {
+    const noon = (daysAgo: number) => {
+      const day = new Date();
+      day.setDate(day.getDate() - daysAgo);
+      day.setHours(12, 0, 0, 0);
+      return day.toISOString();
+    };
+    const event = (kind: string, actor: string, data: Record<string, unknown>, created_at: string) => ({
+      id: crypto.randomUUID(),
+      bill_id: BILL,
+      kind,
+      actor,
+      data,
+      created_at,
+    });
+    await seed(trip, {
+      bill_events: [
+        event("paid", "friend", { from: "Najmi", to: "Haziq", amountMinor: 13000, by: "Najmi" }, noon(0)),
+        event("paid", "owner", { from: "Afiq", to: "Haziq", amountMinor: 4000 }, noon(0)),
+        event("paid", "friend", { from: "Afiq", to: "Haziq", amountMinor: 500 }, noon(0)),
+        event("unpaid", "friend", { from: "Afiq", to: "Haziq", amountMinor: 4000, by: "Afiq" }, noon(1)),
+        event("person_details", "owner", { name: "Haziq" }, noon(1)),
+        event("item_edited", "owner", { name: "Hotel", changes: { amount: [28000, 30000], split: true } }, noon(5)),
+      ],
+    });
+    await openBill(page);
+    const list = await openHistory(page);
+    const row = (words: string) => list.getByRole("listitem").filter({ hasText: words });
+
+    await expect(list.getByRole("heading", { level: 3 })).toHaveText(["Today", "Yesterday", /^\d{1,2} \w+$/]);
+    await expect(row("Najmi paid Haziq")).toContainText("RM 130.00");
+    await expect(list.getByText("Haziq marked Afiq → Haziq as paid")).toBeVisible();
+    await expect(list.getByText("A friend marked Afiq → Haziq as paid")).toBeVisible();
+    await expect(list.getByText("Afiq undid their payment to Haziq")).toBeVisible();
+    await expect(list.getByText("Haziq updated their bank details")).toBeVisible();
+    await expect(row("Haziq changed Hotel")).toContainText("Amount RM 280.00 → RM 300.00");
+    await expect(row("Haziq changed Hotel")).toContainText("Split updated");
+  });
+
   test("words every kind of friend change, and never stores secrets", async ({ page }) => {
     await seed({ ...trip, items: [hotel, dinner] });
     await openBill(page);
@@ -449,10 +488,12 @@ test.describe("History", () => {
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
 
     const list = await openHistory(page);
-    await expect(list.getByText("Najmi added Snacks (RM 10.00), paid by Najmi")).toBeVisible();
-    await expect(list.getByText("Najmi deleted Snacks (RM 10.00)")).toBeVisible();
+    const row = (words: string) => list.getByRole("listitem").filter({ hasText: words });
+    await expect(row("Najmi added Snacks")).toContainText("Paid by Najmi");
+    await expect(row("Najmi added Snacks")).toContainText("RM 10.00");
+    await expect(row("Najmi deleted Snacks")).toContainText("RM 10.00");
     await expect(list.getByText("Aiman joined the bill")).toBeVisible();
-    await expect(list.getByText("Aiman joined Hotel (RM 75.00)")).toBeVisible();
+    await expect(row("Aiman joined Hotel")).toContainText("RM 75.00");
 
     const stored = JSON.stringify((await getDb()).bill_events);
     expect(stored).not.toContain("deleteHash");
