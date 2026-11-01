@@ -1,4 +1,4 @@
-export const QR_BANKS: Record<string, string> = {
+export const QR_BANK_CODES: Record<string, string> = {
   "501664": "Affin Bank",
   "504374": "Alliance Bank",
   "432134": "Al Rajhi Bank",

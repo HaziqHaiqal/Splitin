@@ -127,7 +127,7 @@ export const en = {
     title: "Share receipt",
     previewTitle: "Receipt image + live link",
     previewDesc:
-      "Everyone's share and who pays who in one picture. The link or code shows bank details and lets everyone tap “I've paid”.",
+      "Everyone's share and who pays who in one picture. The link or code shows bank details and lets everyone mark what they've paid.",
     whatsapp: "Send to WhatsApp",
     saveImage: "Save image",
     copyLink: "Copy link",
@@ -187,7 +187,6 @@ export const en = {
     tapHint: "Paid? Tap your payment below to mark it.",
     chooseHint: "Paid? Tap to pick your name",
     confirmTitle: "{from} paid {to}?",
-    confirmDesc: "Everyone with the link will see a PAID stamp on this payment.",
     cancel: "Cancel",
     marked: "Marked as paid to {name}",
     undoTitle: "Not paid {to} after all?",
@@ -233,7 +232,6 @@ export const en = {
     desc: "For when the money sent isn't the amount on the receipt. The receipt works out the rest.",
     to: "Paid to",
     ownerLink: "Record a different amount",
-    different: "I paid a different amount",
   },
   history: {
     title: "History",
@@ -294,6 +292,7 @@ export const en = {
     next: "Next",
     getStarted: "Get started",
     replay: "Start over",
+    swapQr: "Swap the QR",
     steps: [
       {
         title: "Welcome to Splitin!",
@@ -322,27 +321,32 @@ export const en = {
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. Links delete themselves after 30 days. Under More, your owner link lets you edit from a new phone, and Lock bill stops everyone else changing the bills.",
+        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. Edit bills lets you change them later. Under More, your owner link lets you edit from a new phone, and Lock bill stops everyone else changing the bills.",
         hint: "Try it: send it to WhatsApp.",
       },
       {
         title: "Step 6: Mark who has paid",
-        desc: "Everyone opens the link, or taps Have a code? on the home page. They pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Record it, and the receipt works out the rest.",
+        desc: "Everyone opens the link, or taps Have a code? on the home page. They pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Tap Change beside the amount, and the receipt works out the rest.",
         hint: "Try it: pick a name, then mark your payment.",
       },
       {
-        title: "Step 7: Others add what they paid",
-        desc: "Did someone else pay for something too? On the link they tap Add bill. They can delete only what they added, on that same phone.",
+        title: "Step 7: Pay by QR or bank details",
+        desc: "Under Pay to on the receipt, tap Add bank details to add your account or payment QR. Others see it when they tap their payment, or Bank details beside your name. They can save the QR or copy the account number, then pay in their own bank app. If the name on the QR has nothing to do with the name on the bill, Splitin warns them first. Splitin never moves any money.",
+        hint: "Try it: swap the QR to see the warning.",
+      },
+      {
+        title: "Step 8: Others add what they paid",
+        desc: "Did someone else pay for something too? On the link they tap Add bill, and the receipt shows it before they save. They can delete only what they added, with Delete beside it, on that same phone.",
         hint: "Try it: add a bill, then delete it.",
       },
       {
-        title: "Step 8: Others join the bills they're in",
-        desc: "Missed out? They tap Join beside a bill, and tick any others they're in. Their share is worked out, or they can write their own amount. The receipt updates, and anyone who already paid too much gets paid back.",
+        title: "Step 9: Others join the bills they're in",
+        desc: "Missed out? They tap Join beside a bill, and tick any others they're in. Their share is worked out, or they can write their own amount. The receipt shows the result before they save, and anyone who already paid too much gets paid back. Already in? Change beside the bill lets them edit their amount or leave.",
         hint: "Try it: tick a bill and watch the amount.",
       },
       {
-        title: "Step 9: See every change",
-        desc: "History shows every change, with the name and time: bills added, changed or deleted, bank details updated, payments marked or undone. Everyone with the link can read it.",
+        title: "Step 10: See every change",
+        desc: "History shows every change, with the name and time: people joining, bills added, changed or deleted, bank details updated, payments marked or undone. Everyone with the link can read it.",
         hint: "Try it: tap for the next change.",
       },
     ],

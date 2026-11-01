@@ -8,6 +8,7 @@ import { HistoryBubble, HistoryRun } from "@/components/shared/history";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
+import { drawQrCard, loadQrCard, qrCardSize } from "@/lib/qr-card";
 import { cn } from "@/lib/utils";
 
 const NAMES = ["Haziq", "Najmi", "Afiq", "Imanul"];
@@ -173,8 +174,10 @@ function Visual({ step, onJump }: { step: number; onJump: (step: number) => void
     case 6:
       return <PayDemo />;
     case 7:
-      return <AddDemo />;
+      return <QrDemo />;
     case 8:
+      return <AddDemo />;
+    case 9:
       return <JoinDemo />;
     default:
       return <HistoryDemo />;
@@ -579,8 +582,53 @@ function PayDemo() {
   );
 }
 
+const QR_DEMOS = [
+  { name: "HAZIQ BIN AHMAD", bank: "Maybank", kind: "DuitNow QR" },
+  { name: "AMIR BIN ZULKIFLI", bank: "TNG eWallet", kind: "DuitNow QR" },
+];
+
+function QrDemo() {
+  const { t } = useI18n();
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [swapped, setSwapped] = useState(false);
+  const card = QR_DEMOS[swapped ? 1 : 0];
+
+  useEffect(() => {
+    const shown = canvas.current;
+    if (!shown) return;
+    let live = true;
+    void loadQrCard(shown, card.name, card).then(({ plate, word }) => {
+      if (live) drawQrCard(shown, plate, word, 1);
+    });
+    return () => {
+      live = false;
+    };
+  }, [card]);
+
+  return (
+    <div className="flex w-full max-w-[330px] items-center justify-center gap-3">
+      <canvas ref={canvas} {...qrCardSize(card)} aria-hidden className="block h-auto w-[148px] shrink-0" />
+      <div className="flex min-w-0 flex-col items-start gap-2">
+        {swapped ? (
+          <div className="animate-pop rounded-lg bg-card px-2.5 py-2 text-[11.5px] leading-[1.3] text-owe">
+            <b className="block font-extrabold">{fmt(t.person.qrNameOff, { qr: card.name, name: NAMES[0] })}</b>
+            {fmt(t.person.qrNameAsk, { name: NAMES[0] })}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setSwapped(!swapped)}
+          className={cn(mini, press, "h-8 px-3 text-[12px] font-bold text-ink", !swapped && "animate-nudge")}
+        >
+          {swapped ? t.help.replay : t.help.swapQr}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AddDemo() {
-  const { t, money } = useI18n();
+  const { t, plain } = useI18n();
   const [added, setAdded] = useState(false);
 
   if (!added) {
@@ -601,22 +649,24 @@ function AddDemo() {
   }
 
   return (
-    <div className={cn(mini, "w-full max-w-[270px] animate-pop px-3 py-1")}>
-      <div className="flex items-center justify-between gap-2 py-2">
-        <span className="min-w-0 truncate text-[13px] text-ink">
-          <b>{t.help.demoBills[1]}</b>
-          <span className="text-muted"> · {money(5000)}</span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setAdded(false)}
-          className={cn(
-            press,
-            "h-7 shrink-0 animate-nudge rounded-lg border border-border bg-card px-2.5 text-[12px] font-bold text-owe",
-          )}
-        >
-          {t.member.deleteMine}
-        </button>
+    <div className="w-full max-w-[250px]">
+      <div className="h-1.5 rounded-full bg-[#37352f]/75" />
+      <div className="px-2">
+        <Paper>
+          <div className="-mx-1 flex animate-printed justify-between gap-2 rounded px-1">
+            <span className="truncate">{t.help.demoBills[1].toUpperCase()}</span>
+            <span>{plain(5000)}</span>
+          </div>
+          <div className="mt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setAdded(false)}
+              className={cn(press, "animate-nudge font-sans text-[11px] font-bold text-[#b5413b]")}
+            >
+              {t.member.deleteMine}
+            </button>
+          </div>
+        </Paper>
       </div>
     </div>
   );

@@ -471,6 +471,47 @@ test.describe("adding your own name", () => {
     await expect(other.getByRole("button", { name: "Copy", exact: true })).toBeVisible();
   });
 
+  test("the wallpaper words reach every side of the card", async ({ page }) => {
+    await seed({ ...trip, people: [{ ...trip.people[0], payQr: AMIR }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const canvas = document.querySelector<HTMLCanvasElement>("canvas[role=img]")!;
+          const { width: w, height: h } = canvas;
+          const lit = (x: number, y: number, wide: number, tall: number) => {
+            const { data } = canvas.getContext("2d")!.getImageData(x, y, wide, tall);
+            let count = 0;
+            for (let i = 0; i < data.length; i += 4) if (data[i] === 0x3f && data[i + 1] === 0xc3) count++;
+            return count;
+          };
+          return [
+            lit(0, 0, w, 100),
+            lit(0, h - 100, w, 100),
+            lit(0, h / 2, 100, h / 2),
+            lit(w - 100, h / 2, 100, h / 2),
+          ].every((count) => count > 500);
+        }),
+      )
+      .toBe(true);
+  });
+
+  test("the pay sheet has one main button and closes by tapping outside", async ({ page }) => {
+    const hana = { bank: "Maybank", accountNo: "7012 4455", payQr: DUITNOW };
+    await seed({ ...trip, people: [{ ...trip.people[0], ...hana }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const ask = sheet(page);
+    await expect(ask.getByRole("button", { name: "Mark paid" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Change ›" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Copy account no." })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Save QR" })).toBeVisible();
+    await expect(ask.getByRole("button")).toHaveCount(4);
+    await page.touchscreen.tap(195, 20);
+    await expect(sheet(page)).toHaveCount(0);
+  });
+
   test("Mark paid can still be reached under the QR card on a small phone", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await seed({ ...trip, people: [{ ...trip.people[0], payQr: AMIR }, ...trip.people.slice(1)] });
@@ -725,7 +766,7 @@ test.describe("seeing a change before saving", () => {
   test("a different amount shows as paid, with the rest still to pay", async ({ page }) => {
     await openAs(page, "Najmi");
     await payLine(page, "NAJMI", "HAZIQ").click();
-    await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+    await sheet(page).getByRole("button", { name: "Change ›" }).click();
     const form = panel(page);
     await form.locator("input[inputmode='numeric']").pressSequentially("4000");
     await expect(page.getByText("PAID", { exact: true })).toBeVisible();
@@ -1104,7 +1145,7 @@ test.describe("paying", () => {
     test("a part payment can be undone while the rest stays open", async ({ page }) => {
       await openAs(page, "Najmi");
       await payLine(page, "NAJMI", "HAZIQ").click();
-      await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+      await sheet(page).getByRole("button", { name: "Change ›" }).click();
       const form = panel(page);
       await form.locator("input[inputmode='numeric']").pressSequentially("6000");
       await submit(form);
@@ -1112,7 +1153,7 @@ test.describe("paying", () => {
 
       await button(page, /NAJMI PAYS HAZIQ 40\.00$/).click();
       await expect(sheet(page).getByRole("heading", { name: "Najmi paid Haziq?" })).toBeVisible();
-      await sheet(page).getByRole("button", { name: "Cancel" }).click();
+      await page.keyboard.press("Escape");
       await expect(sheet(page)).toHaveCount(0);
 
       await button(page, /NAJMI PAYS HAZIQ 60\.00 PAID/).click();
@@ -1135,7 +1176,7 @@ test.describe("paying", () => {
   test("a different amount is recorded and the receipt works out the rest", async ({ page }) => {
     await openAs(page, "Najmi");
     await payLine(page, "NAJMI", "HAZIQ").click();
-    await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+    await sheet(page).getByRole("button", { name: "Change ›" }).click();
     const form = panel(page);
     await expect(form.getByText("Record a payment")).toBeVisible();
     await expect(form.getByText("Najmi → Haziq")).toBeVisible();
@@ -1150,7 +1191,7 @@ test.describe("paying", () => {
   test("the server refuses a different amount between people not on an open payment", async ({ page }) => {
     await openAs(page, "Najmi");
     await payLine(page, "NAJMI", "HAZIQ").click();
-    await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+    await sheet(page).getByRole("button", { name: "Change ›" }).click();
     const form = panel(page);
     await form.locator("input[inputmode='numeric']").pressSequentially("6000");
     await page.route("**/bill/**", async (route) => {

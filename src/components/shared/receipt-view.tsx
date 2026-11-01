@@ -493,7 +493,7 @@ export function ReceiptView({
             <button
               type="button"
               onClick={() => copy(person.accountNo!)}
-              className="h-[34px] shrink-0 rounded-lg border border-border bg-card px-3 text-[13px] font-bold text-ink"
+              className="min-h-11 shrink-0 text-[14px] font-bold text-green-ink"
             >
               {t.common.copy}
             </button>
@@ -528,32 +528,28 @@ export function ReceiptView({
         const { line } = ask;
         return (
           <>
-            <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
-            {payDetails(line.to)}
-            <p className="m-0 text-[14px] text-muted">{t.member.confirmDesc}</p>
-            <div className="flex flex-col gap-1.5 pt-1">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => pay({ from: line.from, to: line.to, amountMinor: line.amount }, false)}
-                className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60"
-              >
-                {t.track.markPaid}
-              </button>
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
               <button
                 type="button"
                 onClick={() => {
                   setAsking(false);
                   openView({ kind: "pay", from: line.from, to: line.to });
                 }}
-                className="h-11 text-[15px] font-bold text-green-ink"
+                className="min-h-11 shrink-0 text-[14.5px] font-bold text-green-ink"
               >
-                {t.pay.different}
-              </button>
-              <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
-                {t.member.cancel}
+                {t.bill.change} ›
               </button>
             </div>
+            {payDetails(line.to)}
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => pay({ from: line.from, to: line.to, amountMinor: line.amount }, false)}
+              className="h-14 shrink-0 rounded-2xl bg-green text-[16px] font-bold text-white disabled:opacity-60"
+            >
+              {t.track.markPaid}
+            </button>
           </>
         );
       }

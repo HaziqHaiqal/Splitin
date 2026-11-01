@@ -61,6 +61,11 @@ describe("readQrDetails", () => {
     expect(readQrDetails(UNKNOWN_BANK)).toEqual({ name: "HAZIQ HAIQAL", bank: null, duitNow: true });
   });
 
+  it("shows the name exactly as the QR has it, even when the bank cut it short", () => {
+    expect(readQrDetails("5925MUHAMMAD AMIRUL HAFIZ BIN").name).toBe("MUHAMMAD AMIRUL HAFIZ BIN");
+    expect(readQrDetails("5923KUMARAN A/L SUBRAMANIAM").name).toBe("KUMARAN A/L SUBRAMANIAM");
+  });
+
   it("copes with a code it can't read", () => {
     expect(readQrDetails("not a code")).toEqual({ name: null, bank: null, duitNow: false });
   });
@@ -83,6 +88,13 @@ describe("nameFitsQr", () => {
   it("doesn't match on words like bin and binti", () => {
     expect(nameFitsQr("Robin", "AMIR BIN ZULKIFLI")).toBe(false);
     expect(nameFitsQr("Ali bin Abu", "SITI BINTI OMAR")).toBe(false);
+  });
+
+  it("handles names from every community the same way", () => {
+    expect(nameFitsQr("Kumar", "KUMARAN A/L SUBRAMANIAM")).toBe(true);
+    expect(nameFitsQr("Bujang", "JOHN ANAK BUJANG")).toBe(true);
+    expect(nameFitsQr("Wei", "TAN WEI MING")).toBe(true);
+    expect(nameFitsQr("Anakin", "JOHN ANAK BUJANG")).toBe(false);
   });
 
   it("says nothing when there is no name to compare", () => {

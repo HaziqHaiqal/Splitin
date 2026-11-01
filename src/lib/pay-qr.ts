@@ -1,9 +1,9 @@
-import { QR_BANKS } from "./qr-banks";
+import { QR_BANK_CODES } from "./qr-bank-codes";
 
 export const MAX_QR_LENGTH = 512;
 
 const DUITNOW_ID = "A0000006150001";
-const NOT_A_NAME = new Set(["bin", "binti", "bt", "bte", "al", "ap"]);
+const NOT_A_NAME = new Set(["bin", "binti", "binte", "bt", "bte", "ibni", "anak", "al", "ap"]);
 
 type QrField = { tag: string; value: string };
 
@@ -49,7 +49,7 @@ export function readQrDetails(code: string) {
   const acquirer = duitNow?.find((f) => f.tag === "01")?.value;
   return {
     name: fields.find((f) => f.tag === "59")?.value.trim() || null,
-    bank: (acquirer && QR_BANKS[acquirer]) || null,
+    bank: (acquirer && QR_BANK_CODES[acquirer]) || null,
     duitNow: Boolean(duitNow),
   };
 }

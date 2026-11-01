@@ -7,7 +7,9 @@ const EDGE = 30;
 const QR_TOP = 40;
 const QR_SIZE = 196;
 const INK = "#37352f";
-const ROW = "Splitin ".repeat(8);
+const WORD = "Splitin ";
+const WORD_TOP = 46;
+const WORD_TALL = 60;
 const LINES = [
   { key: "name", size: 15, weight: 800, color: INK, gap: 19 },
   { key: "bank", size: 12.5, weight: 600, color: INK, gap: 18 },
@@ -22,7 +24,7 @@ export const qrCardSize = (text: QrCardText) => ({
   height: Math.round((plateBottom(text) + EDGE) * SCALE),
 });
 
-export function drawQrPlate(modules: QrModules, text: QrCardText, family: string) {
+function drawQrPlate(modules: QrModules, text: QrCardText, family: string) {
   const plate = document.createElement("canvas");
   Object.assign(plate, qrCardSize(text));
   const ctx = plate.getContext("2d");
@@ -65,7 +67,36 @@ export function drawQrPlate(modules: QrModules, text: QrCardText, family: string
   return plate;
 }
 
-export function drawQrCard(canvas: HTMLCanvasElement, plate: HTMLCanvasElement, family: string, progress: number) {
+function drawQrWord(family: string) {
+  const word = document.createElement("canvas");
+  const ctx = word.getContext("2d");
+  if (!ctx) return word;
+  const setUp = () => {
+    ctx.font = `800 ${44 * SCALE}px ${family}`;
+    ctx.letterSpacing = `${-1.3 * SCALE}px`;
+    ctx.fillStyle = "#3fc377";
+  };
+  setUp();
+  word.width = Math.ceil(ctx.measureText(WORD).width);
+  word.height = Math.ceil(WORD_TALL * SCALE);
+  setUp();
+  ctx.fillText(WORD, 0, WORD_TOP * SCALE);
+  return word;
+}
+
+export async function loadQrCard(canvas: HTMLCanvasElement, code: string, text: QrCardText) {
+  const { create } = await import("qrcode");
+  const family = getComputedStyle(canvas).fontFamily;
+  await Promise.allSettled([600, 700, 800].map((weight) => document.fonts.load(`${weight} 16px ${family}`)));
+  return { plate: drawQrPlate(create(code).modules, text, family), word: drawQrWord(family) };
+}
+
+export function drawQrCard(
+  canvas: HTMLCanvasElement,
+  plate: HTMLCanvasElement,
+  word: HTMLCanvasElement,
+  progress: number,
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const height = canvas.height / SCALE;
@@ -82,10 +113,10 @@ export function drawQrCard(canvas: HTMLCanvasElement, plate: HTMLCanvasElement, 
   ctx.translate(WIDTH / 2, height / 2);
   ctx.rotate((-14 * Math.PI) / 180);
   ctx.translate(-WIDTH / 2, -height / 2);
-  ctx.font = `800 44px ${family}`;
-  ctx.letterSpacing = "-1.3px";
-  ctx.fillStyle = "#3fc377";
-  for (let row = 0; row < 12; row++) ctx.fillText(ROW, row % 2 ? -250 + slide : -190 - slide, -90 + row * 46);
+  const step = word.width / SCALE;
+  for (let row = 0; row < 12; row++)
+    for (let x = row % 2 ? -250 + slide : -190 - slide; x < WIDTH + 60; x += step)
+      ctx.drawImage(word, x, -90 + row * 46 - WORD_TOP, step, word.height / SCALE);
   ctx.restore();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(plate, 0, 0);

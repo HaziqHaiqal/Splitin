@@ -129,7 +129,7 @@ export const ms: Dictionary = {
     title: "Kongsi resit",
     previewTitle: "Gambar resit + pautan",
     previewDesc:
-      "Bahagian semua orang dan siapa bayar siapa dalam satu gambar. Pautan atau kod menunjukkan butiran bank dan membolehkan semua orang tekan “Dah bayar”.",
+      "Bahagian semua orang dan siapa bayar siapa dalam satu gambar. Pautan atau kod menunjukkan butiran bank dan membolehkan semua orang tanda bayaran mereka.",
     whatsapp: "Hantar ke group WhatsApp",
     saveImage: "Simpan gambar",
     copyLink: "Salin pautan",
@@ -189,7 +189,6 @@ export const ms: Dictionary = {
     tapHint: "Dah bayar? Ketik bayaran anda di bawah untuk tanda.",
     chooseHint: "Dah bayar? Ketik untuk pilih nama anda",
     confirmTitle: "{from} dah bayar {to}?",
-    confirmDesc: "Semua yang ada pautan akan nampak cap DIBAYAR pada bayaran ini.",
     cancel: "Batal",
     marked: "Ditanda dah bayar kepada {name}",
     undoTitle: "Belum bayar {to} sebenarnya?",
@@ -235,7 +234,6 @@ export const ms: Dictionary = {
     desc: "Untuk wang yang dihantar tidak sama dengan jumlah pada resit. Resit akan kira selebihnya.",
     to: "Dibayar kepada",
     ownerLink: "Rekod jumlah lain",
-    different: "Saya bayar jumlah lain",
   },
   history: {
     title: "Sejarah",
@@ -296,6 +294,7 @@ export const ms: Dictionary = {
     next: "Seterusnya",
     getStarted: "Mula",
     replay: "Mula semula",
+    swapQr: "Tukar QR",
     steps: [
       {
         title: "Selamat datang ke Splitin!",
@@ -324,27 +323,32 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan dipadam sendiri selepas 30 hari. Di bawah Lagi, pautan pemilik membolehkan anda ubah bil dari telefon baru, dan Kunci bil menghalang orang lain mengubah bil.",
+        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Ubah bil membolehkan anda ubah kemudian. Di bawah Lagi, pautan pemilik membolehkan anda ubah bil dari telefon baru, dan Kunci bil menghalang orang lain mengubah bil.",
         hint: "Cuba: hantar ke WhatsApp.",
       },
       {
         title: "Langkah 6: Tanda siapa dah bayar",
-        desc: "Semua orang buka pautan, atau ketik Ada kod? di halaman utama. Mereka pilih nama, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Rekod jumlah itu, dan resit kira selebihnya.",
+        desc: "Semua orang buka pautan, atau ketik Ada kod? di halaman utama. Mereka pilih nama, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Ketik Ubah di tepi jumlah, dan resit kira selebihnya.",
         hint: "Cuba: pilih nama, kemudian tanda bayaran anda.",
       },
       {
-        title: "Langkah 7: Orang lain tambah apa yang mereka bayar",
-        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik Tambah bil. Mereka hanya boleh padam apa yang mereka tambah, pada telefon yang sama.",
+        title: "Langkah 7: Bayar dengan QR atau butiran bank",
+        desc: "Di bawah Bayar kepada pada resit, ketik Tambah butiran bank untuk tambah akaun atau QR bayaran anda. Orang lain nampak apabila mereka ketik bayaran mereka, atau Butiran bank di tepi nama anda. Mereka boleh simpan QR atau salin nombor akaun, kemudian bayar dalam aplikasi bank sendiri. Jika nama pada QR tiada kaitan dengan nama pada bil, Splitin beri amaran dahulu. Splitin tidak memindahkan wang.",
+        hint: "Cuba: tukar QR untuk lihat amaran.",
+      },
+      {
+        title: "Langkah 8: Orang lain tambah apa yang mereka bayar",
+        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik Tambah bil, dan resit tunjukkannya sebelum disimpan. Mereka hanya boleh padam apa yang mereka tambah, dengan Padam di tepinya, pada telefon yang sama.",
         hint: "Cuba: tambah bil, kemudian padam.",
       },
       {
-        title: "Langkah 8: Orang lain sertai bil mereka",
-        desc: "Tertinggal? Mereka ketik Sertai di tepi bil, dan tanda bil lain yang berkaitan. Bahagian mereka dikira sendiri, atau mereka boleh tulis jumlah sendiri. Resit dikemas kini, dan sesiapa yang dah terlebih bayar akan dibayar semula.",
+        title: "Langkah 9: Orang lain sertai bil mereka",
+        desc: "Tertinggal? Mereka ketik Sertai di tepi bil, dan tanda bil lain yang berkaitan. Bahagian mereka dikira sendiri, atau mereka boleh tulis jumlah sendiri. Resit tunjuk hasilnya sebelum disimpan, dan sesiapa yang dah terlebih bayar akan dibayar semula. Dah sertai? Ubah di tepi bil membolehkan mereka ubah jumlah atau keluar.",
         hint: "Cuba: tanda bil dan lihat jumlahnya.",
       },
       {
-        title: "Langkah 9: Lihat semua perubahan",
-        desc: "Sejarah tunjuk setiap perubahan, dengan nama dan masa: bil ditambah, diubah atau dipadam, butiran bank dikemas kini, bayaran ditanda atau dibatalkan. Semua yang ada pautan boleh baca.",
+        title: "Langkah 10: Lihat semua perubahan",
+        desc: "Sejarah tunjuk setiap perubahan, dengan nama dan masa: orang menyertai, bil ditambah, diubah atau dipadam, butiran bank dikemas kini, bayaran ditanda atau dibatalkan. Semua yang ada pautan boleh baca.",
         hint: "Cuba: ketik untuk perubahan seterusnya.",
       },
     ],
