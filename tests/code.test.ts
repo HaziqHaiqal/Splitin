@@ -4,15 +4,16 @@ import {
   button,
   CODE,
   getDb,
+  markExpired,
   newPhone,
   ownerStorage,
   panel,
   pickMe,
-  saveDb,
   seed,
   seedWithCode,
   sheet,
   text,
+  TOKEN,
   trip,
 } from "./helpers";
 
@@ -128,20 +129,6 @@ test.describe("sharing a code", () => {
     ]);
     expect(download.suggestedFilename()).toContain(code);
   });
-
-  test("older bills keep their link and show no code", async ({ browser }) => {
-    const owner = await newPhone(browser, ownerStorage());
-    await catchWhatsApp(owner);
-    await owner.goto("/");
-    await button(owner, "Share receipt").click();
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
-    await expect(codeRow(owner)).toHaveCount(0);
-    await expect(owner.getByText(`CODE ${BILL}`)).toHaveCount(0);
-    const message = await sentToWhatsApp(owner);
-    expect(message).toContain(
-      `*Trip*\nRM 300.00 · 3 people\n\nTap to see what you owe and mark paid:\n${linkTo(owner, BILL)}`,
-    );
-  });
 });
 
 test.describe("entering a code", () => {
@@ -170,8 +157,29 @@ test.describe("entering a code", () => {
     await expect(page).toHaveURL(new RegExp(`/bill/${CODE}$`));
   });
 
+  test("older bills keep their link and show no code", async ({ browser }) => {
+    const oldLink = "TestBill01";
+    await seed(trip, {}, oldLink);
+    const owner = await newPhone(browser, {
+      [`splitin:owner:${oldLink}`]: TOKEN,
+      "splitin:draft:v2": { doc: trip, billId: oldLink, seenAt: "" },
+    });
+    await catchWhatsApp(owner);
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(codeRow(owner)).toHaveCount(0);
+    await expect(owner.getByText(`CODE ${oldLink}`)).toHaveCount(0);
+    const message = await sentToWhatsApp(owner);
+    expect(message).toContain(
+      `*Trip*\nRM 300.00 · 3 people\n\nTap to see what you owe and mark paid:\n${linkTo(owner, oldLink)}`,
+    );
+    await owner.goto(`/bill/${oldLink}`);
+    await expect(text(owner, "Hi Haziq")).toBeVisible();
+  });
+
   test("a code that has gone says it expired", async ({ page }) => {
-    await saveDb({ expired_bills: [{ id: CODE }] });
+    await markExpired(CODE);
     await page.goto("/");
     await enter(page, CODE);
     await expect(text(page, "This receipt has expired")).toBeVisible();

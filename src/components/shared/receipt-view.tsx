@@ -23,21 +23,7 @@ import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { itemShares, ownerOf, summarize, type Item, type Person, type PlanLine, type PreviewItem } from "@/lib/bill";
-import {
-  getAsked,
-  getMe,
-  setAsked,
-  setMe,
-  setMyItem,
-  setMyJoin,
-  setMyPayment,
-  setMyName,
-  useMe,
-  useMyItems,
-  useMyJoins,
-  useMyNames,
-  useMyPayments,
-} from "@/lib/store";
+import { getAsked, getMe, setAsked, setMe, useMe } from "@/lib/store";
 import { BankForm } from "./bank-form";
 import { Greeting } from "./greeting";
 import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
@@ -79,10 +65,7 @@ export function ReceiptView({
   const [tell, setTell] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const desktop = useIsDesktop();
-  const mine = useMyItems(bill.id);
-  const myJoins = useMyJoins(bill.id);
-  const myNames = useMyNames(bill.id);
-  const myPayments = useMyPayments(bill.id);
+  const { mine } = bill;
   const me = useMe(bill.id);
 
   const doc =
@@ -177,20 +160,18 @@ export function ReceiptView({
       setAsking(false);
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setView(null);
-      const { id, undoKey } = result.data;
-      setMyPayment(bill.id, id, undoKey);
+      const { id } = result.data;
       toast({
         message: fmt(t.member.marked, { name: nameOf(payment.to) }),
-        action: { label: t.common.undo, onClick: () => unpay(id, payment, undoKey) },
+        action: { label: t.common.undo, onClick: () => unpay(id, payment) },
       });
     });
 
-  const unpay = (paymentId: string, line: { from: string; to: string }, undoKey: string) =>
+  const unpay = (paymentId: string, line: { from: string; to: string }) =>
     start(async () => {
-      const result = await removePayment(bill.id, paymentId, { undoKey, byId: line.from });
+      const result = await removePayment(bill.id, paymentId, { byId: line.from });
       setAsking(false);
       if (!result.ok) return void toast({ message: errorText(result.error) });
-      setMyPayment(bill.id, paymentId, null);
       toast({ message: fmt(t.track.unmarked, { from: nameOf(line.from), to: nameOf(line.to) }) });
     });
 
@@ -203,22 +184,19 @@ export function ReceiptView({
         newPeople.map(({ id, name }) => ({ id, name })),
       );
       if (!result.ok) return void toast({ message: errorText(result.error, newPeople[0]?.name) });
-      const { id, token } = result.data;
-      setMyItem(bill.id, id, token);
-      for (const p of newPeople) setMyName(bill.id, p.id, token);
+      const { id } = result.data;
       setFreshId(id);
       setTell(true);
       toast({
         message: fmt(t.member.added, { name: item.name }),
-        action: { label: t.common.undo, onClick: () => deleteItem({ ...item, id }, token) },
+        action: { label: t.common.undo, onClick: () => deleteItem({ ...item, id }) },
       });
     });
 
-  const deleteItem = (item: Item, token: string) =>
+  const deleteItem = (item: Item) =>
     start(async () => {
-      const result = await removeMemberItem(bill.id, item.id, token, getMe(bill.id));
+      const result = await removeMemberItem(bill.id, item.id, getMe(bill.id));
       if (!result.ok) return void toast({ message: errorText(result.error) });
-      setMyItem(bill.id, item.id, null);
       setTell(true);
       toast({
         message: fmt(t.bill.deleted, { name: item.name }),
@@ -230,8 +208,7 @@ export function ReceiptView({
     start(async () => {
       const result = await addMyName(bill.id, name);
       if (!result.ok) return void toast({ message: errorText(result.error, name) });
-      const { person, key } = result.data;
-      setMyName(bill.id, person.id, key);
+      const { person } = result.data;
       setMe(bill.id, person.id);
       setNewMe(person);
       setView(null);
@@ -242,8 +219,6 @@ export function ReceiptView({
     start(async () => {
       const result = await saveMyBills(bill.id, getMe(bill.id), next);
       if (!result.ok) return void toast({ message: errorText(result.error) });
-      for (const { itemId } of next.join) setMyJoin(bill.id, itemId, result.data.token);
-      for (const { itemId } of next.leave) setMyJoin(bill.id, itemId, null);
       setView(null);
       setTell(true);
       toast({
@@ -255,7 +230,7 @@ export function ReceiptView({
                 saveBills(
                   {
                     ...undo,
-                    leave: [...undo.leave, ...next.join.map(({ itemId }) => ({ itemId, token: result.data.token }))],
+                    leave: [...undo.leave, ...next.join.map(({ itemId }) => ({ itemId }))],
                   },
                   null,
                 ),
@@ -266,7 +241,7 @@ export function ReceiptView({
 
   const saveDetails = (personId: string, details: { bank: string | null; accountNo: string | null }) =>
     start(async () => {
-      const result = await setMyDetails(bill.id, personId, myNames[personId], details, getMe(bill.id));
+      const result = await setMyDetails(bill.id, personId, details, getMe(bill.id));
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setView(null);
       toast({ message: t.common.save });
@@ -327,9 +302,10 @@ export function ReceiptView({
     </div>
   );
 
-  const myItems = member ? doc.items.filter((i) => i.addedAt && mine[i.id]) : [];
-  const joined = member && me ? doc.items.filter((i) => i.joins?.[me] && myJoins[i.id]) : [];
-  const names = member ? doc.people.filter((p) => myNames[p.id]) : [];
+  const myJoins = mine.joins.filter((j) => j.personId === me).map((j) => j.itemId);
+  const myItems = member ? doc.items.filter((i) => i.addedAt && mine.items.includes(i.id)) : [];
+  const joined = member && me ? doc.items.filter((i) => i.joins?.[me] && myJoins.includes(i.id)) : [];
+  const names = member ? doc.people.filter((p) => mine.people.includes(p.id)) : [];
   const hasList = !locked && myItems.length + joined.length + names.length > 0;
   const myList = hasList ? (
     <div className="rounded-2xl border border-border bg-card px-4 pt-3 pb-1">
@@ -355,7 +331,7 @@ export function ReceiptView({
             item.name,
             money(item.amountMinor),
             t.member.deleteMine,
-            () => withMe(() => deleteItem(item, mine[item.id])),
+            () => withMe(() => deleteItem(item)),
             true,
           ),
         )}
@@ -399,7 +375,7 @@ export function ReceiptView({
           <JoinForm
             doc={doc}
             me={me ?? ""}
-            tokens={myJoins}
+            own={myJoins}
             bare={bare}
             pending={pending}
             onSave={saveBills}
@@ -536,7 +512,7 @@ export function ReceiptView({
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => unpay(line.paymentId!, line, myPayments[line.paymentId!])}
+                onClick={() => unpay(line.paymentId!, line)}
                 className="h-14 rounded-2xl bg-chip text-[16px] font-bold text-ink disabled:opacity-60"
               >
                 {t.track.markUnpaid}
@@ -633,7 +609,7 @@ export function ReceiptView({
             onHint={member && !myName ? () => showAsk({ kind: "who", then: () => undefined }) : undefined}
             onLine={member && myName ? tapLine : undefined}
             onlyFrom={me}
-            canUndo={(line) => Boolean(line.paymentId && myPayments[line.paymentId])}
+            canUndo={(line) => Boolean(line.paymentId && mine.payments.includes(line.paymentId))}
           />
         }
       />

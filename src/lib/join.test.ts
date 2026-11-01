@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   activePeople,
   itemShares,
-  joinerOf,
   joinItem,
   joinShare,
   leaveItem,
@@ -138,14 +137,6 @@ describe("leaving a bill", () => {
   it("refuses when it would leave the bill unpaid", () => {
     expect(leaveItem({ ...joined, participants: ["m"], overrides: {} }, "m")).toBeNull();
     expect(leaveItem({ ...joined, overrides: { h: 1000, n: 1000, a: 1000, i: 1000, m: 16160 } }, "m")).toBeNull();
-  });
-
-  it("finds who holds a key", () => {
-    const secrets = { joins: { "1": { m: "hash" } } };
-    expect(joinerOf(secrets, "1", "hash")).toBe("m");
-    expect(joinerOf(secrets, "1", "other")).toBeUndefined();
-    expect(joinerOf(secrets, "2", "hash")).toBeUndefined();
-    expect(joinerOf({}, "1", "hash")).toBeUndefined();
   });
 });
 

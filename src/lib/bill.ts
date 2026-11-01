@@ -44,10 +44,19 @@ export type Payment = {
   createdAt: string;
 };
 
-export type BillSecrets = {
+export type BillRights = {
   people?: Record<string, string>;
   items?: Record<string, string>;
   joins?: Record<string, Record<string, string>>;
+  payments?: Record<string, string>;
+};
+
+export type Mine = {
+  owner: boolean;
+  people: string[];
+  items: string[];
+  joins: { itemId: string; personId: string }[];
+  payments: string[];
 };
 
 export type ItemSplit =
@@ -231,28 +240,40 @@ export function leaveItem(item: Item, personId: string): Item | null {
   return withJoins({ ...item, participants, overrides }, without(item.joins ?? {}, personId));
 }
 
-export const joinerOf = (secrets: BillSecrets, itemId: string, hash: string) =>
-  Object.entries(secrets.joins?.[itemId] ?? {}).find(([, own]) => own === hash)?.[0];
-
-export function withoutOwnItem(doc: BillDoc, secrets: BillSecrets, itemId: string, tokenHash: string): BillDoc | null {
-  const hash = secrets.items?.[itemId];
-  if (!hash || hash !== tokenHash) return null;
+export function withoutOwnItem(doc: BillDoc, rights: BillRights, itemId: string, browser: string): BillDoc | null {
+  const hash = rights.items?.[itemId];
+  if (!hash || hash !== browser) return null;
   return { ...doc, items: doc.items.filter((i) => i.id !== itemId) };
 }
 
 const keep = (record: Readonly<Record<string, string>> = {}, live: (id: string) => boolean) =>
   Object.fromEntries(Object.entries(record).filter(([id]) => live(id)));
 
-export function liveSecrets(doc: BillDoc, secrets: BillSecrets): BillSecrets {
+export function liveRights(doc: BillDoc, rights: BillRights): BillRights {
   const people = new Set(doc.people.map((p) => p.id));
   const items = new Map(doc.items.map((i) => [i.id, i]));
-  const joins = Object.entries(secrets.joins ?? {})
+  const joins = Object.entries(rights.joins ?? {})
     .map(([itemId, hashes]) => [itemId, keep(hashes, (id) => Boolean(items.get(itemId)?.joins?.[id]))] as const)
     .filter(([, hashes]) => Object.keys(hashes).length > 0);
   return {
-    people: keep(secrets.people, (id) => people.has(id)),
-    items: keep(secrets.items, (id) => Boolean(items.get(id)?.addedAt)),
+    people: keep(rights.people, (id) => people.has(id)),
+    items: keep(rights.items, (id) => Boolean(items.get(id)?.addedAt)),
     joins: Object.fromEntries(joins),
+    payments: rights.payments ?? {},
+  };
+}
+
+export function mineOf(rights: BillRights, ownerBrowser: string | null, browser: string | null): Mine {
+  const own = (record: Readonly<Record<string, string>> = {}) =>
+    browser ? Object.keys(record).filter((id) => record[id] === browser) : [];
+  return {
+    owner: Boolean(browser && ownerBrowser === browser),
+    people: own(rights.people),
+    items: own(rights.items),
+    joins: Object.entries(rights.joins ?? {}).flatMap(([itemId, hashes]) =>
+      own(hashes).map((personId) => ({ itemId, personId })),
+    ),
+    payments: own(rights.payments),
   };
 }
 

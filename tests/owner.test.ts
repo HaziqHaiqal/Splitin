@@ -4,6 +4,7 @@ import {
   BILL,
   button,
   choose,
+  clearPayments,
   closePhones,
   dinner,
   eventKinds,
@@ -129,17 +130,17 @@ test.describe("sharing", () => {
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
     expect(published.doc.ownerId).toBeNull();
   });
+});
 
-  test("a bill shared before this feature is not asked again", async ({ browser }) => {
-    const { ownerId, ...doc } = trip;
-    void ownerId;
-    await seed(doc);
-    const owner = await newPhone(browser, ownerStorage(doc));
-    await owner.goto("/");
-    await button(owner, "Share receipt").click();
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
-    await expect(owner.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
-  });
+test("a bill shared before owners were saved is not asked again", async ({ browser }) => {
+  const { ownerId, ...doc } = trip;
+  void ownerId;
+  await seed(doc);
+  const owner = await newPhone(browser, ownerStorage(doc));
+  await owner.goto("/");
+  await button(owner, "Share receipt").click();
+  await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+  await expect(owner.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
 });
 
 test.describe("saving over members' changes", () => {
@@ -231,9 +232,8 @@ test.describe("owner screen", () => {
     await expect(owner.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
 
-  test("an older bill with no owner saved has no greeting", async ({ browser }) => {
-    const { ownerId, ...doc } = trip;
-    void ownerId;
+  test("a bill whose owner is not on the list has no greeting", async ({ browser }) => {
+    const doc = { ...trip, ownerId: null };
     await seed(doc);
     const owner = await tracking(browser, doc);
     await expect(owner.getByText(/^Hi /)).toHaveCount(0);
@@ -255,8 +255,7 @@ test.describe("owner screen", () => {
     const owner = await tracking(browser);
     await button(owner, "Mark paid").first().click();
     await expect(button(owner, "Mark unpaid")).toBeVisible();
-    const db = await getDb();
-    await fetch("http://localhost:54399/__db", { method: "POST", body: JSON.stringify({ ...db, payments: [] }) });
+    await clearPayments();
     await button(owner, "Mark unpaid").click();
     await expect(text(owner, "is unpaid again")).toBeVisible();
     await expect(owner.getByText("Something went wrong")).toHaveCount(0);

@@ -48,6 +48,7 @@ export const billDocSchema = z
   .refine(
     (doc) => {
       const ids = new Set(doc.people.map((p) => p.id));
+      if (doc.ownerId && !ids.has(doc.ownerId)) return false;
       return doc.items.every((i) => ids.has(i.paidBy) && i.participants.every((p) => ids.has(p)));
     },
     { message: "unknown person" },

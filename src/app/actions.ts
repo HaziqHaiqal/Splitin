@@ -1,17 +1,15 @@
 "use server";
 
-import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
+import { createHmac, randomBytes, randomInt, randomUUID } from "node:crypto";
 import { refresh } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
 import { isLocale, LOCALE_COOKIE } from "@/i18n";
 import {
-  joinerOf,
   joinItem,
   joinShare,
   leaveItem,
-  liveSecrets,
   mergeMemberChanges,
   repeatedName,
   splitItem,
@@ -19,13 +17,14 @@ import {
   withNewPeople,
   withoutOwnItem,
   type BillDoc,
-  type BillSecrets,
+  type BillRights,
   type Item,
-  type Payment,
   type Person,
 } from "@/lib/bill";
+import { eventRows, saveArgs } from "@/lib/bill-rows";
 import { bankSchema, billDocSchema, itemSchema, MAX_ITEMS, MAX_PEOPLE, personNameSchema } from "@/lib/bill-schema";
-import { getBill, linkExpired } from "@/lib/data/bill";
+import { browserHash, ensureBrowserHash, hashToken } from "@/lib/browser-key";
+import { getBill, linkExpired, readBill } from "@/lib/data/bill";
 import { diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
 import { broadcastChange } from "@/lib/realtime-server";
 import { db } from "@/lib/supabase/server";
@@ -35,6 +34,7 @@ type Result<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
 const BILLS_PER_HOUR = 30;
 const MEMBER_CHANGES_PER_HOUR = 100;
+const WRITE_ATTEMPTS = 5;
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
@@ -45,8 +45,6 @@ function randomId(length: number) {
 
 const newCode = () =>
   Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
-
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 async function guard<T>(run: () => Promise<Result<T>>): Promise<Result<T>> {
   try {
@@ -62,24 +60,15 @@ function changed(id: string) {
   refresh();
 }
 
-async function isOwner(id: string, token: unknown): Promise<boolean> {
-  if (typeof token !== "string" || token.length < 16) return false;
-  const { data } = await db().from("bills").select("owner_token_hash").eq("id", id).maybeSingle();
-  return Boolean(data && data.owner_token_hash === hashToken(token));
-}
+const tokenMatches = (hash: string, token: unknown) =>
+  typeof token === "string" && token.length >= 16 && hash === hashToken(token);
 
-async function logEvents(id: string, who: Who, events: EventBody[]) {
-  if (events.length === 0) return;
-  const rows = events.map(({ kind, ...data }) => ({
-    bill_id: id,
-    kind,
-    by_role: who.role,
-    by_person_id: who.personId ?? null,
-    by_name: who.name ?? null,
-    data,
-  }));
-  const { error } = await db().from("bill_events").insert(rows);
-  if (error) console.error("[splitin] history failed:", error);
+async function isOwner(id: string, token: unknown): Promise<boolean> {
+  const { data } = await db().from("bills").select("owner_token_hash, browser_hash").eq("id", id).maybeSingle();
+  if (!data) return false;
+  if (tokenMatches(data.owner_token_hash, token)) return true;
+  const browser = await browserHash();
+  return Boolean(browser && data.browser_hash === browser);
 }
 
 async function tooManyChanges(id: string): Promise<boolean> {
@@ -99,43 +88,52 @@ function signingKey() {
   return key;
 }
 
-const paymentKey = (paymentId: string) =>
-  createHmac("sha256", signingKey()).update(`payment:${paymentId}`).digest("hex").slice(0, 32);
-
 export async function setLocale(locale: string) {
   if (!isLocale(locale)) return;
   (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   refresh();
 }
 
-export async function publishBill(doc: BillDoc): Promise<Result<{ id: string; ownerToken: string }>> {
+export async function publishBill(input: BillDoc): Promise<Result<{ id: string; ownerToken: string }>> {
   return guard(async () => {
-    const parsed = billDocSchema.safeParse(doc);
+    const parsed = billDocSchema.safeParse(input);
     if (!parsed.success) return { ok: false, error: "invalid" };
-    if (repeatedName(parsed.data as BillDoc)) return { ok: false, error: "duplicate" };
+    const doc = parsed.data as BillDoc;
+    if (repeatedName(doc)) return { ok: false, error: "duplicate" };
 
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-    const creatorHash = createHmac("sha256", signingKey()).update(ip).digest("hex").slice(0, 32);
+    const ipHash = createHmac("sha256", signingKey()).update(ip).digest("hex").slice(0, 32);
     const since = new Date(Date.now() - 3_600_000).toISOString();
     const { count } = await db()
       .from("bills")
       .select("id", { count: "exact", head: true })
-      .eq("creator_hash", creatorHash)
+      .eq("ip_hash", ipHash)
       .gte("created_at", since);
     if ((count ?? 0) >= BILLS_PER_HOUR) return { ok: false, error: "rate_limited" };
 
     const ownerToken = randomId(32);
+    const { p_bill, ...rows } = saveArgs(doc, {});
+    const bill = {
+      ...p_bill,
+      owner_token_hash: hashToken(ownerToken),
+      browser_hash: await ensureBrowserHash(),
+      ip_hash: ipHash,
+      started_at: doc.createdAt,
+    };
     for (let attempt = 0; attempt < 3; attempt++) {
       const id = newCode();
-      const { error } = await db()
-        .from("bills")
-        .insert({ id, doc: parsed.data, owner_token_hash: hashToken(ownerToken), creator_hash: creatorHash });
-      if (!error) {
-        await logEvents(id, ownerWho(parsed.data as BillDoc), [{ kind: "created" }]);
-        return { ok: true, data: { id, ownerToken } };
+      const { error } = await db().rpc("create_bill", {
+        p_id: id,
+        p_bill: bill,
+        ...rows,
+        p_events: eventRows(ownerWho(doc), [{ kind: "created" }]),
+      });
+      if (!error) return { ok: true, data: { id, ownerToken } };
+      if (error.code !== "23505") {
+        console.error("[splitin] create failed:", error);
+        return { ok: false, error: "db" };
       }
-      if (error.code !== "23505") return { ok: false, error: "db" };
     }
     return { ok: false, error: "db" };
   });
@@ -149,51 +147,52 @@ export async function findBill(code: string): Promise<Result<{ id: string }>> {
   });
 }
 
-async function writeDoc(
+type Change = { doc: BillDoc; who: Who; events: EventBody[] };
+
+async function writeBill(
   id: string,
-  change: (doc: BillDoc, secrets: BillSecrets) => BillDoc | null,
+  change: (doc: BillDoc, rights: BillRights) => Change | null,
 ): Promise<BillDoc | null> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const { data: bill } = await db().from("bills").select("doc, secrets, updated_at").eq("id", id).maybeSingle();
+  for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
+    const bill = await readBill(id);
     if (!bill) return null;
-    const secrets = bill.secrets as BillSecrets;
-    const next = change(bill.doc as BillDoc, secrets);
+    const next = change(bill.doc, bill.rights);
     if (!next) return null;
-    const { data, error } = await db()
-      .from("bills")
-      .update({ doc: next, secrets: liveSecrets(next, secrets), updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .eq("updated_at", bill.updated_at)
-      .select("id");
-    if (error) return null;
-    if (data.length > 0) return next;
+    const { data, error } = await db().rpc("save_bill", {
+      p_id: id,
+      p_version: bill.version,
+      ...saveArgs(next.doc, bill.rights),
+      p_events: eventRows(next.who, next.events),
+    });
+    if (error) {
+      console.error("[splitin] save failed:", error);
+      return null;
+    }
+    if (data !== null) return next.doc;
   }
   return null;
 }
 
 export async function saveBill(
   id: string,
-  ownerToken: string,
-  doc: BillDoc,
+  ownerToken: string | null,
+  input: BillDoc,
   seenAt = "",
 ): Promise<Result<{ doc: BillDoc }>> {
   return guard(async () => {
-    const parsed = billDocSchema.safeParse(doc);
+    const parsed = billDocSchema.safeParse(input);
     if (!parsed.success) return { ok: false, error: "invalid" };
     if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
-    let events: EventBody[] = [];
     let refused = "db";
-    const saved = await writeDoc(id, (current) => {
-      const next = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
-      if (repeatedName(next)) {
+    const saved = await writeBill(id, (current) => {
+      const doc = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
+      if (repeatedName(doc)) {
         refused = "duplicate";
         return null;
       }
-      events = diffDocs(current, next);
-      return next;
+      return { doc, who: ownerWho(doc), events: diffDocs(current, doc) };
     });
     if (!saved) return { ok: false, error: refused };
-    await logEvents(id, ownerWho(saved), events);
     after(() => broadcastChange(id));
     return { ok: true, data: { doc: saved } };
   });
@@ -201,9 +200,9 @@ export async function saveBill(
 
 export async function loadBillDoc(id: string): Promise<Result<{ doc: BillDoc }>> {
   return guard(async () => {
-    const { data } = await db().from("bills").select("doc").eq("id", id).maybeSingle();
-    if (!data) return { ok: false, error: "not_found" };
-    return { ok: true, data: { doc: data.doc as BillDoc } };
+    const bill = await readBill(id);
+    if (!bill) return { ok: false, error: "not_found" };
+    return { ok: true, data: { doc: bill.doc } };
   });
 }
 
@@ -214,20 +213,17 @@ export async function addMemberItem(
   input: Item,
   byId?: unknown,
   newPeople: unknown = [],
-): Promise<Result<{ id: string; token: string }>> {
+): Promise<Result<{ id: string }>> {
   return guard(async () => {
     const parsed = itemSchema.safeParse(input);
     const added = newPeopleSchema.safeParse(newPeople);
     if (!parsed.success || !added.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-    const token = randomId(32);
-    const tokenHash = hashToken(token);
+    const browser = await ensureBrowserHash();
     const { name, amountMinor, paidBy, participants, overrides } = parsed.data;
     const item: Item = { id: randomId(8), name, amountMinor, paidBy, participants, overrides };
-    let events: EventBody[] = [];
-    let who: Who = { role: "member" };
     let refused = "invalid";
-    const saved = await writeDoc(id, (current, secrets) => {
+    const saved = await writeBill(id, (current, rights) => {
       if (current.locked) {
         refused = "locked";
         return null;
@@ -238,63 +234,63 @@ export async function addMemberItem(
         refused = "duplicate";
         return null;
       }
-      who = memberWho(current, byId);
       const people = new Set(doc.people.map((p) => p.id));
       const known = people.has(item.paidBy) && item.participants.every((p) => people.has(p));
       const fits = splitItem(item.amountMinor, item.participants, item.overrides).ok;
       if (!known || !fits || doc.items.length >= MAX_ITEMS || doc.people.length > MAX_PEOPLE) return null;
-      events = [
-        ...added.data.map((p): EventBody => ({ kind: "person_added", name: p.name })),
-        { kind: "item_added", name: item.name, amountMinor: item.amountMinor, payer: personName(doc, item.paidBy) },
-      ];
-      secrets.items = { ...secrets.items, [item.id]: tokenHash };
-      secrets.people = { ...secrets.people, ...Object.fromEntries(added.data.map((p) => [p.id, tokenHash])) };
-      return { ...doc, items: [...doc.items, { ...item, addedAt: at }] };
+      rights.items = { ...rights.items, [item.id]: browser };
+      rights.people = { ...rights.people, ...Object.fromEntries(added.data.map((p) => [p.id, browser])) };
+      return {
+        doc: { ...doc, items: [...doc.items, { ...item, addedAt: at }] },
+        who: memberWho(doc, byId),
+        events: [
+          ...added.data.map((p): EventBody => ({ kind: "person_added", name: p.name })),
+          { kind: "item_added", name: item.name, amountMinor: item.amountMinor, payer: personName(doc, item.paidBy) },
+        ],
+      };
     });
     if (!saved) return { ok: false, error: refused };
-    await logEvents(id, who, events);
     changed(id);
-    return { ok: true, data: { id: item.id, token } };
+    return { ok: true, data: { id: item.id } };
   });
 }
 
-export async function removeMemberItem(id: string, itemId: string, token: unknown, byId?: unknown): Promise<Result> {
+export async function removeMemberItem(id: string, itemId: string, byId?: unknown): Promise<Result> {
   return guard(async () => {
-    if (typeof token !== "string" || token.length < 16) return { ok: false, error: "forbidden" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-    const tokenHash = hashToken(token);
-    let events: EventBody[] = [];
-    let who: Who = { role: "member" };
+    const browser = await browserHash();
+    if (!browser) return { ok: false, error: "forbidden" };
     let refused = "forbidden";
-    const saved = await writeDoc(id, (doc, secrets) => {
+    const saved = await writeBill(id, (doc, rights) => {
       if (doc.locked) {
         refused = "locked";
         return null;
       }
-      const next = withoutOwnItem(doc, secrets, itemId, tokenHash);
+      const next = withoutOwnItem(doc, rights, itemId, browser);
       const item = doc.items.find((i) => i.id === itemId);
       if (!next || !item) return null;
-      events = [{ kind: "item_deleted", name: item.name, amountMinor: item.amountMinor }];
-      who = memberWho(doc, byId);
-      return next;
+      return {
+        doc: next,
+        who: memberWho(doc, byId),
+        events: [{ kind: "item_deleted", name: item.name, amountMinor: item.amountMinor }],
+      };
     });
     if (!saved) return { ok: false, error: refused };
-    await logEvents(id, who, events);
     changed(id);
     return { ok: true, data: null };
   });
 }
 
-export async function addMyName(id: string, input: unknown): Promise<Result<{ person: Person; key: string }>> {
+export async function addMyName(id: string, input: unknown): Promise<Result<{ person: Person }>> {
   return guard(async () => {
     const parsed = personNameSchema.safeParse(input);
     if (!parsed.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-    const key = randomId(32);
+    const browser = await ensureBrowserHash();
     const personId = randomId(6);
     let person: Person | undefined;
     let refused = "invalid";
-    const saved = await writeDoc(id, (current, secrets) => {
+    const saved = await writeBill(id, (current, rights) => {
       if (current.locked) {
         refused = "locked";
         return null;
@@ -305,152 +301,152 @@ export async function addMyName(id: string, input: unknown): Promise<Result<{ pe
         return null;
       }
       if (doc.people.length > MAX_PEOPLE) return null;
-      person = doc.people[doc.people.length - 1];
-      secrets.people = { ...secrets.people, [personId]: hashToken(key) };
-      return doc;
+      const added = doc.people[doc.people.length - 1];
+      person = added;
+      rights.people = { ...rights.people, [personId]: browser };
+      return {
+        doc,
+        who: { role: "member", personId: added.id, name: added.name },
+        events: [{ kind: "person_joined", name: added.name }],
+      };
     });
     if (!saved || !person) return { ok: false, error: refused };
-    await logEvents(id, { role: "member", personId: person.id, name: person.name }, [
-      { kind: "person_joined", name: person.name },
-    ]);
     changed(id);
-    return { ok: true, data: { person, key } };
+    return { ok: true, data: { person } };
   });
 }
 
 const myBillsSchema = z.object({
   join: z.array(z.object({ itemId: z.string(), written: z.int().min(1).optional() })).max(MAX_ITEMS),
-  change: z
-    .array(z.object({ itemId: z.string(), token: z.string(), written: z.int().min(1).optional() }))
-    .max(MAX_ITEMS),
-  leave: z.array(z.object({ itemId: z.string(), token: z.string() })).max(MAX_ITEMS),
+  change: z.array(z.object({ itemId: z.string(), written: z.int().min(1).optional() })).max(MAX_ITEMS),
+  leave: z.array(z.object({ itemId: z.string() })).max(MAX_ITEMS),
 });
 
 export type MyBillChanges = z.infer<typeof myBillsSchema>;
 
-export async function saveMyBills(id: string, byId: unknown, input: MyBillChanges): Promise<Result<{ token: string }>> {
+export async function saveMyBills(id: string, byId: unknown, input: MyBillChanges): Promise<Result> {
   return guard(async () => {
     const parsed = myBillsSchema.safeParse(input);
-    if (!parsed.success) return { ok: false, error: "invalid" };
+    if (!parsed.success || typeof byId !== "string") return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
     const { join, change, leave } = parsed.data;
-    const token = randomId(32);
-    let events: EventBody[] = [];
-    let who: Who = { role: "member" };
+    const browser = await ensureBrowserHash();
     let refused = "invalid";
-    const saved = await writeDoc(id, (doc, secrets) => {
+    const saved = await writeBill(id, (doc, rights) => {
       if (doc.locked) {
         refused = "locked";
         return null;
       }
-      who = memberWho(doc, byId);
+      const who = memberWho(doc, byId);
       if (join.length > 0 && !who.name) return null;
       const at = new Date().toISOString();
       const items = new Map(doc.items.map((i) => [i.id, i]));
-      const log: EventBody[] = [];
+      const owns = (itemId: string) => rights.joins?.[itemId]?.[byId] === browser;
+      const events: EventBody[] = [];
 
       for (const { itemId, written } of join) {
         const item = items.get(itemId);
-        if (!item || item.participants.includes(byId as string)) return null;
-        const next = joinItem(item, byId as string, written, { at });
+        if (!item || item.participants.includes(byId)) return null;
+        const next = joinItem(item, byId, written, { at });
         if (!next) return null;
         items.set(itemId, next);
-        secrets.joins = {
-          ...secrets.joins,
-          [itemId]: { ...secrets.joins?.[itemId], [byId as string]: hashToken(token) },
-        };
-        log.push({ kind: "bill_joined", name: item.name, amountMinor: joinShare(next, byId as string, written)! });
+        rights.joins = { ...rights.joins, [itemId]: { ...rights.joins?.[itemId], [byId]: browser } };
+        events.push({ kind: "bill_joined", name: item.name, amountMinor: joinShare(next, byId, written)! });
       }
-      for (const { itemId, token: own, written } of change) {
+      for (const { itemId, written } of change) {
         const item = items.get(itemId);
-        const person = joinerOf(secrets, itemId, hashToken(own));
-        if (!item || !person) return null;
-        const from = joinShare(item, person, item.overrides[person]);
-        const next = joinItem(item, person, written, { at });
+        if (!item || !owns(itemId)) return null;
+        const from = joinShare(item, byId, item.overrides[byId]);
+        const next = joinItem(item, byId, written, { at });
         if (!next || from === null) return null;
         items.set(itemId, next);
-        log.push({ kind: "share_changed", name: item.name, from, to: joinShare(next, person, written)! });
+        events.push({ kind: "share_changed", name: item.name, from, to: joinShare(next, byId, written)! });
       }
-      for (const { itemId, token: own } of leave) {
+      for (const { itemId } of leave) {
         const item = items.get(itemId);
-        const person = joinerOf(secrets, itemId, hashToken(own));
-        const next = item && person ? leaveItem(item, person) : null;
+        const next = item && owns(itemId) ? leaveItem(item, byId) : null;
         if (!item || !next) return null;
         items.set(itemId, next);
-        log.push({ kind: "bill_left", name: item.name });
+        events.push({ kind: "bill_left", name: item.name });
       }
-      events = log;
-      return { ...doc, items: doc.items.map((i) => items.get(i.id) ?? i) };
+      return { doc: { ...doc, items: doc.items.map((i) => items.get(i.id) ?? i) }, who, events };
     });
     if (!saved) return { ok: false, error: refused };
-    await logEvents(id, who, events);
     changed(id);
-    return { ok: true, data: { token } };
+    return { ok: true, data: null };
   });
 }
 
 export async function setMyDetails(
   id: string,
   personId: string,
-  key: unknown,
   input: { bank: unknown; accountNo: unknown },
   byId?: unknown,
 ): Promise<Result> {
   return guard(async () => {
     const bank = bankSchema.safeParse(input.bank);
     const accountNo = bankSchema.safeParse(input.accountNo);
-    if (typeof key !== "string" || key.length < 16) return { ok: false, error: "forbidden" };
     if (!bank.success || !accountNo.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-    let name: string | undefined;
-    let who: Who = { role: "member" };
+    const browser = await browserHash();
+    if (!browser) return { ok: false, error: "forbidden" };
     let refused = "forbidden";
-    const saved = await writeDoc(id, (doc, secrets) => {
+    const saved = await writeBill(id, (doc, rights) => {
       if (doc.locked) {
         refused = "locked";
         return null;
       }
       const person = doc.people.find((p) => p.id === personId);
-      if (!person || secrets.people?.[personId] !== hashToken(key)) return null;
-      name = person.name;
-      who = memberWho(doc, byId);
+      if (!person || rights.people?.[personId] !== browser) return null;
       const details = {
         bank: bank.data || null,
         accountNo: bank.data ? accountNo.data || null : null,
         detailsAt: new Date().toISOString(),
       };
-      return { ...doc, people: doc.people.map((p) => (p.id === personId ? { ...p, ...details } : p)) };
+      return {
+        doc: { ...doc, people: doc.people.map((p) => (p.id === personId ? { ...p, ...details } : p)) },
+        who: memberWho(doc, byId),
+        events: [{ kind: "person_details", name: person.name }],
+      };
     });
-    if (!saved || !name) return { ok: false, error: refused };
-    await logEvents(id, who, [{ kind: "person_details", name }]);
+    if (!saved) return { ok: false, error: refused };
     changed(id);
     return { ok: true, data: null };
   });
 }
 
-export async function setBillLock(id: string, ownerToken: string, locked: boolean): Promise<Result> {
+export async function setBillLock(id: string, ownerToken: string | null, locked: boolean): Promise<Result> {
   return guard(async () => {
     if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
-    const saved = await writeDoc(id, (doc) => {
+    const saved = await writeBill(id, (doc) => {
       const next = { ...doc };
       delete next.locked;
-      return locked ? { ...next, locked: true } : next;
+      return {
+        doc: locked ? { ...next, locked: true } : next,
+        who: ownerWho(doc),
+        events: [{ kind: locked ? "locked" : "unlocked" }],
+      };
     });
     if (!saved) return { ok: false, error: "db" };
-    await logEvents(id, ownerWho(saved), [{ kind: locked ? "locked" : "unlocked" }]);
     changed(id);
     return { ok: true, data: null };
   });
 }
 
 export async function checkOwnerLink(id: string, token: string): Promise<Result> {
-  return guard(async () => ((await isOwner(id, token)) ? { ok: true, data: null } : { ok: false, error: "forbidden" }));
+  return guard(async () => {
+    const { data } = await db().from("bills").select("owner_token_hash").eq("id", id).maybeSingle();
+    return data && tokenMatches(data.owner_token_hash, token)
+      ? { ok: true, data: null }
+      : { ok: false, error: "forbidden" };
+  });
 }
 
 export async function personHasPayments(id: string, personId: string): Promise<Result<{ has: boolean }>> {
   return guard(async () => {
-    const payments = await loadPayments(id);
-    return { ok: true, data: { has: payments.some((p) => p.from === personId || p.to === personId) } };
+    const { data, error } = await db().from("payments").select("from_person, to_person").eq("bill_id", id);
+    if (error) return { ok: false, error: "db" };
+    return { ok: true, data: { has: data.some((p) => p.from_person === personId || p.to_person === personId) } };
   });
 }
 
@@ -460,102 +456,101 @@ const paymentSchema = z.object({
   amountMinor: z.int().min(1).max(100_000_000_00),
 });
 
-async function loadPayments(id: string): Promise<Payment[]> {
-  const { data } = await db()
-    .from("payments")
-    .select("id, from_person, to_person, amount_minor, by_role, created_at")
-    .eq("bill_id", id);
-  return (data ?? []).map((r) => ({
-    id: r.id,
-    from: r.from_person,
-    to: r.to_person,
-    amountMinor: Number(r.amount_minor),
-    byRole: r.by_role,
-    createdAt: r.created_at,
-  }));
-}
-
 export async function addPayment(
   id: string,
   input: z.input<typeof paymentSchema>,
-  { ownerToken, different = false }: { ownerToken?: string; different?: boolean } = {},
-): Promise<Result<{ id: string; undoKey: string }>> {
+  { ownerToken, different = false }: { ownerToken?: string | null; different?: boolean } = {},
+): Promise<Result<{ id: string }>> {
   return guard(async () => {
     const parsed = paymentSchema.safeParse(input);
     if (!parsed.success || parsed.data.from === parsed.data.to) return { ok: false, error: "invalid" };
-    const { data: bill } = await db().from("bills").select("doc").eq("id", id).maybeSingle();
-    if (!bill) return { ok: false, error: "not_found" };
-    const doc = bill.doc as BillDoc;
-    const ids = new Set(doc.people.map((p) => p.id));
-    if (!ids.has(parsed.data.from) || !ids.has(parsed.data.to)) return { ok: false, error: "invalid" };
-
+    const { from, to, amountMinor } = parsed.data;
     const owner = await isOwner(id, ownerToken);
-    if (!owner) {
-      if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-      const summary = summarize(doc, await loadPayments(id));
-      const { from, to, amountMinor } = parsed.data;
-      const allowed = summary.remaining.some(
-        (l) => l.from === from && l.to === to && (different ? amountMinor <= summary.total : l.amount === amountMinor),
-      );
-      if (!allowed) return { ok: false, error: "invalid" };
-    }
+    if (!owner && (await tooManyChanges(id))) return { ok: false, error: "rate_limited" };
+    const browser = owner ? null : await ensureBrowserHash();
 
-    const { data, error } = await db()
-      .from("payments")
-      .insert({
-        bill_id: id,
-        from_person: parsed.data.from,
-        to_person: parsed.data.to,
-        amount_minor: parsed.data.amountMinor,
-        by_role: owner ? "owner" : "member",
-      })
-      .select("id")
-      .single();
-    if (error || !data) return { ok: false, error: "db" };
-    await logEvents(id, owner ? ownerWho(doc) : memberWho(doc, parsed.data.from), [
-      {
-        kind: "paid",
-        from: personName(doc, parsed.data.from),
-        to: personName(doc, parsed.data.to),
-        amountMinor: parsed.data.amountMinor,
-        paymentId: data.id,
-      },
-    ]);
-    changed(id);
-    return { ok: true, data: { id: data.id, undoKey: paymentKey(data.id) } };
+    for (let attempt = 0; attempt < WRITE_ATTEMPTS; attempt++) {
+      const bill = await readBill(id);
+      if (!bill) return { ok: false, error: "not_found" };
+      const { doc, payments, version } = bill;
+      const ids = new Set(doc.people.map((p) => p.id));
+      if (!ids.has(from) || !ids.has(to)) return { ok: false, error: "invalid" };
+      if (!owner) {
+        const summary = summarize(doc, payments);
+        const allowed = summary.remaining.some(
+          (l) =>
+            l.from === from && l.to === to && (different ? amountMinor <= summary.total : l.amount === amountMinor),
+        );
+        if (!allowed) return { ok: false, error: "invalid" };
+      }
+      const paymentId = randomUUID();
+      const { data, error } = await db().rpc("add_payment", {
+        p_id: id,
+        p_version: version,
+        p_payment: {
+          id: paymentId,
+          from_person: from,
+          to_person: to,
+          amount_minor: amountMinor,
+          by_role: owner ? "owner" : "member",
+          browser_hash: browser,
+        },
+        p_events: eventRows(owner ? ownerWho(doc) : memberWho(doc, from), [
+          { kind: "paid", from: personName(doc, from), to: personName(doc, to), amountMinor, paymentId },
+        ]),
+      });
+      if (error) {
+        console.error("[splitin] payment failed:", error);
+        return { ok: false, error: "db" };
+      }
+      if (data) {
+        changed(id);
+        return { ok: true, data: { id: paymentId } };
+      }
+    }
+    return { ok: false, error: "db" };
   });
 }
 
 export async function removePayment(
   id: string,
   paymentId: string,
-  { ownerToken, undoKey, byId }: { ownerToken?: string; undoKey?: unknown; byId?: unknown } = {},
+  { ownerToken, byId }: { ownerToken?: string | null; byId?: unknown } = {},
 ): Promise<Result> {
   return guard(async () => {
     if (!z.uuid().safeParse(paymentId).success) return { ok: false, error: "invalid" };
     const { data: row } = await db()
       .from("payments")
-      .select("from_person, to_person, amount_minor, by_role")
+      .select("from_person, to_person, amount_minor, by_role, browser_hash")
       .eq("id", paymentId)
       .eq("bill_id", id)
       .maybeSingle();
     const owner = await isOwner(id, ownerToken);
-    if (!owner && (undoKey !== paymentKey(paymentId) || (row && row.by_role !== "member")))
-      return { ok: false, error: "forbidden" };
+    if (!owner && row) {
+      const browser = await browserHash();
+      if (row.by_role !== "member" || !browser || row.browser_hash !== browser)
+        return { ok: false, error: "forbidden" };
+    }
     if (row) {
-      const { error } = await db().from("payments").delete().eq("id", paymentId).eq("bill_id", id);
-      if (error) return { ok: false, error: "db" };
-      const { data: bill } = await db().from("bills").select("doc").eq("id", id).maybeSingle();
-      const doc = bill?.doc as BillDoc | undefined;
+      const bill = await readBill(id);
+      const doc = bill?.doc;
       const who: Who = !doc ? { role: owner ? "owner" : "member" } : owner ? ownerWho(doc) : memberWho(doc, byId);
-      await logEvents(id, who, [
-        {
-          kind: "unpaid",
-          from: doc ? personName(doc, row.from_person) : "?",
-          to: doc ? personName(doc, row.to_person) : "?",
-          amountMinor: Number(row.amount_minor),
-        },
-      ]);
+      const { error } = await db().rpc("remove_payment", {
+        p_id: id,
+        p_payment_id: paymentId,
+        p_events: eventRows(who, [
+          {
+            kind: "unpaid",
+            from: doc ? personName(doc, row.from_person) : "?",
+            to: doc ? personName(doc, row.to_person) : "?",
+            amountMinor: Number(row.amount_minor),
+          },
+        ]),
+      });
+      if (error) {
+        console.error("[splitin] undo failed:", error);
+        return { ok: false, error: "db" };
+      }
     }
     changed(id);
     return { ok: true, data: null };

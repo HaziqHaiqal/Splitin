@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { checkOwnerLink } from "@/app/actions";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
-import { ownerOf, summarize, type BillDoc, type Payment } from "@/lib/bill";
+import { ownerOf, summarize, type BillDoc, type Mine, type Payment } from "@/lib/bill";
 import type { BillEvent } from "@/lib/history";
 import { setOwnerToken, useHydrated, useOwnerToken } from "@/lib/store";
 import { useBillLive } from "@/hooks/use-bill-live";
@@ -19,12 +19,13 @@ export type SharedBillData = {
   events: BillEvent[];
   createdAt: string;
   expiresAt: string;
+  mine: Mine;
 };
 
 export function SharedBill({ bill }: { bill: SharedBillData }) {
   useBillLive(bill.id);
   const hydrated = useHydrated();
-  const ownerToken = useOwnerToken(bill.id);
+  const ownerToken = useOwnerToken(bill.id) ?? null;
   const [view, setView] = useState<"main" | "receipt" | "payments">("main");
   const [ownerLink] = useState(() => typeof window !== "undefined" && window.location.hash.startsWith("#owner="));
   const { t } = useI18n();
@@ -45,7 +46,7 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
   const summary = summarize(bill.doc, bill.payments);
   const sharerName = ownerOf(bill.doc)?.name ?? "";
 
-  if (!ownerToken) return <ReceiptView bill={bill} sharedBy={sharerName} quiet={ownerLink} />;
+  if (!ownerToken && !bill.mine.owner) return <ReceiptView bill={bill} sharedBy={sharerName} quiet={ownerLink} />;
   if (view === "receipt")
     return (
       <ReceiptView bill={bill} sharedBy={sharerName} back={{ label: t.receipt.back, onClick: () => setView("main") }} />

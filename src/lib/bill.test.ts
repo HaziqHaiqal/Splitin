@@ -3,14 +3,15 @@ import {
   evenShare,
   itemSplitText,
   latestMemberChange,
-  liveSecrets,
+  liveRights,
+  mineOf,
   mergeMemberChanges,
   repeatedName,
   splitItem,
   summarize,
   withoutOwnItem,
   type BillDoc,
-  type BillSecrets,
+  type BillRights,
   type Item,
 } from "./bill";
 import { formatMoney } from "./money";
@@ -39,53 +40,54 @@ describe("withoutOwnItem", () => {
   const mine: Item = { ...houseBills.items[0], id: "mine" };
   const other: Item = { ...houseBills.items[0], id: "other" };
   const doc: BillDoc = { ...houseBills, items: [...houseBills.items, mine, other] };
-  const secrets: BillSecrets = { items: { mine: "my-hash", other: "other-hash" } };
+  const rights: BillRights = { items: { mine: "my-hash", other: "other-hash" } };
 
   it("lets a member delete their own item", () => {
-    expect(withoutOwnItem(doc, secrets, "mine", "my-hash")?.items.map((i) => i.id)).toEqual(["1", "2", "3", "other"]);
+    expect(withoutOwnItem(doc, rights, "mine", "my-hash")?.items.map((i) => i.id)).toEqual(["1", "2", "3", "other"]);
   });
 
   it("refuses another member's item", () => {
-    expect(withoutOwnItem(doc, secrets, "other", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, rights, "other", "my-hash")).toBeNull();
   });
 
   it("refuses the owner's item, even with an empty key", () => {
-    expect(withoutOwnItem(doc, secrets, "1", "my-hash")).toBeNull();
-    expect(withoutOwnItem(doc, secrets, "1", "")).toBeNull();
+    expect(withoutOwnItem(doc, rights, "1", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, rights, "1", "")).toBeNull();
   });
 
   it("refuses an item that does not exist", () => {
-    expect(withoutOwnItem(doc, secrets, "nope", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, rights, "nope", "my-hash")).toBeNull();
   });
 });
 
-describe("liveSecrets", () => {
+describe("liveRights", () => {
   const at = "2026-10-31T10:00:00.000Z";
   const added: Item = { ...houseBills.items[0], id: "added", addedAt: at, joins: { n: { at } } };
   const doc: BillDoc = { ...houseBills, items: [...houseBills.items, added] };
-  const secrets: BillSecrets = {
+  const rights: BillRights = {
     people: { n: "person", gone: "person" },
     items: { added: "item", 1: "item", gone: "item" },
     joins: { added: { n: "join", a: "join" }, 1: { n: "join" }, gone: { n: "join" } },
   };
 
   it("keeps only keys that still do something", () => {
-    expect(liveSecrets(doc, secrets)).toEqual({
+    expect(liveRights(doc, rights)).toEqual({
       people: { n: "person" },
       items: { added: "item" },
       joins: { added: { n: "join" } },
+      payments: {},
     });
   });
 
   it("drops the delete key once the owner has edited the item", () => {
     const edited = { ...added, addedAt: undefined };
-    const after = liveSecrets({ ...doc, items: [...houseBills.items, edited] }, secrets);
+    const after = liveRights({ ...doc, items: [...houseBills.items, edited] }, rights);
     expect(after.items).toEqual({});
     expect(after.joins).toEqual({ added: { n: "join" } });
   });
 
   it("works on a bill with no keys yet", () => {
-    expect(liveSecrets(doc, {})).toEqual({ people: {}, items: {}, joins: {} });
+    expect(liveRights(doc, {})).toEqual({ people: {}, items: {}, joins: {}, payments: {} });
   });
 });
 
@@ -281,5 +283,32 @@ describe("evenShare", () => {
   it("is null for typed amounts or people left out", () => {
     expect(evenShare(bill(12000, { h: 4000 }), 4)).toBeNull();
     expect(evenShare(bill(9000, {}, ["h", "n", "a"]), 4)).toBeNull();
+  });
+});
+
+describe("mineOf", () => {
+  const rights: BillRights = {
+    people: { a: "me", b: "them" },
+    items: { one: "me", two: "them" },
+    joins: { one: { a: "me", b: "them" } },
+    payments: { p1: "me", p2: "them" },
+  };
+
+  it("lists only what this browser added", () => {
+    expect(mineOf(rights, "them", "me")).toEqual({
+      owner: false,
+      people: ["a"],
+      items: ["one"],
+      joins: [{ itemId: "one", personId: "a" }],
+      payments: ["p1"],
+    });
+  });
+
+  it("knows the browser that created the bill", () => {
+    expect(mineOf({}, "me", "me").owner).toBe(true);
+  });
+
+  it("gives nothing to a browser with no key", () => {
+    expect(mineOf(rights, null, null)).toEqual({ owner: false, people: [], items: [], joins: [], payments: [] });
   });
 });

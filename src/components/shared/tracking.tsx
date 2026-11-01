@@ -24,7 +24,7 @@ export function Tracking({
 }: {
   bill: SharedBillData;
   summary: BillSummary;
-  ownerToken: string;
+  ownerToken: string | null;
   onViewReceipt: () => void;
 }) {
   const { t, money, time } = useI18n();

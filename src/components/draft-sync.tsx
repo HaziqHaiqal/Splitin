@@ -51,9 +51,7 @@ export function useDraftSync(draft: Draft | null | undefined) {
     if (json === last.current) return;
     const id = draft.billId;
     const timer = setTimeout(async () => {
-      const token = getOwnerToken(id);
-      if (!token) return;
-      const result = await saveBill(id, token, draft.doc, draft.seenAt ?? "");
+      const result = await saveBill(id, getOwnerToken(id), draft.doc, draft.seenAt ?? "");
       if (result.ok) {
         last.current = json;
         applyServerDoc(id, result.data.doc);

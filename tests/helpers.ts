@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import type { BillDoc, BillSecrets, Item, Payment } from "../src/lib/bill";
+import { createClient } from "@supabase/supabase-js";
+import type { BillDoc, BillRights, Item, Payment } from "../src/lib/bill";
+import { BILL_COLUMNS, docFromRow, rightsFromRow, saveArgs, type BillRow } from "../src/lib/bill-rows";
 
-const STUB = "http://localhost:54399";
-export const BILL = "TestBill01";
+export const database = createClient(process.env.TEST_SUPABASE_URL!, process.env.TEST_SERVICE_KEY!, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+export const BILL = "TE5TB4RS";
 export const TOKEN = "ownertokenownertoken1234";
 export const OLD = "2026-10-31T01:00:00.000Z";
 
@@ -39,7 +43,7 @@ export const trip: BillDoc = {
 
 type Row = Record<string, unknown>;
 export type Db = {
-  bills: (Row & { doc: BillDoc; secrets: BillSecrets })[];
+  bills: { id: string; version: number; doc: BillDoc; rights: BillRights }[];
   payments: Row[];
   bill_events: (Row & {
     kind: string;
@@ -61,46 +65,91 @@ export const paymentRow = (from: string, to: string, amountMinor: number, by_rol
   created_at: new Date().toISOString(),
 });
 
-export async function seed(doc: BillDoc = trip, rest: { payments?: Row[]; bill_events?: Row[] | null } = {}) {
-  const now = new Date().toISOString();
-  await fetch(`${STUB}/__db`, {
-    method: "POST",
-    body: JSON.stringify({
-      bills: [
-        {
-          id: BILL,
-          doc,
-          secrets: {},
-          owner_token_hash: createHash("sha256").update(TOKEN).digest("hex"),
-          created_at: now,
-          updated_at: OLD,
-        },
-      ],
-      ...rest,
-    }),
-  });
+export async function must<T>(query: PromiseLike<{ data: T; error: unknown }>): Promise<T> {
+  const { data, error } = await query;
+  if (error) throw new Error(JSON.stringify(error));
+  return data;
 }
 
-export const getDb = async (): Promise<Db> => (await fetch(`${STUB}/__db`)).json();
-export const saveDb = (db: Partial<Db>) => fetch(`${STUB}/__db`, { method: "POST", body: JSON.stringify(db) });
+export async function wipe() {
+  await must(database.from("bills").delete().neq("id", ""));
+  await must(database.from("expired_bills").delete().neq("id", ""));
+}
+
+export async function createBill(id: string, doc: BillDoc) {
+  const { p_bill, ...rows } = saveArgs(doc, {});
+  await must(
+    database.rpc("create_bill", {
+      p_id: id,
+      p_bill: {
+        ...p_bill,
+        owner_token_hash: createHash("sha256").update(TOKEN).digest("hex"),
+        browser_hash: null,
+        ip_hash: null,
+        started_at: doc.createdAt,
+      },
+      ...rows,
+      p_events: [],
+    }),
+  );
+}
+
+export async function seed(doc: BillDoc = trip, rest: { payments?: Row[]; bill_events?: Row[] } = {}, id = BILL) {
+  await wipe();
+  await createBill(id, doc);
+  if (rest.payments) await must(database.from("payments").insert(rest.payments));
+  if (rest.bill_events) await must(database.from("bill_events").insert(rest.bill_events));
+}
+
+export async function markExpired(id = BILL) {
+  await wipe();
+  await must(database.from("expired_bills").insert({ id }));
+}
+
+export const changePayments = (change: Row) => must(database.from("payments").update(change).neq("bill_id", ""));
+export const clearPayments = () => must(database.from("payments").delete().neq("bill_id", ""));
+
+export async function getDb(): Promise<Db> {
+  const [bills, payments, bill_events, expired_bills] = await Promise.all([
+    must(
+      database
+        .from("bills")
+        .select(BILL_COLUMNS)
+        .order("created_at")
+        .order("position", { referencedTable: "bill_people" })
+        .order("position", { referencedTable: "bill_items" })
+        .order("position", { referencedTable: "bill_items.item_shares" })
+        .order("created_at", { referencedTable: "payments" }),
+    ),
+    must(database.from("payments").select("*").order("created_at")),
+    must(database.from("bill_events").select("*").order("created_at")),
+    must(database.from("expired_bills").select("*")),
+  ]);
+  return {
+    bills: (bills as unknown as BillRow[]).map((row) => ({
+      id: row.id,
+      version: row.version,
+      doc: docFromRow(row),
+      rights: rightsFromRow(row),
+    })),
+    payments: payments ?? [],
+    bill_events: bill_events ?? [],
+    expired_bills: expired_bills ?? [],
+  };
+}
+
 export const serverDoc = async () => (await getDb()).bills[0].doc;
 
 export const CODE = "K7QM3XPH";
-export async function seedWithCode() {
-  await seed();
-  const db = await getDb();
-  db.bills[0].id = CODE;
-  await saveDb(db);
-}
+export const seedWithCode = () => seed(trip, {}, CODE);
 export const serverItem = async (id: string) => (await serverDoc()).items.find((i) => i.id === id);
 export const eventKinds = async () => (await getDb()).bill_events?.map((e) => e.kind) ?? [];
-export const collide = () => fetch(`${STUB}/__collide`);
 
 export async function patchDoc(change: (doc: BillDoc) => BillDoc) {
-  const db = await getDb();
-  db.bills[0].doc = change(db.bills[0].doc);
-  db.bills[0].updated_at = new Date().toISOString();
-  await saveDb(db);
+  const { id, version, doc, rights } = (await getDb()).bills[0];
+  await must(
+    database.rpc("save_bill", { p_id: id, p_version: version, ...saveArgs(change(doc), rights), p_events: [] }),
+  );
 }
 
 export const settled = (check: () => Promise<unknown>, expected: unknown) => expect.poll(check).toEqual(expected);

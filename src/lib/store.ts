@@ -101,45 +101,6 @@ const askedKey = (billId: string) => `splitin:asked:${billId}`;
 export const getAsked = (billId: string) => read(askedKey(billId)) !== null;
 export const setAsked = (billId: string) => write(askedKey(billId), "1");
 
-function parseTokens(raw: string | null | undefined): Record<string, string> {
-  try {
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function useTokens(key: string): Record<string, string> {
-  const raw = useStored(key);
-  return useMemo(() => parseTokens(raw), [raw]);
-}
-
-function setToken(key: string, id: string, token: string | null) {
-  const tokens = parseTokens(read(key));
-  if (token) tokens[id] = token;
-  else delete tokens[id];
-  write(key, JSON.stringify(tokens));
-}
-
-const mineKey = (billId: string) => `splitin:mine:${billId}`;
-export const useMyItems = (billId: string) => useTokens(mineKey(billId));
-export const setMyItem = (billId: string, itemId: string, token: string | null) =>
-  setToken(mineKey(billId), itemId, token);
-
-const joinsKey = (billId: string) => `splitin:joins:${billId}`;
-export const useMyJoins = (billId: string) => useTokens(joinsKey(billId));
-export const setMyJoin = (billId: string, itemId: string, token: string | null) =>
-  setToken(joinsKey(billId), itemId, token);
-
-const paidKey = (billId: string) => `splitin:paid:${billId}`;
-export const useMyPayments = (billId: string) => useTokens(paidKey(billId));
-export const setMyPayment = (billId: string, paymentId: string, key: string | null) =>
-  setToken(paidKey(billId), paymentId, key);
-
-const namesKey = (billId: string) => `splitin:names:${billId}`;
-export const useMyNames = (billId: string) => useTokens(namesKey(billId));
-export const setMyName = (billId: string, personId: string, key: string) => setToken(namesKey(billId), personId, key);
-
 const seenKey = (billId: string) => `splitin:seen:${billId}`;
 export const getSeen = (billId: string) => read(seenKey(billId));
 export const setSeen = (billId: string, at: string) => write(seenKey(billId), at);

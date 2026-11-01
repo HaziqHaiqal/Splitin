@@ -39,6 +39,7 @@ export default async function BillPage({ params }: PageProps<"/bill/[id]">) {
         events: bill.events,
         createdAt: bill.createdAt,
         expiresAt: bill.expiresAt,
+        mine: bill.mine,
       }}
     />
   );

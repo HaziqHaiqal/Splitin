@@ -19,7 +19,7 @@ export function OwnerActions({
   onRecord,
 }: {
   bill: SharedBillData;
-  ownerToken: string;
+  ownerToken: string | null;
   onRecord?: () => void;
 }) {
   const { t } = useI18n();
@@ -81,7 +81,9 @@ export function OwnerActions({
       <Sheet open={moreOpen} onOpenChange={setMoreOpen} title={t.track.more}>
         <div className="flex flex-col gap-2">
           {onRecord ? <SheetOption title={t.pay.ownerLink} desc={t.pay.desc} onClick={record} /> : null}
-          <SheetOption title={t.track.ownerLink} desc={t.track.ownerLinkDesc} onClick={copyLink} />
+          {ownerToken ? (
+            <SheetOption title={t.track.ownerLink} desc={t.track.ownerLinkDesc} onClick={copyLink} />
+          ) : null}
           <SheetOption
             title={locked ? t.track.unlock : t.track.lock}
             desc={locked ? t.track.unlockDesc : t.track.lockDesc}

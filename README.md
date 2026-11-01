@@ -31,4 +31,4 @@ Amounts are in Malaysian Ringgit (RM) only.
 ## Tests
 
 - `pnpm test` runs the unit tests.
-- `pnpm test:e2e` runs the browser tests against a stand-in database, so it never touches real data.
+- `pnpm test:e2e` runs the browser tests against a real database on your own computer, so it never touches live data. Open OrbStack or Docker and run `supabase start` first.

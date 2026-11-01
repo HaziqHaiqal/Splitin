@@ -3,9 +3,10 @@ import {
   addName,
   BILL,
   button,
+  changePayments,
   choose,
+  clearPayments,
   closePhones,
-  collide,
   dinner,
   eventKinds,
   getDb,
@@ -24,7 +25,6 @@ import {
   paymentsOf,
   payLine,
   pickMe,
-  saveDb,
   seed,
   serverDoc,
   serverItem,
@@ -268,7 +268,6 @@ test.describe("adding your own name", () => {
       await pickMe(page, "Not on the list");
       await panel(page).getByPlaceholder("Name").fill("Aiman");
     }
-    await collide();
     await Promise.all([a, b].map((page) => panel(page).getByRole("button", { name: "Add", exact: true }).click()));
     await settled(async () => (await names()).filter((n) => n === "Aiman").length, 1);
     const refused = async () =>
@@ -319,7 +318,7 @@ test.describe("adding a bill", () => {
     await settled(itemNames, ["Hotel", "Petrol"]);
     const petrol = (await serverDoc()).items[1];
     expect(petrol.addedAt).toBeTruthy();
-    expect((await getDb()).bills[0].secrets.items?.[petrol.id]).toBeTruthy();
+    expect((await getDb()).bills[0].rights.items?.[petrol.id]).toBeTruthy();
 
     await button(page, "Undo").click();
     await settled(itemNames, ["Hotel"]);
@@ -385,27 +384,11 @@ test.describe("adding a bill", () => {
     await openBill(mine);
     await submit(await startAdding(mine, "Snacks", "1000", "Najmi"));
     await settled(itemNames, ["Hotel", "Snacks"]);
-    const snacks = (await serverDoc()).items[1];
 
     await openBill(stranger);
     await expect(button(stranger, "Add bill")).toBeVisible();
     await expect(stranger.getByText("You added")).toHaveCount(0);
-
-    await stranger.evaluate(
-      ([billId, itemId]) => {
-        localStorage.setItem(
-          `splitin:mine:${billId}`,
-          JSON.stringify({ [itemId]: "forgedforgedforgedforgedforged12", hotel: "forgedforgedforgedforgedforged12" }),
-        );
-      },
-      [BILL, snacks.id],
-    );
-    await openBill(stranger);
-    await button(stranger, "Delete").click();
-    await pickMe(stranger, "Afiq");
-    await expect(text(stranger, "Something went wrong")).toBeVisible();
-    await expect(stranger.getByRole("button", { name: "Delete" })).toHaveCount(1);
-    expect(await itemNames()).toEqual(["Hotel", "Snacks"]);
+    await expect(button(stranger, "Delete")).toHaveCount(0);
 
     await openBill(mine);
     await button(mine, "Delete").click();
@@ -422,7 +405,6 @@ test.describe("adding a bill", () => {
     await openBill(b);
     const first = await startAdding(a, "Snacks", "1000", "Najmi");
     const second = await startAdding(b, "Parking", "2000", "Afiq");
-    await collide();
     await Promise.all([submit(first), submit(second)]);
     await settled(async () => (await itemNames()).sort(), ["Hotel", "Parking", "Snacks"]);
   });
@@ -442,10 +424,10 @@ test.describe("secret keys", () => {
     await submit(await startAdding(page, "Petrol", "6000"));
     await settled(itemNames, ["Hotel", "Dinner", "Petrol"]);
 
-    const { doc, secrets } = (await getDb()).bills[0];
+    const { doc, rights } = (await getDb()).bills[0];
     const aiman = doc.people.find((p) => p.name === "Aiman")!;
     const petrol = doc.items.find((i) => i.name === "Petrol")!;
-    const hashes = [secrets.people![aiman.id], secrets.items![petrol.id], secrets.joins!.hotel[aiman.id]];
+    const hashes = [rights.people![aiman.id], rights.items![petrol.id], rights.joins!.hotel[aiman.id]];
     for (const hash of hashes) expect(hash).toMatch(/^[0-9a-f]{64}$/);
 
     const stranger = await newPhone(browser);
@@ -459,7 +441,7 @@ test.describe("secret keys", () => {
     expect(draft).toContain("Petrol");
     for (const seen of [JSON.stringify(doc), html, draft]) {
       for (const hash of hashes) expect(seen).not.toContain(hash);
-      for (const word of ["deleteHash", "keyHash", "secrets"]) expect(seen).not.toContain(word);
+      for (const word of ["browser_hash", "browserHash", "owner_token_hash"]) expect(seen).not.toContain(word);
     }
   });
 
@@ -480,9 +462,9 @@ test.describe("secret keys", () => {
       window.dispatchEvent(new Event("storage"));
     });
     await settled(async () => (await serverDoc()).title, "Renamed");
-    const { doc, secrets } = (await getDb()).bills[0];
+    const { doc, rights } = (await getDb()).bills[0];
     expect(JSON.stringify(doc)).not.toContain("forged");
-    expect(secrets).toEqual({ people: {}, items: {}, joins: {} });
+    expect(rights).toEqual({ people: {}, items: {}, joins: {}, payments: {} });
   });
 });
 
@@ -724,9 +706,7 @@ test.describe("paying", () => {
       await openAs(page, "Najmi");
       await markPaid(page);
 
-      const db = await getDb();
-      db.payments[0].created_at = new Date(Date.now() - 20 * 86_400_000).toISOString();
-      await saveDb(db);
+      await changePayments({ created_at: new Date(Date.now() - 20 * 86_400_000).toISOString() });
       await page.reload();
 
       const line = button(page, /NAJMI PAYS HAZIQ 100\.00 PAID/);
@@ -748,14 +728,13 @@ test.describe("paying", () => {
       await expect(list.getByText("Najmi undid their payment to Haziq")).toBeVisible();
     });
 
-    test("the toast's Undo clears the saved key too", async ({ page }) => {
+    test("the toast's Undo takes it back", async ({ page }) => {
       await openAs(page, "Najmi");
       await markPaid(page);
       await button(page, "Undo").click();
       await settled(paymentsOf, []);
       await expect(text(page, "Najmi → Haziq is unpaid again")).toBeVisible();
       await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
-      expect(await page.evaluate((id) => localStorage.getItem(`splitin:paid:${id}`), BILL)).toBe("{}");
     });
 
     test("another phone, or another name on this phone, cannot undo it", async ({ page, browser }) => {
@@ -776,7 +755,7 @@ test.describe("paying", () => {
     });
 
     for (const byRole of ["owner", "member"])
-      test(`a payment with no saved key (marked by ${byRole}) stays as it is`, async ({ page }) => {
+      test(`a payment marked by ${byRole} on another phone stays as it is`, async ({ page }) => {
         await seed(trip, { payments: [paymentRow("n", "h", 10000, byRole)] });
         await openAs(page, "Najmi");
         await expect(stamp(page)).toBeVisible();
@@ -791,15 +770,12 @@ test.describe("paying", () => {
       expect(stampBox!.x + stampBox!.width).toBeLessThanOrEqual(amountBox!.x);
     });
 
-    test("the server refuses a made-up key", async ({ page }) => {
-      const row = paymentRow("n", "h", 10000);
-      await seed(trip, { payments: [row] });
-      await page.addInitScript(
-        ([id, paymentId]) => localStorage.setItem(`splitin:paid:${id}`, JSON.stringify({ [paymentId]: "made-up" })),
-        [BILL, row.id],
-      );
+    test("the server refuses a different browser", async ({ page }) => {
       await openAs(page, "Najmi");
+      await markPaid(page);
+      await page.waitForTimeout(1000);
       await payLine(page, "NAJMI", "HAZIQ").click();
+      await page.context().addCookies([{ name: "splitin-browser", value: "another", url: "http://localhost:3457" }]);
       await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
       await expect(text(page, "Something went wrong")).toBeVisible();
       expect(await paymentsOf()).toEqual([paid]);
@@ -808,9 +784,7 @@ test.describe("paying", () => {
     test("the server refuses when the owner has taken over the payment", async ({ page }) => {
       await openAs(page, "Najmi");
       await markPaid(page);
-      const db = await getDb();
-      db.payments[0].by_role = "owner";
-      await saveDb(db);
+      await changePayments({ by_role: "owner" });
       await payLine(page, "NAJMI", "HAZIQ").click();
       await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
       await expect(text(page, "Something went wrong")).toBeVisible();
@@ -820,10 +794,9 @@ test.describe("paying", () => {
     test("a payment the owner already undid just clears", async ({ page }) => {
       await openAs(page, "Najmi");
       await markPaid(page);
-      const db = await getDb();
-      db.payments = [];
-      await saveDb(db);
+      await page.waitForTimeout(1000);
       await payLine(page, "NAJMI", "HAZIQ").click();
+      await clearPayments();
       await sheet(page).getByRole("button", { name: "Mark unpaid" }).click();
       await expect(text(page, "Najmi → Haziq is unpaid again")).toBeVisible();
       await expect(button(page, /NAJMI PAYS HAZIQ 100\.00$/)).toBeVisible();
@@ -901,18 +874,13 @@ test.describe("paying", () => {
     await settled(paymentsOf, []);
   });
 
-  test("the server refuses an undo with a forged key", async ({ page }) => {
+  test("the server refuses the toast's Undo from a different browser", async ({ page }) => {
     await openAs(page, "Najmi");
     await payLine(page, "NAJMI", "HAZIQ").click();
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
     await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 10000 }]);
 
-    await page.route("**/bill/**", async (route) => {
-      const body = route.request().postData();
-      if (route.request().method() === "POST" && body?.includes("undoKey")) {
-        await route.continue({ postData: body.replace(/"undoKey":"[^"]+"/, '"undoKey":"forged"') });
-      } else await route.continue();
-    });
+    await page.context().addCookies([{ name: "splitin-browser", value: "another", url: "http://localhost:3457" }]);
     await button(page, "Undo").click();
     await page.waitForTimeout(1500);
     expect(await paymentsOf()).toEqual([{ from: "n", to: "h", amountMinor: 10000 }]);
@@ -953,8 +921,8 @@ test.describe("locked and limited", () => {
   });
 
   test("too many member changes on one bill are refused", async ({ page }) => {
-    const bill_events = Array.from({ length: 100 }, (_, i) => ({
-      id: `e${i}`,
+    const bill_events = Array.from({ length: 100 }, () => ({
+      id: crypto.randomUUID(),
       bill_id: BILL,
       kind: "item_added",
       by_role: "member",
@@ -1027,14 +995,9 @@ test.describe("telling the group", () => {
     await expect(me.getByText(/since your last visit/)).toHaveCount(0);
   });
 
-  test("the page still works without the history table", async ({ page }) => {
-    await seed(trip, { bill_events: null });
+  test("a bill with no changes yet says so", async ({ page }) => {
     await openBill(page);
-    await expect(button(page, /^History/)).toBeVisible();
     const list = await openHistory(page);
     await expect(list.getByText("No changes recorded yet")).toBeVisible();
-    await openBill(page);
-    await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
-    await settled(itemNames, ["Hotel", "Snacks"]);
   });
 });

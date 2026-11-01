@@ -21,7 +21,7 @@ export function Settled({
 }: {
   bill: SharedBillData;
   summary: BillSummary;
-  ownerToken: string;
+  ownerToken: string | null;
   onReview: () => void;
 }) {
   const { t, date } = useI18n();

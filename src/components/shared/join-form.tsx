@@ -18,7 +18,7 @@ type Pick = { on: boolean; written?: number };
 export function JoinForm({
   doc,
   me,
-  tokens,
+  own,
   bare,
   pending,
   onSave,
@@ -26,7 +26,7 @@ export function JoinForm({
 }: {
   doc: BillDoc;
   me: string;
-  tokens: Record<string, string>;
+  own: readonly string[];
   bare: boolean;
   pending: boolean;
   onSave: (changes: MyBillChanges, undo: MyBillChanges) => void;
@@ -36,16 +36,14 @@ export function JoinForm({
   const owner = ownerOf(doc)?.name ?? t.history.owner;
 
   const rows = doc.items.map((item) => {
-    const token = item.joins?.[me] ? tokens[item.id] : undefined;
+    const mine = Boolean(item.joins?.[me]) && own.includes(item.id);
     const inIt = item.participants.includes(me);
-    return { item, token, fixed: inIt && !token, full: !inIt && joinShare(item, me) === null };
+    return { item, mine, fixed: inIt && !mine, full: !inIt && joinShare(item, me) === null };
   });
   const editable = rows.filter((r) => !r.fixed && !r.full);
 
   const [picks, setPicks] = useState<Record<string, Pick>>(() =>
-    Object.fromEntries(
-      rows.filter((r) => r.token).map((r) => [r.item.id, { on: true, written: r.item.overrides[me] }]),
-    ),
+    Object.fromEntries(rows.filter((r) => r.mine).map((r) => [r.item.id, { on: true, written: r.item.overrides[me] }])),
   );
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
 
@@ -85,18 +83,18 @@ export function JoinForm({
 
   const changes: MyBillChanges = { join: [], change: [], leave: [] };
   const undo: MyBillChanges = { join: [], change: [], leave: [] };
-  for (const { item, token } of editable) {
+  for (const { item, mine } of editable) {
     const pick = picks[item.id];
     const before = item.overrides[me];
     const now = written(item.id);
-    if (!token) {
+    if (!mine) {
       if (pick?.on) changes.join.push({ itemId: item.id, written: now });
     } else if (!pick?.on) {
-      changes.leave.push({ itemId: item.id, token });
+      changes.leave.push({ itemId: item.id });
       undo.join.push({ itemId: item.id, written: before });
     } else if (now !== before) {
-      changes.change.push({ itemId: item.id, token, written: now });
-      undo.change.push({ itemId: item.id, token, written: before });
+      changes.change.push({ itemId: item.id, written: now });
+      undo.change.push({ itemId: item.id, written: before });
     }
   }
   const dirty = changes.join.length + changes.change.length + changes.leave.length > 0;
