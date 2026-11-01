@@ -65,7 +65,8 @@ test.describe("the database itself", () => {
           color: 2,
           bank: "Maybank",
           accountNo: "123",
-          payQr: "000201QR",
+          payQr:
+            "00020201021126520014A000000615000101065887340220000000000012345678905204000053034585802MY5913AIMAN BIN ALI6002KL63042103",
           detailsAt: "2026-10-31T02:00:00.000Z",
         },
         { id: "h", name: "Haziq", color: 0, addedAt: "2026-10-31T03:00:00.000Z" },
@@ -84,7 +85,8 @@ test.describe("the database itself", () => {
     expect(saved.people[0]).toMatchObject({
       bank: "Maybank",
       accountNo: "123",
-      payQr: "000201QR",
+      payQr:
+        "00020201021126520014A000000615000101065887340220000000000012345678905204000053034585802MY5913AIMAN BIN ALI6002KL63042103",
       detailsAt: doc.people[0].detailsAt,
     });
     expect(saved.people[1].addedAt).toBe(doc.people[1].addedAt);
@@ -185,7 +187,15 @@ test.describe("the database itself", () => {
     await createBill("K7QM3XPJ", trip);
     await must(database.from("bills").update({ expires_at: NEVER }).eq("id", "K7QM3XPH"));
     await must(database.from("payments").insert({ ...paymentRow("n", "h", 100), bill_id: "K7QM3XPH" }));
-    await must(database.from("bill_people").update({ pay_qr: "000201QR" }).eq("bill_id", "K7QM3XPH"));
+    await must(
+      database
+        .from("bill_people")
+        .update({
+          pay_qr:
+            "00020201021126520014A000000615000101065887340220000000000012345678905204000053034585802MY5913AIMAN BIN ALI6002KL63042103",
+        })
+        .eq("bill_id", "K7QM3XPH"),
+    );
     await must(database.from("expired_bills").insert({ id: "K7QM3XPK", expired_at: NEVER }));
     await must(database.rpc("delete_old_bills"));
     const after = await getDb();

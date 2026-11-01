@@ -6,7 +6,7 @@ import { QrImage } from "@/components/pay-qr";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { Person } from "@/lib/bill";
-import { isPaymentQr } from "@/lib/pay-qr";
+import { isPaymentQr, readQrDetails } from "@/lib/pay-qr";
 import { readQr } from "@/lib/read-qr";
 
 const BANKS = ["Maybank", "CIMB", "Public Bank", "RHB", "Hong Leong", "Bank Islam", "TNG eWallet"];
@@ -34,6 +34,8 @@ function QrUpload({
   const input = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const details = code ? readQrDetails(code) : null;
+  const owner = [details?.name, details?.bank].filter(Boolean).join(" · ");
 
   const read = async (file: File) => {
     setReading(true);
@@ -68,6 +70,7 @@ function QrUpload({
           <QrImage code={code} className="size-16 rounded-lg" />
           <span className="flex min-w-0 flex-col items-start">
             <b className="text-[14.5px] font-bold">{t.person.qrAdded}</b>
+            {owner ? <span className="text-[12.5px] leading-[1.35] text-muted">{owner}</span> : null}
             <button type="button" onClick={() => onChange(null)} className="h-8 text-[13px] font-bold text-owe">
               {t.person.qrRemove}
             </button>
@@ -180,6 +183,7 @@ export function BankFields({
           }
         />
       </label>
+      <p className="m-0 text-[12px] leading-[1.4] text-muted">{t.person.detailsNotice}</p>
     </>
   );
 }

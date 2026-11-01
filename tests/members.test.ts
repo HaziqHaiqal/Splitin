@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import QRCode from "qrcode";
 import {
@@ -329,7 +330,28 @@ test.describe("adding your own name", () => {
     await expect(panel(other)).toHaveCount(0);
   });
 
-  const DUITNOW = "00020101021126410014A000000615000101065887340213012345678905204000053034585802MY6304ABCD";
+  const DUITNOW =
+    "00020201021126520014A000000615000101065887340220000000000012345678905204000053034585802MY5913AIMAN BIN ALI6002KL63042103";
+  const AMIR =
+    "00020201021126520014A000000615000101068900530220000000000012345678905204000053034585802MY5917AMIR BIN ZULKIFLI6002KL63046AFF";
+  const scansAs = (page: Page, source: string | null) =>
+    page.evaluate(async (url) => {
+      const canvas = url
+        ? document.createElement("canvas")
+        : document.querySelector<HTMLCanvasElement>("canvas[role=img]")!;
+      if (url) {
+        const picture = new Image();
+        picture.src = url;
+        await picture.decode();
+        Object.assign(canvas, { width: picture.width, height: picture.height });
+        canvas.getContext("2d")!.drawImage(picture, 0, 0);
+      }
+      const { data, width, height } = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height);
+      return (
+        window as unknown as { jsQR: (d: Uint8ClampedArray, w: number, h: number) => { data: string } | null }
+      ).jsQR(data, width, height)?.data;
+    }, source);
+  const loadReader = (page: Page) => page.addScriptTag({ path: "node_modules/jsqr/dist/jsQR.js" });
   const qrPicture = async (code: string, name = "qr.png") => ({
     name,
     mimeType: "image/png",
@@ -367,10 +389,17 @@ test.describe("adding your own name", () => {
     const details = sheet(other);
     await expect(details.getByRole("img", { name: "Payment QR" })).toBeVisible();
     await expect(details.getByRole("button", { name: "Copy" })).toHaveCount(0);
+    await expect(details.getByRole("img", { name: "AIMAN BIN ALI, Maybank, DuitNow QR" })).toBeVisible();
+    await expect(details.getByText("This QR says")).toHaveCount(0);
+    await loadReader(other);
+    await expect.poll(() => scansAs(other, null)).toBe(DUITNOW);
     const saving = other.waitForEvent("download");
     await other.evaluate(() => Object.defineProperty(navigator, "canShare", { value: undefined }));
     await details.getByRole("button", { name: "Save QR" }).click();
-    expect((await saving).suggestedFilename()).toBe("splitin-qr-Aiman.png");
+    const saved = await saving;
+    expect(saved.suggestedFilename()).toBe("splitin-qr-Aiman.png");
+    const picture = await readFile(await saved.path());
+    expect(await scansAs(other, `data:image/png;base64,${picture.toString("base64")}`)).toBe(DUITNOW);
 
     await button(page, "Bank details Aiman").click();
     const again = panel(page);
@@ -386,7 +415,7 @@ test.describe("adding your own name", () => {
     const form = await owedAiman(page);
     const file = form.locator("input[type=file]");
     await file.setInputFiles(await qrPicture("https://example.com/pay"));
-    await expect(form.getByText("That QR opens a website, not a payment.", { exact: false })).toBeVisible();
+    await expect(form.getByText("That isn't a payment QR.", { exact: false })).toBeVisible();
     await expect(form.getByText("QR added")).toHaveCount(0);
 
     await file.setInputFiles({
@@ -411,6 +440,45 @@ test.describe("adding your own name", () => {
     await expect(ask.getByRole("img", { name: "Payment QR" })).toBeVisible();
     await expect(ask.getByRole("button", { name: "Save QR" })).toBeVisible();
     await expect(ask.getByRole("button", { name: "Mark paid" })).toBeVisible();
+  });
+
+  test("a QR whose name has nothing to do with the name on the bill gets a warning", async ({ page }) => {
+    await seed({ ...trip, people: [{ ...trip.people[0], payQr: AMIR }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const ask = sheet(page);
+    await expect(ask.getByText("This QR says AMIR BIN ZULKIFLI, not Haziq.")).toBeVisible();
+    await expect(ask.getByText("Ask Haziq before you pay.")).toBeVisible();
+    await expect(ask.getByRole("img", { name: "AMIR BIN ZULKIFLI, TNG eWallet, DuitNow QR" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Mark paid" })).toBeEnabled();
+  });
+
+  test("the bank and account sit on the card, unless the QR is from another bank", async ({ page }) => {
+    const hana = { bank: "Maybank", accountNo: "7012 4455", payQr: DUITNOW };
+    await seed({ ...trip, people: [{ ...trip.people[0], ...hana }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const same = sheet(page);
+    await expect(same.getByRole("img", { name: "Maybank · 7012 4455" })).toBeVisible();
+    await expect(same.getByRole("button", { name: "Copy account no." })).toBeVisible();
+
+    await seed({ ...trip, people: [{ ...trip.people[0], ...hana, payQr: AMIR }, ...trip.people.slice(1)] });
+    await page.reload();
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const other = sheet(page);
+    await expect(other.getByRole("img", { name: "AMIR BIN ZULKIFLI, TNG eWallet, DuitNow QR" })).toBeVisible();
+    await expect(other.getByText("7012 4455")).toBeVisible();
+    await expect(other.getByRole("button", { name: "Copy", exact: true })).toBeVisible();
+  });
+
+  test("Mark paid can still be reached under the QR card on a small phone", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await seed({ ...trip, people: [{ ...trip.people[0], payQr: AMIR }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const paid = sheet(page).getByRole("button", { name: "Mark paid" });
+    await paid.scrollIntoViewIfNeeded();
+    await expect(paid).toBeInViewport();
   });
 
   test("whoever is on a name can add and change its bank details", async ({ browser }) => {

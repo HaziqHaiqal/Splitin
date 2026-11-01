@@ -36,6 +36,7 @@ import {
   type PreviewItem,
 } from "@/lib/bill";
 import { getAsked, getMe, setAsked, setMe, useMe } from "@/lib/store";
+import { nameFitsQr, readQrDetails } from "@/lib/pay-qr";
 import { cn } from "@/lib/utils";
 import { BankForm } from "./bank-form";
 import { Greeting } from "./greeting";
@@ -459,10 +460,31 @@ export function ReceiptView({
   const payDetails = (id: string) => {
     const person = doc.people.find((p) => p.id === id);
     if (!person) return null;
+    const qr = person.payQr ? readQrDetails(person.payQr) : null;
+    const sameBank = !qr?.bank || !person.bank || qr.bank.toLowerCase() === person.bank.toLowerCase();
+    const account = qr && sameBank && hasAccount(person) ? (person.accountNo ?? null) : null;
     return (
       <>
-        {person.payQr ? <PayQr code={person.payQr} name={person.name} /> : null}
-        {hasAccount(person) ? (
+        {qr && !nameFitsQr(person.name, qr.name) ? (
+          <div className="rounded-xl bg-owe/10 px-3 py-2.5 text-[13px] leading-[1.35] text-owe">
+            <b className="block font-extrabold">{fmt(t.person.qrNameOff, { qr: qr.name ?? "", name: person.name })}</b>
+            {fmt(t.person.qrNameAsk, { name: person.name })}
+          </div>
+        ) : null}
+        {person.payQr && qr ? (
+          <PayQr
+            code={person.payQr}
+            fileName={`splitin-qr-${person.name.replace(/[^\p{L}\p{N}-]+/gu, "-")}.png`}
+            card={{
+              name: qr.name,
+              bank: [qr.bank ?? person.bank, account].filter(Boolean).join(" · ") || null,
+              kind: qr.duitNow ? "DuitNow QR" : null,
+            }}
+            account={account}
+            onCopy={() => copy(account!)}
+          />
+        ) : null}
+        {hasAccount(person) && !account ? (
           <div className="flex items-center justify-between gap-3 border-y border-line py-2.5">
             <span className="min-w-0">
               <b className="block text-[14.5px]">{person.bank}</b>
