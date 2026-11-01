@@ -49,9 +49,11 @@ function BottomSheet({ open, onOpenChange, title, children }: SheetProps) {
         <Drawer.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[94dvh] w-full max-w-[430px] flex-col rounded-t-[24px] border-t border-sheet-edge bg-sheet text-ink outline-none">
           <div className="mx-auto mt-2.5 h-[5px] w-10 shrink-0 rounded-[3px] bg-handle" />
-          <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto overscroll-contain px-5 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-            <Drawer.Title className="text-[22px] font-extrabold tracking-[-0.02em]">{title}</Drawer.Title>
-            <Drawer.Description className="sr-only">{typeof title === "string" ? title : ""}</Drawer.Description>
+          <Drawer.Title className="shrink-0 px-5 pt-4 pb-2 text-[22px] font-extrabold tracking-[-0.02em]">
+            {title}
+          </Drawer.Title>
+          <Drawer.Description className="sr-only">{typeof title === "string" ? title : ""}</Drawer.Description>
+          <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto overscroll-contain px-5 pt-1.5 pb-[max(24px,env(safe-area-inset-bottom))]">
             {children}
           </div>
         </Drawer.Content>
@@ -87,9 +89,23 @@ function Modal({ open, onOpenChange, title, children, wide }: SheetProps) {
       )}
     >
       {open ? (
-        <div className={cn("flex max-h-[88dvh] flex-col gap-[14px] overflow-y-auto p-6", wide && "gap-5 p-7")}>
-          <h2 className="m-0 text-[22px] font-extrabold tracking-[-0.02em]">{title}</h2>
-          {children}
+        <div className="flex max-h-[88dvh] flex-col">
+          <h2
+            className={cn(
+              "m-0 shrink-0 text-[22px] font-extrabold tracking-[-0.02em]",
+              wide ? "px-7 pt-7 pb-2" : "px-6 pt-6 pb-2",
+            )}
+          >
+            {title}
+          </h2>
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col overflow-y-auto",
+              wide ? "gap-5 p-7 pt-3" : "gap-[14px] p-6 pt-1.5",
+            )}
+          >
+            {children}
+          </div>
         </div>
       ) : null}
     </dialog>

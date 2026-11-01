@@ -175,9 +175,9 @@ export function PrinterPage({
                 }
               : undefined
           }
-          className="fixed inset-x-0 bottom-0 z-20 max-h-[74dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-sheet-edge bg-card px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_var(--sheet-shadow)]"
+          className="fixed inset-x-0 bottom-0 z-20 max-h-[74dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-sheet-edge bg-card shadow-[0_-8px_24px_var(--sheet-shadow)]"
         >
-          {panel}
+          <div className="px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">{panel}</div>
         </div>
       ) : dock ? (
         <div

@@ -434,7 +434,7 @@ test.describe("adding your own name", () => {
     const form = await owedAiman(page);
     const file = form.locator("input[type=file]");
     await file.setInputFiles(await qrPicture("https://example.com/pay"));
-    await expect(form.getByText("That isn't a payment QR.", { exact: false })).toBeVisible();
+    await expect(form.getByText("Invalid QR. Use the QR from your bank or e-wallet app.")).toBeVisible();
     await expect(form.getByText("QR added")).toHaveCount(0);
 
     await file.setInputFiles({
@@ -445,7 +445,7 @@ test.describe("adding your own name", () => {
         "base64",
       ),
     });
-    await expect(form.getByText("We couldn't find a QR in that picture.", { exact: false })).toBeVisible();
+    await expect(form.getByText("Invalid QR. Try a clearer screenshot.")).toBeVisible();
     await expect(form.locator("button[type=submit]")).toBeDisabled();
     expect((await serverDoc()).people[3].payQr ?? null).toBeNull();
   });
@@ -539,6 +539,26 @@ test.describe("adding your own name", () => {
     const paid = sheet(page).getByRole("button", { name: "Mark paid" });
     await paid.scrollIntoViewIfNeeded();
     await expect(paid).toBeInViewport();
+    expect(
+      await sheet(page)
+        .locator(".overflow-y-auto")
+        .evaluate((el) => el.scrollTop),
+    ).toBeGreaterThan(0);
+    await expect(sheet(page).getByRole("heading")).toBeInViewport();
+  });
+
+  test("the title and close button stay at the top while the form scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 560 });
+    const form = await owedAiman(page);
+    const title = form.getByText("Bank details", { exact: true });
+    const close = form.getByRole("button", { name: "Cancel" });
+    const before = await title.boundingBox();
+    expect((await close.boundingBox())!.y - (await form.boundingBox())!.y).toBeLessThan(20);
+    await form.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect.poll(() => form.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await title.boundingBox()).toEqual(before);
+    await close.click();
+    await expect(form).toHaveCount(0);
   });
 
   test("whoever is on a name can add and change its bank details", async ({ browser }) => {

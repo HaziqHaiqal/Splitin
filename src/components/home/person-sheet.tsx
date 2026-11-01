@@ -80,7 +80,7 @@ export function PersonSheet({
           e.preventDefault();
           save();
         }}
-        className="-mt-[14px] flex flex-col gap-4"
+        className="-mt-1.5 flex flex-col gap-4"
       >
         <div className="flex items-center gap-3">
           <Avatar name={displayName} color={person.color} size={48} />

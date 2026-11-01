@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon, CloseIcon } from "@/components/icons";
+import { CheckIcon } from "@/components/icons";
+import { PanelHead } from "@/components/shared/panel-form";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -223,22 +224,10 @@ export function BillForm({
       }}
       className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
     >
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <span className="text-[16px] font-extrabold tracking-[-0.01em]">
-          {title ?? (isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle)}
-        </span>
-        {onCancel ? (
-          <button
-            type="button"
-            onClick={onCancel}
-            aria-label={t.member.cancel}
-            title={t.member.cancel}
-            className="-mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-chip text-muted transition-colors hover:text-ink"
-          >
-            <CloseIcon size={17} />
-          </button>
-        ) : null}
-      </div>
+      <PanelHead
+        title={title ?? (isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle)}
+        onClose={onCancel}
+      />
 
       <div className="grid grid-cols-[1.3fr_1fr] gap-2">
         <input
