@@ -194,6 +194,7 @@ export const panel = (page: Page) => page.locator('[class*="rounded-t-[22px]"]')
 export const sheet = (page: Page) => page.getByRole("dialog");
 export const button = (page: Page, name: string | RegExp) => page.getByRole("button", { name });
 export const text = (page: Page, value: string | RegExp) => page.getByText(value).first();
+export const myList = (page: Page) => button(page, /^You added/);
 
 export async function pickMe(page: Page, name: string) {
   await expect(sheet(page).getByRole("heading", { name: "Who are you?" })).toBeVisible();

@@ -3,11 +3,15 @@ import {
   BILL,
   button,
   CODE,
+  dinner,
   getDb,
+  hotel,
   markExpired,
   newPhone,
   ownerStorage,
   panel,
+  patchDoc,
+  paymentRow,
   pickMe,
   seed,
   seedWithCode,
@@ -52,6 +56,64 @@ const catchWhatsApp = (page: Page) =>
       return null;
     }) as typeof window.open;
   });
+
+test.describe("sharing from a bill page", () => {
+  const icon = (page: Page) => button(page, "Share receipt");
+  const pictureReady = (page: Page) => expect(sheet(page).locator("img")).toBeVisible();
+
+  test("a member can share, with numbers changed after the page opened", async ({ page }) => {
+    await seed();
+    await catchWhatsApp(page);
+    await page.goto(`/bill/${BILL}`);
+    await sheet(page).getByRole("button", { name: "Just looking" }).click();
+    await patchDoc((doc) => ({ ...doc, items: [hotel, dinner] }));
+
+    await icon(page).click();
+    await pictureReady(page);
+    await expect(page.locator("[inert]").getByText("DINNER")).toBeAttached();
+    const message = await sentToWhatsApp(page);
+    expect(message).toContain("RM 390.00");
+    expect(message.endsWith(`/bill/${BILL}`)).toBe(true);
+    expect(message).not.toContain("#owner");
+  });
+
+  test("the picture leaves out the page's tap hints", async ({ page }) => {
+    await seed();
+    await page.goto(`/bill/${BILL}`);
+    await sheet(page).getByRole("button", { name: "Just looking" }).click();
+    await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
+    await icon(page).click();
+    await pictureReady(page);
+    await expect(page.locator("[inert]").getByText("HOTEL")).toBeAttached();
+    await expect(page.locator("[inert]").getByText("Paid? Tap to pick your name")).toHaveCount(0);
+  });
+
+  test("the owner can share from the payments page and the receipt page", async ({ browser }) => {
+    await seed();
+    const owner = await newPhone(browser, ownerStorage());
+    await owner.goto(`/bill/${BILL}`);
+    await expect(button(owner, "View receipt")).toBeVisible();
+    await icon(owner).click();
+    await pictureReady(owner);
+    await expect(codeRow(owner)).toHaveText(`Code${BILL}Copy`);
+    await owner.keyboard.press("Escape");
+    await expect(sheet(owner)).toHaveCount(0);
+
+    await button(owner, "View receipt").click();
+    await icon(owner).click();
+    await pictureReady(owner);
+  });
+
+  test("the owner can share once everyone has paid", async ({ browser }) => {
+    await seed(trip, { payments: [paymentRow("n", "h", 10000), paymentRow("a", "h", 10000)] });
+    const owner = await newPhone(browser, ownerStorage());
+    await owner.goto(`/bill/${BILL}`);
+    await expect(text(owner, "Everyone's paid.")).toBeVisible();
+    await icon(owner).click();
+    await pictureReady(owner);
+    await expect(owner.locator("[inert]").getByText("SETTLED")).toBeAttached();
+  });
+});
 
 test.describe("sharing a code", () => {
   test.beforeEach(() => seed());
@@ -110,13 +172,30 @@ test.describe("sharing a code", () => {
     expect(shared.url).toBe(linkTo(owner, code));
   });
 
-  test("the link preview spells out the numbers", async ({ page }) => {
+  test("the link preview has the bill name and no amounts", async ({ page }) => {
     await page.goto(`/bill/${BILL}`);
+    await expect(page.locator('meta[property="og:title"]').first()).toHaveAttribute("content", "Trip");
     await expect(page.locator('meta[property="og:description"]').first()).toHaveAttribute(
       "content",
-      "RM 300.00 · 3 people · 2 to settle",
+      "Tap to see the latest amounts and who pays who.",
     );
-    expect((await page.request.get(`/bill/${BILL}/opengraph-image`)).status()).toBe(200);
+  });
+
+  test("the link preview stays the same when the amounts change", async ({ page }) => {
+    const pictureOf = async () => {
+      await page.goto(`/bill/${BILL}`);
+      const picture = await page.locator('meta[property="og:image"]').first().getAttribute("content");
+      const { pathname, search } = new URL(picture!);
+      const response = await page.request.get(pathname + search);
+      expect(response.status()).toBe(200);
+      return { pathname, body: await response.body() };
+    };
+    const before = await pictureOf();
+    expect(before.pathname).toBe(`/bill/${BILL}/opengraph-image`);
+    await patchDoc((doc) => ({ ...doc, items: [hotel, dinner] }));
+    const after = await pictureOf();
+    expect(after.pathname).toBe(before.pathname);
+    expect(after.body.equals(before.body)).toBe(true);
   });
 
   test("the saved picture's file name has the code", async ({ browser }) => {

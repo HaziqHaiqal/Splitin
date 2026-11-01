@@ -14,7 +14,7 @@ export const en = {
   meta: {
     title: "Splitin · Split bills fairly",
     description: "Split bills fairly with anyone. No sign-up, no app.",
-    billSummary: "{total} · {count} people · {settle} to settle",
+    billPreview: "Tap to see the latest amounts and who pays who.",
   },
   home: {
     step1: "Who's splitting?",

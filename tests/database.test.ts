@@ -11,6 +11,7 @@ import {
   getDb,
   hotel,
   must,
+  myList,
   newPhone,
   ownerStorage,
   paymentRow,
@@ -245,7 +246,8 @@ test.describe("the browser key", () => {
     await expect(text(page, "SNACKS")).toBeVisible();
     await page.evaluate(() => localStorage.clear());
     await page.goto(`/bill/${BILL}`);
-    await button(page, "Delete").click();
+    await myList(page).click();
+    await sheet(page).getByRole("button", { name: "Delete" }).click();
     await pickMe(page, "Najmi");
     await expect.poll(async () => (await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel"]);
   });
@@ -255,9 +257,10 @@ test.describe("the browser key", () => {
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await expect(text(page, "SNACKS")).toBeVisible();
     await page.reload();
-    await expect(button(page, "Delete")).toBeVisible();
+    await expect(myList(page)).toBeVisible();
     await context.addCookies([{ name: "splitin-browser", value: "another", url: "http://localhost:3457" }]);
-    await button(page, "Delete").click();
+    await myList(page).click();
+    await sheet(page).getByRole("button", { name: "Delete" }).click();
     await expect(text(page, "Something went wrong")).toBeVisible();
     expect((await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel", "Snacks"]);
   });

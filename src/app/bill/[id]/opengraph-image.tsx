@@ -1,16 +1,15 @@
 import { ImageResponse } from "next/og";
-import { summarize } from "@/lib/bill";
 import { getBill } from "@/lib/data/bill";
-import { rm } from "@/lib/utils";
 
 export const alt = "Splitin receipt";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+const bar = (width: string, height = 16) => <div style={{ display: "flex", width, height, background: "#ecebe7" }} />;
+
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const bill = await getBill(id);
-  const s = bill ? summarize(bill.doc, bill.payments) : null;
 
   return new ImageResponse(
     <div
@@ -31,7 +30,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           width: 360,
           background: "#ffffff",
           padding: 32,
-          gap: 10,
+          gap: 16,
           boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
           transform: "rotate(-3deg)",
         }}
@@ -48,23 +47,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         >
           SPLITIN
         </div>
-        <div style={{ display: "flex", borderTop: "3px dashed #37352f", margin: "6px 0" }} />
-        {(bill?.doc.items ?? []).slice(0, 4).map((item) => (
-          <div
-            key={item.id}
-            style={{ display: "flex", justifyContent: "space-between", fontSize: 22, color: "#37352f" }}
-          >
-            <span>{item.name.toUpperCase().slice(0, 14)}</span>
-            <span>{(item.amountMinor / 100).toFixed(2)}</span>
-          </div>
-        ))}
-        <div style={{ display: "flex", borderTop: "3px dashed #37352f", margin: "6px 0" }} />
-        <div
-          style={{ display: "flex", justifyContent: "space-between", fontSize: 26, fontWeight: 700, color: "#37352f" }}
-        >
-          <span>TOTAL</span>
-          <span>{s ? rm(s.total) : ""}</span>
-        </div>
+        <div style={{ display: "flex", borderTop: "3px dashed #37352f" }} />
+        {bar("78%")}
+        {bar("56%")}
+        {bar("68%")}
+        <div style={{ display: "flex", borderTop: "3px dashed #37352f" }} />
+        {bar("100%", 22)}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 18, flex: 1 }}>
         <div style={{ display: "flex", fontSize: 40, fontWeight: 800, color: "#37352f" }}>
@@ -73,11 +61,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div style={{ display: "flex", fontSize: 64, fontWeight: 800, color: "#37352f", lineHeight: 1.05 }}>
           {bill?.doc.title ?? "Splitin"}
         </div>
-        {s && bill ? (
-          <div style={{ display: "flex", fontSize: 32, color: "#6b6a65" }}>
-            {rm(s.total)} · {bill.doc.people.length} people · {s.remaining.length} to settle
-          </div>
-        ) : null}
       </div>
     </div>,
     size,

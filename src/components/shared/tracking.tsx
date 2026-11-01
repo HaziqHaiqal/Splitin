@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
+import { Header } from "@/components/header";
 import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useToast } from "@/components/toast";
@@ -14,6 +15,7 @@ import { OwnerGreeting } from "./greeting";
 import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
 import { OwnerActions } from "./owner-actions";
 import { PayForm } from "./pay-form";
+import { ShareBill } from "./share-bill";
 import type { SharedBillData } from "./shared-bill";
 
 export function Tracking({
@@ -39,11 +41,11 @@ export function Tracking({
     setHistoryOpen(next);
   };
   const nameOf = (id: string) => bill.doc.people.find((p) => p.id === id)?.name ?? "?";
+  const url = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}` : "";
 
   const paid = summary.done.reduce((s, l) => s + l.amount, 0);
   const all = paid + summary.remaining.reduce((s, l) => s + l.amount, 0);
   const count = summary.done.length + summary.remaining.length;
-  const url = typeof window !== "undefined" ? `${window.location.origin}/bill/${bill.id}` : "";
 
   const pay = (payment: { from: string; to: string; amountMinor: number }) =>
     start(async () => {
@@ -179,6 +181,7 @@ export function Tracking({
 
   return (
     <PrinterPage
+      header={<Header action={<ShareBill bill={bill} />} />}
       phoneSide
       side={side}
       paper={<Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />}

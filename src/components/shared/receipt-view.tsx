@@ -12,7 +12,7 @@ import {
   type MyBillChanges,
 } from "@/app/actions";
 import { NameChip, NotListedChip } from "@/components/name-chip";
-import { TopBar } from "@/components/header";
+import { Header, TopBar } from "@/components/header";
 import { BillForm } from "@/components/home/bill-form";
 import { PlusIcon } from "@/components/icons";
 import { dockButton, PrinterPage } from "@/components/receipt/printer";
@@ -30,6 +30,7 @@ import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
 import { JoinForm } from "./join-form";
 import { NameForm } from "./name-form";
 import { PayForm } from "./pay-form";
+import { ShareBill } from "./share-bill";
 import type { SharedBillData } from "./shared-bill";
 
 type View =
@@ -64,6 +65,7 @@ export function ReceiptView({
   const [newMe, setNewMe] = useState<Person | null>(null);
   const [tell, setTell] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const desktop = useIsDesktop();
   const { mine } = bill;
   const me = useMe(bill.id);
@@ -306,36 +308,44 @@ export function ReceiptView({
   const myItems = member ? doc.items.filter((i) => i.addedAt && mine.items.includes(i.id)) : [];
   const joined = member && me ? doc.items.filter((i) => i.joins?.[me] && myJoins.includes(i.id)) : [];
   const names = member ? doc.people.filter((p) => mine.people.includes(p.id)) : [];
-  const hasList = !locked && myItems.length + joined.length + names.length > 0;
+  const listCount = myItems.length + joined.length + names.length;
+  const hasList = !locked && listCount > 0;
+  const fromList = (then: () => void) => {
+    setListOpen(false);
+    requestAnimationFrame(() => withMe(then));
+  };
+  const myRows = (
+    <div>
+      {names.map((p) =>
+        row(p.id, p.name, p.bank ? p.bank : t.member.noBank, t.member.bankDetails, () =>
+          fromList(() => openView({ kind: "bank", personId: p.id })),
+        ),
+      )}
+      {joined.map((item) =>
+        row(
+          `join-${item.id}`,
+          item.name,
+          fmt(t.join.youPay, { amount: money(itemShares(item)[me!] ?? 0) }),
+          t.bill.change,
+          () => fromList(() => openView({ kind: "join" })),
+        ),
+      )}
+      {myItems.map((item) =>
+        row(
+          item.id,
+          item.name,
+          money(item.amountMinor),
+          t.member.deleteMine,
+          () => fromList(() => deleteItem(item)),
+          true,
+        ),
+      )}
+    </div>
+  );
   const myList = hasList ? (
     <div className="rounded-2xl border border-border bg-card px-4 pt-3 pb-1">
       <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.member.yours}</span>
-      <div>
-        {names.map((p) =>
-          row(p.id, p.name, p.bank ? p.bank : t.member.noBank, t.member.bankDetails, () =>
-            withMe(() => openView({ kind: "bank", personId: p.id })),
-          ),
-        )}
-        {joined.map((item) =>
-          row(
-            `join-${item.id}`,
-            item.name,
-            fmt(t.join.youPay, { amount: money(itemShares(item)[me!] ?? 0) }),
-            t.bill.change,
-            () => withMe(() => openView({ kind: "join" })),
-          ),
-        )}
-        {myItems.map((item) =>
-          row(
-            item.id,
-            item.name,
-            money(item.amountMinor),
-            t.member.deleteMine,
-            () => withMe(() => deleteItem(item)),
-            true,
-          ),
-        )}
-      </div>
+      {myRows}
     </div>
   ) : null;
 
@@ -578,16 +588,34 @@ export function ReceiptView({
   return (
     <>
       <PrinterPage
-        header={back ? <TopBar back={back} title={t.receipt.title} /> : undefined}
+        header={
+          back ? (
+            <TopBar back={back} title={t.receipt.title} action={<ShareBill bill={bill} />} />
+          ) : (
+            <Header action={<ShareBill bill={bill} />} />
+          )
+        }
         side={side}
         phoneTop={
           view ? undefined : (
             <>
-              {greeting("px-1")}
+              {myName || hasList ? (
+                <div className="flex items-center justify-between gap-3 px-1">
+                  {greeting("min-w-0")}
+                  {hasList ? (
+                    <button
+                      type="button"
+                      onClick={() => setListOpen(true)}
+                      className="ml-auto h-9 shrink-0 text-[13.5px] font-bold text-green-ink"
+                    >
+                      {t.member.yours} · {listCount}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               {banner}
               {lockedNote}
               {tellCard}
-              {myList}
             </>
           )
         }
@@ -613,6 +641,11 @@ export function ReceiptView({
           />
         }
       />
+      {member && !desktop ? (
+        <Sheet open={listOpen && hasList} onOpenChange={setListOpen} title={t.member.yours}>
+          {myRows}
+        </Sheet>
+      ) : null}
       {member ? (
         <Sheet
           open={asking}

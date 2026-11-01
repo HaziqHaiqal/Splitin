@@ -11,6 +11,7 @@ import {
   fromMore,
   getDb,
   hotel,
+  myList,
   newPhone,
   OLD,
   openAs,
@@ -564,8 +565,8 @@ test.describe("History", () => {
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await settled(async () => (await serverDoc()).items.length, 3);
-    await expect(button(page, "Delete")).toBeVisible();
-    await button(page, "Delete").click();
+    await myList(page).click();
+    await sheet(page).getByRole("button", { name: "Delete" }).click();
     await settled(async () => (await serverDoc()).items.length, 2);
 
     await button(page, "Hi Najmi").click();

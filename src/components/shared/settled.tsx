@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Header } from "@/components/header";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { fmt } from "@/i18n";
@@ -11,6 +12,7 @@ import { saveDraft } from "@/lib/store";
 import { OwnerGreeting } from "./greeting";
 import { HistoryButton } from "./history";
 import { OwnerActions } from "./owner-actions";
+import { ShareBill } from "./share-bill";
 import type { SharedBillData } from "./shared-bill";
 
 export function Settled({
@@ -71,6 +73,7 @@ export function Settled({
 
   return (
     <PrinterPage
+      header={<Header action={<ShareBill bill={bill} bigStamp={t.settled.stamp} />} />}
       side={
         <>
           <OwnerGreeting doc={bill.doc} />

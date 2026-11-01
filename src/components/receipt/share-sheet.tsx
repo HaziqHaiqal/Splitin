@@ -7,7 +7,7 @@ import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { summarize, type BillDoc } from "@/lib/bill";
+import { summarize, type BillDoc, type Payment } from "@/lib/bill";
 import { isCode } from "@/lib/utils";
 
 const BACKDROP = "#0e131b";
@@ -40,12 +40,14 @@ export function ShareSheet({
   onOpenChange,
   billId,
   doc,
+  payments = [],
   receiptRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   billId: string | null;
   doc: BillDoc;
+  payments?: Payment[];
   receiptRef: RefObject<HTMLDivElement | null>;
 }) {
   const { t, money } = useI18n();
@@ -60,6 +62,7 @@ export function ShareSheet({
   const lines = (heading: string) =>
     `${heading}\n${details}${code ? `\n${t.share.code}: ${code}` : ""}\n\n${t.share.message}`;
   const message = `${lines(`*${title}*`)}\n${url}`;
+  const content = JSON.stringify([doc, payments]);
 
   useEffect(() => {
     if (!open || !receiptRef.current) return;
@@ -83,7 +86,7 @@ export function ShareSheet({
       setImage(null);
       setPasteHint(false);
     };
-  }, [open, receiptRef]);
+  }, [open, receiptRef, content]);
 
   const fileName = receiptFileName(createdAt, billId);
   const file = image ? new File([image.blob], fileName, { type: "image/png" }) : null;

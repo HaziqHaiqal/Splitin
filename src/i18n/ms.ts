@@ -16,7 +16,7 @@ export const ms: Dictionary = {
   meta: {
     title: "Splitin · Bahagi bil dengan adil",
     description: "Bahagi bil dengan adil bersama sesiapa sahaja. Tanpa daftar, tanpa app.",
-    billSummary: "{total} · {count} orang · {settle} belum selesai",
+    billPreview: "Tekan untuk lihat jumlah terkini dan siapa bayar siapa.",
   },
   home: {
     step1: "Siapa yang berkongsi?",
