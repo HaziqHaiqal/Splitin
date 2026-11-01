@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { payQrSchema } from "./bill-schema";
-import { isPaymentQr, MAX_QR_LENGTH, nameFitsQr, readQrDetails } from "./pay-qr";
+import { isPaymentQr, MAX_QR_LENGTH, nameFitsQr, qrFileName, readQrDetails } from "./pay-qr";
 
 const AIMAN =
   "00020201021126520014A000000615000101065887340220000000000012345678905204000053034585802MY5913AIMAN BIN ALI6002KL63042103";
@@ -68,6 +68,17 @@ describe("readQrDetails", () => {
 
   it("copes with a code it can't read", () => {
     expect(readQrDetails("not a code")).toEqual({ name: null, bank: null, duitNow: false });
+  });
+});
+
+describe("qrFileName", () => {
+  it("uses the real name from the QR, in capitals", () => {
+    expect(qrFileName("Hana", "MUHAMMAD HAZIQ HAIQAL BIN")).toBe("SPLITIN-QR-MUHAMMAD-HAZIQ-HAIQAL-BIN.png");
+    expect(qrFileName("Kumar", "Kumaran a/l Subramaniam")).toBe("SPLITIN-QR-KUMARAN-A-L-SUBRAMANIAM.png");
+  });
+
+  it("falls back to the name on the bill when the QR has none", () => {
+    expect(qrFileName("Kak Long", null)).toBe("SPLITIN-QR-KAK-LONG.png");
   });
 });
 

@@ -36,7 +36,7 @@ import {
   type PreviewItem,
 } from "@/lib/bill";
 import { getAsked, getMe, setAsked, setMe, useMe } from "@/lib/store";
-import { nameFitsQr, readQrDetails } from "@/lib/pay-qr";
+import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
 import { cn } from "@/lib/utils";
 import { BankForm } from "./bank-form";
 import { Greeting } from "./greeting";
@@ -474,7 +474,7 @@ export function ReceiptView({
         {person.payQr && qr ? (
           <PayQr
             code={person.payQr}
-            fileName={`splitin-qr-${person.name.replace(/[^\p{L}\p{N}-]+/gu, "-")}.png`}
+            fileName={qrFileName(person.name, qr.name)}
             card={{
               name: qr.name,
               bank: [qr.bank ?? person.bank, account].filter(Boolean).join(" · ") || null,

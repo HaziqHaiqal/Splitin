@@ -96,6 +96,7 @@ export function drawQrCard(
   plate: HTMLCanvasElement,
   word: HTMLCanvasElement,
   progress: number,
+  corner = 20,
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -106,7 +107,7 @@ export function drawQrCard(
   ctx.clearRect(0, 0, WIDTH, height);
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(0, 0, WIDTH, height, 20);
+  ctx.roundRect(0, 0, WIDTH, height, corner);
   ctx.clip();
   ctx.fillStyle = "#168a43";
   ctx.fillRect(0, 0, WIDTH, height);

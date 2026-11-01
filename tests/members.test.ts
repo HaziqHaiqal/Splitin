@@ -397,9 +397,28 @@ test.describe("adding your own name", () => {
     await other.evaluate(() => Object.defineProperty(navigator, "canShare", { value: undefined }));
     await details.getByRole("button", { name: "Save QR" }).click();
     const saved = await saving;
-    expect(saved.suggestedFilename()).toBe("splitin-qr-Aiman.png");
+    expect(saved.suggestedFilename()).toBe("SPLITIN-QR-AIMAN-BIN-ALI.png");
     const picture = await readFile(await saved.path());
-    expect(await scansAs(other, `data:image/png;base64,${picture.toString("base64")}`)).toBe(DUITNOW);
+    const savedUrl = `data:image/png;base64,${picture.toString("base64")}`;
+    expect(await scansAs(other, savedUrl)).toBe(DUITNOW);
+    const corners = await other.evaluate(async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const canvas = Object.assign(document.createElement("canvas"), { width: image.width, height: image.height });
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(image, 0, 0);
+      return [
+        [0, 0],
+        [image.width - 1, 0],
+        [0, image.height - 1],
+        [image.width - 1, image.height - 1],
+      ].map(([x, y]) => Array.from(ctx.getImageData(x, y, 1, 1).data));
+    }, savedUrl);
+    for (const [red, , , alpha] of corners) {
+      expect(alpha).toBe(255);
+      expect(red).toBeLessThan(100);
+    }
 
     await button(page, "Bank details Aiman").click();
     const again = panel(page);

@@ -54,6 +54,12 @@ export function readQrDetails(code: string) {
   };
 }
 
+export const qrFileName = (name: string, qrName: string | null) =>
+  `SPLITIN-QR-${(qrName ?? name)
+    .toUpperCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-|-$/g, "")}.png`;
+
 const nameWords = (name: string) =>
   (name.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => !NOT_A_NAME.has(word));
 

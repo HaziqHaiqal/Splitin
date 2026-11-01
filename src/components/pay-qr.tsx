@@ -67,13 +67,7 @@ export function PayQr({
 
       const still = document.createElement("canvas");
       Object.assign(still, qrCardSize(text));
-      drawQrCard(still, plate, word, 1);
-      const paper = still.getContext("2d");
-      if (paper) {
-        paper.globalCompositeOperation = "destination-over";
-        paper.fillStyle = "#fff";
-        paper.fillRect(0, 0, still.width, still.height);
-      }
+      drawQrCard(still, plate, word, 1, 0);
       still.toBlob((blob) => {
         if (live && blob) setMade({ key, file: new File([blob], fileName, { type: "image/png" }) });
       }, "image/png");
