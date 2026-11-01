@@ -601,8 +601,7 @@ function AddDemo() {
   }
 
   return (
-    <div className={cn(mini, "w-full max-w-[270px] animate-pop px-3 pt-2.5 pb-1")}>
-      <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.member.yours}</span>
+    <div className={cn(mini, "w-full max-w-[270px] animate-pop px-3 py-1")}>
       <div className="flex items-center justify-between gap-2 py-2">
         <span className="min-w-0 truncate text-[13px] text-ink">
           <b>{t.help.demoBills[1]}</b>

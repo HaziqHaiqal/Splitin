@@ -8,9 +8,19 @@ import { cn } from "@/lib/utils";
 
 const words = "text-[17px] font-extrabold tracking-[-0.01em]";
 
-export function Greeting({ name, onChange, className }: { name: string; onChange?: () => void; className?: string }) {
+export function Greeting({
+  name,
+  text,
+  onChange,
+  className,
+}: {
+  name?: string;
+  text?: string;
+  onChange?: () => void;
+  className?: string;
+}) {
   const { t } = useI18n();
-  const hi = fmt(t.member.hi, { name });
+  const hi = text ?? fmt(t.member.hi, { name: name ?? "" });
   return (
     <div className={cn("flex min-h-9 items-center", className)}>
       {onChange ? (

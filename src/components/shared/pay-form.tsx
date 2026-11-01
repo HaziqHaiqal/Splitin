@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PersonChips } from "@/components/home/person-chips";
 import { useI18n } from "@/i18n/client";
 import type { BillDoc } from "@/lib/bill";
@@ -15,6 +15,7 @@ export function PayForm({
   pending,
   onSave,
   onCancel,
+  onPreview,
 }: {
   doc: BillDoc;
   fixed?: { from: string; to: string };
@@ -23,6 +24,7 @@ export function PayForm({
   pending: boolean;
   onSave: (payment: { from: string; to: string; amountMinor: number }) => void;
   onCancel: () => void;
+  onPreview: (payment: { from: string; to: string; amountMinor: number } | null) => void;
 }) {
   const { t } = useI18n();
   const [from, setFrom] = useState(fixed?.from ?? "");
@@ -31,6 +33,11 @@ export function PayForm({
   const amountMinor = parseMoney(amount, "MYR") ?? 0;
   const ready = Boolean(from && to) && from !== to && amountMinor > 0;
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
+
+  useEffect(() => {
+    onPreview(ready ? { from, to, amountMinor } : null);
+  }, [onPreview, ready, from, to, amountMinor]);
+  useEffect(() => () => onPreview(null), [onPreview]);
 
   return (
     <PanelForm

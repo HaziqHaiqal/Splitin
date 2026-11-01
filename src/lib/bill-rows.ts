@@ -3,7 +3,7 @@ import type { BillEvent, EventBody, Who } from "./history";
 
 const SHARE_COLUMNS = "person_id, position, amount_override, browser_hash, joined_at";
 const ITEM_COLUMNS = `id, position, name, amount_minor, paid_by, browser_hash, added_at, item_shares(${SHARE_COLUMNS})`;
-const PERSON_COLUMNS = "id, position, name, color, bank, account_no, browser_hash, added_at, details_at";
+const PERSON_COLUMNS = "id, position, name, color, bank, account_no, pay_qr, browser_hash, added_at, details_at";
 const PAYMENT_COLUMNS = "id, from_person, to_person, amount_minor, by_role, browser_hash, created_at";
 const EVENT_COLUMNS = "id, kind, by_role, by_person_id, by_name, data, created_at";
 
@@ -36,6 +36,7 @@ export type PersonRow = {
   color: number;
   bank: string | null;
   account_no: string | null;
+  pay_qr: string | null;
   browser_hash: string | null;
   added_at: string | null;
   details_at: string | null;
@@ -95,6 +96,7 @@ export function docFromRow(row: BillRow): BillDoc {
       color: p.color,
       bank: p.bank ?? undefined,
       accountNo: p.account_no ?? undefined,
+      payQr: p.pay_qr ?? undefined,
       addedAt: isoOrNone(p.added_at),
       detailsAt: isoOrNone(p.details_at),
     })),
@@ -170,6 +172,7 @@ export function saveArgs(doc: BillDoc, rights: BillRights) {
       color: p.color,
       bank: p.bank ?? null,
       account_no: p.accountNo ?? null,
+      pay_qr: p.payQr ?? null,
       browser_hash: live.people?.[p.id] ?? null,
       added_at: p.addedAt ?? null,
       details_at: p.detailsAt ?? null,

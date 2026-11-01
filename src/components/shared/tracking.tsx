@@ -2,14 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { addPayment, removePayment } from "@/app/actions";
-import { Header } from "@/components/header";
 import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useToast } from "@/components/toast";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import type { BillSummary, PlanLine } from "@/lib/bill";
+import { previewPayment, type BillSummary, type PlanLine } from "@/lib/bill";
 import { cn } from "@/lib/utils";
 import { OwnerGreeting } from "./greeting";
 import { ChangesBanner, HistoryButton, useChangesSinceVisit } from "./history";
@@ -34,6 +33,7 @@ export function Tracking({
   const desktop = useIsDesktop();
   const [pending, start] = useTransition();
   const [paying, setPaying] = useState(false);
+  const [payPreview, setPayPreview] = useState<Parameters<typeof previewPayment>[0] | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => e.byRole === "owner");
   const showHistory = (next: boolean) => {
@@ -91,6 +91,7 @@ export function Tracking({
       pending={pending}
       onSave={pay}
       onCancel={() => setPaying(false)}
+      onPreview={setPayPreview}
     />
   );
 
@@ -172,7 +173,8 @@ export function Tracking({
         ))}
       </div>
       {desktop && paying ? payForm(false) : null}
-      <div className="flex flex-wrap items-center gap-x-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {desktop ? <ShareBill bill={bill} label className="h-[42px] px-4 text-[14px]" /> : null}
         <HistoryButton doc={bill.doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />
         <OwnerActions bill={bill} ownerToken={ownerToken} onRecord={() => setPaying(true)} />
       </div>
@@ -181,15 +183,24 @@ export function Tracking({
 
   return (
     <PrinterPage
-      header={<Header action={<ShareBill bill={bill} />} />}
       phoneSide
       side={side}
-      paper={<Receipt doc={bill.doc} payments={bill.payments} billId={bill.id} expiresAt={bill.expiresAt} />}
+      paper={
+        <Receipt
+          doc={bill.doc}
+          payments={payPreview ? [...bill.payments, previewPayment(payPreview)] : bill.payments}
+          billId={bill.id}
+          expiresAt={bill.expiresAt}
+        />
+      }
       panel={!desktop && paying ? payForm(true) : undefined}
       dock={
-        <button type="button" onClick={onViewReceipt} className={cn("w-full", dockButton)}>
-          {t.track.viewReceipt}
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={onViewReceipt} className={cn("flex-1", dockButton)}>
+            {t.track.viewReceipt}
+          </button>
+          <ShareBill bill={bill} className="size-12 shrink-0" />
+        </div>
       }
     />
   );

@@ -74,6 +74,12 @@ export const DownloadIcon = (p: IconProps) => (
   </svg>
 );
 
+export const UploadIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 22, ...p })}>
+    <path d="M12 15V4M7 9l5-5 5 5M5 20h14" />
+  </svg>
+);
+
 export const LinkIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 22, ...p })}>
     <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />

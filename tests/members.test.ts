@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import QRCode from "qrcode";
 import {
   addName,
   BILL,
@@ -11,7 +12,7 @@ import {
   eventKinds,
   getDb,
   hotel,
-  myList,
+  joinAs,
   newPhone,
   OLD,
   openAs,
@@ -168,7 +169,7 @@ test.describe("who are you", () => {
   test("tapping your name hides it from the list and can leave it", async ({ page }) => {
     await openAs(page, "Najmi");
     await submit(await startAdding(page, "Snacks", "1000"));
-    await expect(myList(page)).toHaveText("You added · 1");
+    await expect(button(page, "Delete Snacks")).toBeVisible();
 
     await button(page, "Hi Najmi").click();
     const list = sheet(page);
@@ -178,24 +179,26 @@ test.describe("who are you", () => {
 
     await expect(button(page, "Hi Najmi")).toHaveCount(0);
     await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
-    await expect(myList(page)).toBeVisible();
+    await expect(button(page, "Delete Snacks")).toHaveCount(0);
     expect(await page.evaluate((id) => localStorage.getItem(`splitin:me:${id}`), BILL)).toBeNull();
 
-    await choose(page, "Join bill");
+    await button(page, "Who are you?").click();
     await expect(sheet(page).getByRole("button", { name: "Najmi" })).toBeVisible();
     await expect(sheet(page).getByRole("button", { name: "Just looking" })).toHaveCount(0);
   });
 
-  test("the name sits above the receipt, with History below and a flat bar", async ({ page }) => {
+  test("the name and History sit above the receipt, with Add and Share in a flat bar", async ({ page }) => {
     await openAs(page, "Najmi");
     await expect(button(page, "Add bill")).toBeVisible();
+    await expect(button(page, "Share receipt")).toBeVisible();
     await expect(button(page, /^History/)).toBeVisible();
 
     const name = (await button(page, "Hi Najmi").boundingBox())!;
     const paper = (await text(page, "HOTEL").boundingBox())!;
     const history = (await button(page, /^History/).boundingBox())!;
     expect(name.y).toBeLessThan(paper.y);
-    expect(history.y).toBeGreaterThan(paper.y);
+    expect(history.y).toBeLessThan(paper.y);
+    expect(Math.abs(history.y - name.y)).toBeLessThan(4);
 
     const main = button(page, "Add bill");
     const bar = (await main.locator("../..").boundingBox())!;
@@ -203,19 +206,20 @@ test.describe("who are you", () => {
     expect(await main.evaluate((el) => getComputedStyle(el).boxShadow)).toBe("none");
   });
 
-  test("someone already in every bill only gets Add bill", async ({ page }) => {
+  test("a bill someone else put you in has no word beside it", async ({ page }) => {
     await openAs(page, "Najmi");
     await expect(button(page, "Add bill")).toBeVisible();
-    await expect(button(page, "Join bill")).toHaveCount(0);
+    await expect(button(page, /(Join|Change|Delete) Hotel/)).toHaveCount(0);
   });
 
-  test("before a name is chosen, both buttons show", async ({ page }) => {
+  test("before a name is chosen, the top asks who you are and the paper has no words", async ({ page }) => {
     await openBill(page);
+    await expect(button(page, "Who are you?")).toBeVisible();
     await expect(button(page, "Add bill")).toBeVisible();
-    await expect(button(page, "Join bill")).toBeVisible();
+    await expect(button(page, /(Join|Change|Delete) Hotel/)).toHaveCount(0);
   });
 
-  test("Add bill and Join bill open their forms straight away", async ({ page }) => {
+  test("Add bill and Join open their forms straight away", async ({ page }) => {
     await seed({ ...trip, items: [hotel, { ...dinner, participants: ["h", "a"] }] });
     await openAs(page, "Najmi");
     await button(page, "Add bill").click();
@@ -223,15 +227,15 @@ test.describe("who are you", () => {
     await expect(panel(page).getByText("Add what you paid")).toBeVisible();
     await panel(page).getByRole("button", { name: "Cancel" }).click();
 
-    await button(page, "Join bill").click();
+    await button(page, "Join Dinner").click();
     await expect(sheet(page)).toHaveCount(0);
     await expect(panel(page).getByText("Which bills are you in?")).toBeVisible();
+    await expect(panel(page).getByRole("checkbox", { name: "Dinner" })).toHaveAttribute("aria-checked", "true");
   });
 
   test("with no bills yet the button only adds", async ({ page }) => {
     await seed({ ...trip, items: [] });
     await openBill(page);
-    await expect(button(page, "Join bill")).toHaveCount(0);
     await button(page, "Add bill").click();
     await pickMe(page, "Najmi");
     await expect(panel(page).getByText("Add what you paid")).toBeVisible();
@@ -287,26 +291,200 @@ test.describe("adding your own name", () => {
     expect(await names()).toHaveLength(50);
   });
 
-  test("bank details: only on the phone that added the name", async ({ page, browser }) => {
+  test("bank details never print on the receipt, and anyone else can only read them", async ({ page, browser }) => {
     await openBill(page);
     await choose(page, "Add bill");
     await addName(page, "Aiman");
-    await expect(panel(page).getByText("Add what you paid")).toBeVisible();
-    await panel(page).getByRole("button", { name: "Cancel" }).click();
-    await myList(page).click();
-    await sheet(page).getByRole("button", { name: "Bank details" }).click();
+    const add = panel(page);
+    await expect(add.getByText("Add what you paid")).toBeVisible();
+    await add.locator("input[maxlength='60']").fill("Snacks");
+    await add.locator("input[inputmode='numeric']").pressSequentially("3000");
+    await submit(add);
+    await settled(async () => (await serverDoc()).items.length, 2);
+
+    await button(page, "Add bank details Aiman").click();
     const form = panel(page);
     await form.getByRole("button", { name: "Maybank" }).click();
     await form.locator("input[inputmode='numeric']").fill("1234567890");
+    await expect(page.getByText(/MAYBANK/)).toHaveCount(0);
     await submit(form);
     await settled(async () => (await serverDoc()).people[3].bank, "Maybank");
     expect((await serverDoc()).people[3].accountNo).toBe("1234567890");
     expect(JSON.stringify((await getDb()).bill_events)).not.toContain("1234567890");
 
+    await expect(text(page, "Your bank details are saved")).toBeVisible();
+    await expect(page.getByText("1234567890")).toHaveCount(0);
+    await button(page, "Bank details Aiman").click();
+    await expect(panel(page).locator("input[inputmode='numeric']")).toHaveValue("1234567890");
+
     const other = await newPhone(browser);
     await openBill(other);
+    await expect(other.getByText("1234567890")).toHaveCount(0);
+    await button(other, "Bank details Aiman").click();
+    const details = sheet(other);
+    await expect(details.getByRole("heading", { name: "Aiman's bank details" })).toBeVisible();
+    await expect(details.getByText("Maybank")).toBeVisible();
+    await expect(details.getByText("1234567890")).toBeVisible();
+    await expect(details.getByRole("button", { name: "Copy" })).toBeVisible();
+    await expect(panel(other)).toHaveCount(0);
+  });
+
+  const DUITNOW = "00020101021126410014A000000615000101065887340213012345678905204000053034585802MY6304ABCD";
+  const qrPicture = async (code: string, name = "qr.png") => ({
+    name,
+    mimeType: "image/png",
+    buffer: await QRCode.toBuffer(code, { width: 400 }),
+  });
+  const owedAiman = async (page: Page) => {
+    await openBill(page);
+    await choose(page, "Add bill");
+    await addName(page, "Aiman");
+    const add = panel(page);
+    await expect(add.getByText("Add what you paid")).toBeVisible();
+    await add.locator("input[maxlength='60']").fill("Snacks");
+    await add.locator("input[inputmode='numeric']").pressSequentially("3000");
+    await submit(add);
+    await settled(async () => (await serverDoc()).items.length, 2);
+    await button(page, "Add bank details Aiman").click();
+    const form = panel(page);
+    await expect(form.getByRole("button", { name: /Upload your QR/ })).toBeVisible();
+    return form;
+  };
+
+  test("a QR picture is read, saved as text and offered to everyone", async ({ page, browser }) => {
+    const form = await owedAiman(page);
+    await form.locator("input[type=file]").setInputFiles(await qrPicture(DUITNOW));
+    await expect(form.getByText("QR added")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Payment QR" })).toBeVisible();
+    await submit(form);
+    await settled(async () => (await serverDoc()).people[3].payQr, DUITNOW);
+    expect(JSON.stringify((await getDb()).bill_events)).not.toContain(DUITNOW);
+    await expect(button(page, "Bank details Aiman")).toBeVisible();
+
+    const other = await newPhone(browser);
+    await openBill(other);
+    await button(other, "Bank details Aiman").click();
+    const details = sheet(other);
+    await expect(details.getByRole("img", { name: "Payment QR" })).toBeVisible();
+    await expect(details.getByRole("button", { name: "Copy" })).toHaveCount(0);
+    const saving = other.waitForEvent("download");
+    await other.evaluate(() => Object.defineProperty(navigator, "canShare", { value: undefined }));
+    await details.getByRole("button", { name: "Save QR" }).click();
+    expect((await saving).suggestedFilename()).toBe("splitin-qr-Aiman.png");
+
+    await button(page, "Bank details Aiman").click();
+    const again = panel(page);
+    await expect(again.getByText("QR added")).toBeVisible();
+    await again.getByRole("button", { name: "Remove" }).click();
+    await expect(again.getByRole("button", { name: /Upload your QR/ })).toBeVisible();
+    await submit(again);
+    await settled(async () => (await serverDoc()).people[3].payQr ?? null, null);
+    await expect(button(page, "Add bank details Aiman")).toBeVisible();
+  });
+
+  test("a website QR and a picture with no QR are refused with a clear reason", async ({ page }) => {
+    const form = await owedAiman(page);
+    const file = form.locator("input[type=file]");
+    await file.setInputFiles(await qrPicture("https://example.com/pay"));
+    await expect(form.getByText("That QR opens a website, not a payment.", { exact: false })).toBeVisible();
+    await expect(form.getByText("QR added")).toHaveCount(0);
+
+    await file.setInputFiles({
+      name: "blank.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==",
+        "base64",
+      ),
+    });
+    await expect(form.getByText("We couldn't find a QR in that picture.", { exact: false })).toBeVisible();
+    await expect(form.locator("button[type=submit]")).toBeDisabled();
+    expect((await serverDoc()).people[3].payQr ?? null).toBeNull();
+  });
+
+  test("your own payment shows the QR too, and the QR never reaches the paper", async ({ page }) => {
+    await seed({ ...trip, people: [{ ...trip.people[0], payQr: DUITNOW }, ...trip.people.slice(1)] });
+    await openAs(page, "Najmi");
+    await expect(page.locator("[data-receipt-total]").getByRole("img")).toHaveCount(0);
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const ask = sheet(page);
+    await expect(ask.getByRole("img", { name: "Payment QR" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Save QR" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Mark paid" })).toBeVisible();
+  });
+
+  test("whoever is on a name can add and change its bank details", async ({ browser }) => {
+    await seed({ ...trip, items: [{ ...dinner, paidBy: "n" }] });
+    const first = await newPhone(browser);
+    const second = await newPhone(browser);
+    const other = await newPhone(browser);
+    await openAs(first, "Najmi");
+    await openAs(second, "Najmi");
+    await openAs(other, "Afiq");
     await expect(button(other, "Add bill")).toBeVisible();
-    await expect(myList(other)).toHaveCount(0);
+    await expect(button(other, /bank details Najmi/i)).toHaveCount(0);
+
+    await button(first, "Add bank details Najmi").click();
+    const adding = panel(first);
+    await adding.getByRole("button", { name: "Maybank" }).click();
+    await adding.locator("input[inputmode='numeric']").fill("1111");
+    await submit(adding);
+    await settled(async () => (await serverDoc()).people[1].accountNo, "1111");
+
+    await second.reload();
+    await button(second, "Bank details Najmi").click();
+    const fixing = panel(second);
+    const account = fixing.locator("input[inputmode='numeric']");
+    await expect(account).toHaveValue("1111");
+    await account.fill("2222");
+    await submit(fixing);
+    await settled(async () => (await serverDoc()).people[1].accountNo, "2222");
+
+    await other.reload();
+    await button(other, "Bank details Najmi").click();
+    await expect(sheet(other).getByText("2222")).toBeVisible();
+    await expect(panel(other)).toHaveCount(0);
+    expect((await eventKinds()).filter((kind) => kind === "person_details")).toHaveLength(2);
+  });
+
+  test("details the owner typed in can't be replaced by picking the name", async ({ page }) => {
+    await seed({
+      ...trip,
+      people: [trip.people[0], { ...trip.people[1], bank: "Maybank", accountNo: "7012" }, trip.people[2]],
+      items: [{ ...dinner, paidBy: "n" }],
+    });
+    await openAs(page, "Najmi");
+    await button(page, "Bank details Najmi").click();
+    await expect(sheet(page).getByText("7012")).toBeVisible();
+    await expect(panel(page)).toHaveCount(0);
+  });
+
+  test("Pay to only lists people who are owed and have something to show", async ({ page }) => {
+    await seed({
+      ...trip,
+      people: [{ ...trip.people[0], bank: "Maybank", accountNo: "7012" }, trip.people[1], trip.people[2]],
+      items: [hotel, dinner],
+    });
+    await openBill(page);
+    await expect(button(page, "Bank details Haziq")).toBeVisible();
+    await expect(button(page, /Bank details (Najmi|Afiq)/)).toHaveCount(0);
+    await seed({ ...trip, items: [hotel] });
+    await openBill(page);
+    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(page.getByText("PAY TO", { exact: true })).toHaveCount(0);
+  });
+
+  test("your own payment shows where to pay, above Mark paid", async ({ page }) => {
+    await seed({
+      ...trip,
+      people: [{ ...trip.people[0], bank: "Maybank", accountNo: "7012 4455" }, ...trip.people.slice(1)],
+    });
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    const ask = sheet(page);
+    await expect(ask.getByText("7012 4455")).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Copy" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Mark paid" })).toBeVisible();
   });
 });
 
@@ -368,11 +546,7 @@ test.describe("adding a bill", () => {
   test("a later bill has everyone ticked, including someone who joined only one bill", async ({ page }) => {
     await patchDoc((d) => ({ ...d, items: [hotel, dinner] }));
     await openBill(page);
-    await choose(page, "Join bill");
-    await addName(page, "Aiman");
-    const join = panel(page);
-    await join.getByRole("checkbox", { name: "Hotel" }).click();
-    await submit(join);
+    await submit(await joinAs(page, "Aiman"));
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
 
     await submit(await startAdding(page, "Toll", "500"));
@@ -387,18 +561,16 @@ test.describe("adding a bill", () => {
     await submit(await startAdding(mine, "Snacks", "1000", "Najmi"));
     await settled(itemNames, ["Hotel", "Snacks"]);
 
-    await openBill(stranger);
+    await openAs(stranger, "Afiq");
     await expect(button(stranger, "Add bill")).toBeVisible();
-    await expect(myList(stranger)).toHaveCount(0);
+    await expect(button(stranger, "Delete Snacks")).toHaveCount(0);
 
-    await openBill(mine);
-    await myList(mine).click();
-    await sheet(mine).getByRole("button", { name: "Delete" }).click();
+    await button(mine, "Delete Snacks").click();
     await settled(itemNames, ["Hotel"]);
-    await expect(myList(mine)).toHaveCount(0);
+    await expect(button(mine, "Delete Snacks")).toHaveCount(0);
     await button(mine, "Undo").click();
     await settled(itemNames, ["Hotel", "Snacks"]);
-    await expect(myList(mine)).toBeVisible();
+    await expect(button(mine, "Delete Snacks")).toBeVisible();
   });
 
   test("two members adding at the same moment both survive", async ({ browser }) => {
@@ -417,11 +589,7 @@ test.describe("secret keys", () => {
   test("stay on the server, whoever opens the bill", async ({ browser, page }) => {
     await seed({ ...trip, items: [hotel, dinner] });
     await openBill(page);
-    await choose(page, "Join bill");
-    await addName(page, "Aiman");
-    const joining = panel(page);
-    await joining.getByRole("checkbox", { name: "Hotel" }).click();
-    await submit(joining);
+    await submit(await joinAs(page, "Aiman"));
     await settled(async () => Boolean((await serverItem("hotel"))?.joins), true);
     await openBill(page);
     await submit(await startAdding(page, "Petrol", "6000"));
@@ -471,22 +639,87 @@ test.describe("secret keys", () => {
   });
 });
 
+test.describe("seeing a change before saving", () => {
+  test.beforeEach(() => seed());
+
+  test("a new bill changes the total and who pays who first", async ({ page }) => {
+    await openBill(page);
+    const form = await startAdding(page, "Snacks", "3000", "Najmi");
+    await expect(text(page, "RM 330.00")).toBeVisible();
+    await expect(text(page, "RM 110.00")).toBeVisible();
+    expect(await itemNames()).toEqual(["Hotel"]);
+
+    await form.getByRole("button", { name: "Cancel" }).click();
+    await expect(text(page, "RM 300.00")).toBeVisible();
+    expect(await itemNames()).toEqual(["Hotel"]);
+  });
+
+  test("a different amount shows as paid, with the rest still to pay", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await payLine(page, "NAJMI", "HAZIQ").click();
+    await sheet(page).getByRole("button", { name: "I paid a different amount" }).click();
+    const form = panel(page);
+    await form.locator("input[inputmode='numeric']").pressSequentially("4000");
+    await expect(page.getByText("PAID", { exact: true })).toBeVisible();
+    await expect(page.getByText("60.00", { exact: true })).toBeVisible();
+    expect(await paymentsOf()).toEqual([]);
+
+    await form.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByText("PAID", { exact: true })).toHaveCount(0);
+    expect(await paymentsOf()).toEqual([]);
+  });
+
+  test("Share waits until the form is closed, so nothing unsaved goes out", async ({ page }) => {
+    await openBill(page);
+    await expect(button(page, "Share receipt")).toBeVisible();
+    const form = await startAdding(page, "Snacks", "3000", "Najmi");
+    await expect(button(page, "Share receipt")).toHaveCount(0);
+    await form.getByRole("button", { name: "Cancel" }).click();
+    await expect(button(page, "Share receipt")).toBeVisible();
+  });
+});
+
 test.describe("joining bills", () => {
   test.beforeEach(() => seed({ ...trip, items: [hotel, dinner] }));
 
-  const startJoining = async (page: import("@playwright/test").Page) => {
+  const startJoining = async (page: import("@playwright/test").Page, item = "Hotel") => {
     await openBill(page);
-    await choose(page, "Join bill");
-    await addName(page, "Aiman");
-    const form = panel(page);
-    await expect(form.getByText("Which bills are you in?")).toBeVisible();
-    return form;
+    return joinAs(page, "Aiman", item);
   };
   const me = async () => (await serverDoc()).people.find((p) => p.name === "Aiman")!.id;
 
+  test("tapping Join shows on the receipt at once, and nothing saves until Save", async ({ page }) => {
+    const form = await startJoining(page);
+    await expect(text(page, "75.00 EACH")).toBeVisible();
+    await expect(page.getByText("AIMAN", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /PAYS/ })).toHaveCount(0);
+    expect(await me()).toBeTruthy();
+    expect((await serverItem("hotel"))?.participants).toHaveLength(3);
+
+    await form.getByRole("button", { name: "Cancel" }).click();
+    await expect(text(page, "100.00 EACH")).toBeVisible();
+    await expect(page.getByText("AIMAN", { exact: true })).toHaveCount(0);
+    expect((await serverItem("hotel"))?.participants).toHaveLength(3);
+  });
+
+  test("a typed amount shows on the receipt, and Save keeps it", async ({ page }) => {
+    const form = await startJoining(page);
+    await form.getByRole("button", { name: "Your amount for Hotel" }).click();
+    const input = form.getByRole("textbox", { name: "Your amount for Hotel" });
+    await input.fill("");
+    await input.pressSequentially("4000");
+    await expect(text(page, "AIMAN 40.00")).toBeVisible();
+    expect((await serverItem("hotel"))?.overrides).toEqual({});
+
+    await input.press("Enter");
+    await submit(form);
+    const id = await me();
+    await settled(async () => (await serverItem("hotel"))?.overrides[id], 4000);
+    await expect(text(page, "AIMAN 40.00")).toBeVisible();
+  });
+
   test("joins one bill with an automatic share, then undo", async ({ page }) => {
     const form = await startJoining(page);
-    await form.getByRole("checkbox", { name: "Hotel" }).click();
     await expect(form.getByText("RM 75.00")).toBeVisible();
     await submit(form);
     await expect(text(page, "Your bills are updated")).toBeVisible();
@@ -551,15 +784,16 @@ test.describe("joining bills", () => {
 
   test("changes the amount later and leaves on the same phone", async ({ page }) => {
     let form = await startJoining(page);
-    await form.getByRole("checkbox", { name: "Hotel" }).click();
     await submit(form);
     const id = await me();
     await settled(async () => (await serverItem("hotel"))?.participants.includes(id), true);
 
-    await myList(page).click();
-    await expect(sheet(page).getByText("you pay RM 75.00")).toBeVisible();
-    await sheet(page).getByRole("button", { name: "Change" }).click();
+    await button(page, "Change Hotel").click();
     form = panel(page);
+    await expect(form.getByText("Tap the amount to write your own, or untick to leave Hotel.")).toBeVisible();
+    await expect(form.getByRole("button", { name: "Join all" })).toHaveCount(0);
+    await expect(form.locator("button[type=submit]")).toBeDisabled();
+    await expect(text(page, "75.00 EACH")).toBeVisible();
     await form.getByRole("button", { name: "Your amount for Hotel" }).click();
     const input = form.getByRole("textbox", { name: "Your amount for Hotel" });
     await input.fill("");
@@ -569,31 +803,31 @@ test.describe("joining bills", () => {
     await settled(async () => (await serverItem("hotel"))?.overrides[id], 4000);
     expect(await eventKinds()).toContain("share_changed");
 
-    await myList(page).click();
-    await sheet(page).getByRole("button", { name: "Change" }).click();
+    await button(page, "Change Hotel").click();
     form = panel(page);
     await form.getByRole("checkbox", { name: "Hotel" }).click();
     await submit(form);
     await settled(async () => (await serverItem("hotel"))?.participants.includes(id), false);
     expect(await eventKinds()).toContain("bill_left");
-    await expect(myList(page)).toHaveText("You added · 1");
+    await expect(button(page, "Join Hotel")).toBeVisible();
   });
 
   test("a bill you were already in is fixed and cannot be left", async ({ page }) => {
-    await openBill(page);
-    const form = await openJoin(page, "Najmi");
+    await seed({ ...trip, items: [hotel, { ...dinner, participants: ["h", "a"] }] });
+    await openAs(page, "Najmi");
+    const form = await openJoin(page, "Dinner");
     const hotelBox = form.getByRole("checkbox", { name: "Hotel" });
     await expect(hotelBox).toBeDisabled();
     await expect(form.getByText("You're in this bill").first()).toBeVisible();
-    await expect(form.getByRole("button", { name: "Join all" })).toHaveCount(0);
   });
 
   test("a bill with every amount set cannot be joined", async ({ page }) => {
     await seed({
       ...trip,
-      items: [{ ...hotel, participants: ["h", "n"], overrides: { h: 10000, n: 20000 } }],
+      items: [{ ...hotel, participants: ["h", "n"], overrides: { h: 10000, n: 20000 } }, dinner],
     });
-    const form = await startJoining(page);
+    const form = await startJoining(page, "Dinner");
+    await expect(button(page, "Join Hotel")).toHaveCount(0);
     await expect(form.getByRole("checkbox", { name: "Hotel" })).toBeDisabled();
     await expect(form.getByText("Every amount is set. Ask Haziq.")).toBeVisible();
   });
@@ -601,15 +835,7 @@ test.describe("joining bills", () => {
   test("someone who already paid too much gets paid back", async ({ page }) => {
     await seed(trip, { payments: [paymentRow("n", "h", 10000)] });
     await openBill(page);
-    const form = await (async () => {
-      await choose(page, "Join bill");
-      await addName(page, "Aiman");
-      const panelForm = panel(page);
-      await expect(panelForm.getByText("Which bills are you in?")).toBeVisible();
-      return panelForm;
-    })();
-    await form.getByRole("checkbox", { name: "Hotel" }).click();
-    await submit(form);
+    await submit(await joinAs(page, "Aiman"));
     await expect(page.getByRole("button", { name: /PAYS NAJMI/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /PAYS NAJMI.*25\.00/ })).toBeVisible();
   });

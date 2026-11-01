@@ -13,6 +13,7 @@ import {
   type Item,
   type Payment,
   type PlanLine,
+  type Person,
   type PreviewItem,
 } from "@/lib/bill";
 
@@ -106,6 +107,32 @@ function Leader({ left, right, bold }: { left: React.ReactNode; right: React.Rea
   );
 }
 
+export type ReceiptWord = {
+  label: string;
+  name: string;
+  tone?: "go" | "danger";
+  disabled?: boolean;
+  onClick: () => void;
+};
+
+function Word({ word, className }: { word: ReceiptWord; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={word.name}
+      disabled={word.disabled}
+      onClick={word.onClick}
+      className={cn(
+        "h-11 pl-3 font-sans text-[12.5px] font-bold whitespace-nowrap underline-offset-2 hover:underline disabled:opacity-60",
+        className,
+      )}
+      style={{ color: word.tone === "go" ? GREEN : word.tone === "danger" ? RED : MUTED }}
+    >
+      {word.label}
+    </button>
+  );
+}
+
 export type ReceiptProps = {
   doc: BillDoc;
   payments?: Payment[];
@@ -120,8 +147,11 @@ export type ReceiptProps = {
   variant?: "draft" | "full";
   people?: { key: number; fresh?: boolean } | null;
   preview?: PreviewItem | null;
+  changed?: readonly string[];
   freshItemId?: string | null;
   onItem?: (item: Item) => void;
+  itemWord?: (item: Item) => ReceiptWord | null;
+  payToWord?: (person: Person) => ReceiptWord | null;
   bigStamp?: string;
 };
 
@@ -140,8 +170,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     variant = "full",
     people,
     preview,
+    changed,
     freshItemId,
     onItem,
+    itemWord,
+    payToWord,
     bigStamp,
   },
   ref,
@@ -149,8 +182,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const draft = variant === "draft";
   const { t, plain, money, date, time } = useI18n();
   const r = t.receipt;
-  const summary = summarize(doc, payments);
   const newPeople = preview?.newPeople ?? [];
+  const counted: BillDoc =
+    !draft && preview?.paidBy && preview.amountMinor > 0
+      ? { ...doc, people: [...doc.people, ...newPeople], items: [...doc.items, preview] }
+      : doc;
+  const summary = summarize(counted, payments);
   const name = (id: string) => [...doc.people, ...newPeople].find((p) => p.id === id)?.name.toUpperCase() ?? "?";
   const created = date(doc.createdAt, { day: "2-digit", month: "2-digit", year: "numeric" });
   const createdTime = time(doc.createdAt);
@@ -162,6 +199,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     preview && preview.amountMinor > 0 ? itemSplitText(preview, [...active, ...newPeople], plain, splitWords) : "";
 
   const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
+    const word = kind === "ghost" ? null : itemWord?.(item);
     const body = (
       <>
         <span
@@ -172,9 +210,9 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
           <span className="truncate">{name(item.paidBy)}</span>
           <span style={{ textAlign: "right" }}>{item.amountMinor > 0 ? plain(item.amountMinor) : "–"}</span>
         </span>
-        {detail ? (
+        {detail || word ? (
           <span
-            className="block"
+            className="relative block"
             style={{
               color: MUTED,
               fontSize: 11.5,
@@ -189,6 +227,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 <span className="whitespace-nowrap">{part}</span>
               </Fragment>
             ))}
+            {word ? <Word word={word} className="absolute -top-3.5 right-0" /> : null}
           </span>
         ) : null}
       </>
@@ -216,10 +255,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     ...summary.done.map((l) => ({ ...l, paid: true })),
     ...summary.remaining.map((l) => ({ ...l, paid: false })),
   ];
-  const groups = doc.people.map((p) => lines.filter((l) => l.from === p.id)).filter((g) => g.length > 0);
-  const receivers = [...new Set(lines.map((l) => l.to))]
-    .map((id) => doc.people.find((p) => p.id === id))
-    .filter((p) => p && p.bank && p.accountNo);
+  const groups = counted.people.map((p) => lines.filter((l) => l.from === p.id)).filter((g) => g.length > 0);
+  const payRows = [...new Set(summary.remaining.map((l) => l.to))].flatMap((id) => {
+    const person = counted.people.find((p) => p.id === id);
+    const word = person && payToWord?.(person);
+    return person && word ? [{ person, word }] : [];
+  });
   const host = typeof window === "undefined" ? "" : window.location.host;
 
   return (
@@ -273,7 +314,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
             {rows.map(({ item, detail }) =>
               preview?.id === item.id
                 ? billLine(preview, previewDetail, "ghost")
-                : billLine(item, detail, item.id === freshItemId ? "fresh" : "plain"),
+                : billLine(
+                    item,
+                    detail,
+                    changed?.includes(item.id) ? "ghost" : item.id === freshItemId ? "fresh" : "plain",
+                  ),
             )}
             {preview && !doc.items.some((i) => i.id === preview.id) ? billLine(preview, previewDetail, "ghost") : null}
           </div>
@@ -288,14 +333,18 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         ) : (
           <>
             <Dashed />
-            <div className="flex justify-between" style={{ fontSize: 16, fontWeight: 700 }}>
+            <div
+              data-receipt-total
+              className="flex scroll-mt-36 justify-between"
+              style={{ fontSize: 16, fontWeight: 700 }}
+            >
               <span>{r.total}</span>
               <span>{money(summary.total)}</span>
             </div>
 
             {summary.sameShare !== null ? (
               <div className="flex justify-between" style={{ fontWeight: 600 }}>
-                <span>{fmt(r.peopleEach, { count: active.length })}</span>
+                <span>{fmt(r.peopleEach, { count: activePeople(counted).length })}</span>
                 <span>{money(summary.sameShare)}</span>
               </div>
             ) : null}
@@ -425,21 +474,17 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               })}
             </div>
 
-            {receivers.length > 0 ? (
+            {payRows.length > 0 ? (
               <>
                 <Dashed />
-                <div style={{ color: MUTED, fontSize: 11 }}>{r.payTo}</div>
-                <div className="grid" style={{ gridTemplateColumns: "64px minmax(0,1fr)", columnGap: 8, rowGap: 6 }}>
-                  {receivers.map((p) => (
-                    <div key={p!.id} className="contents">
-                      <span className="truncate" style={{ fontWeight: 700 }}>
-                        {p!.name.toUpperCase()}
+                <div style={{ fontWeight: 700, letterSpacing: "0.06em" }}>{r.payTo}</div>
+                <div className="flex flex-col">
+                  {payRows.map(({ person, word }) => (
+                    <div key={person.id} className="flex min-h-8 items-center justify-between gap-2">
+                      <span className="min-w-0 truncate" style={{ fontWeight: 700 }}>
+                        {person.name.toUpperCase()}
                       </span>
-                      <span>
-                        {p!.bank!.toUpperCase()}
-                        <br />
-                        {p!.accountNo}
-                      </span>
+                      <Word word={word} className="-my-1.5 shrink-0" />
                     </div>
                   ))}
                 </div>

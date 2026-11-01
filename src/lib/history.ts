@@ -1,4 +1,4 @@
-import { ownerOf, type BillDoc, type Item } from "./bill";
+import { ownerOf, samePayDetails, type BillDoc, type Item } from "./bill";
 
 export type ItemChanges = {
   name?: [string, string];
@@ -67,8 +67,7 @@ export function diffDocs(before: BillDoc, after: BillDoc): EventBody[] {
       continue;
     }
     if (old.name !== person.name) events.push({ kind: "person_renamed", from: old.name, to: person.name });
-    if ((old.bank ?? "") !== (person.bank ?? "") || (old.accountNo ?? "") !== (person.accountNo ?? ""))
-      events.push({ kind: "person_details", name: person.name });
+    if (!samePayDetails(old, person)) events.push({ kind: "person_details", name: person.name });
   }
   for (const old of before.people) {
     if (!after.people.some((p) => p.id === old.id)) events.push({ kind: "person_removed", name: old.name });

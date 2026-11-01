@@ -194,7 +194,6 @@ export const panel = (page: Page) => page.locator('[class*="rounded-t-[22px]"]')
 export const sheet = (page: Page) => page.getByRole("dialog");
 export const button = (page: Page, name: string | RegExp) => page.getByRole("button", { name });
 export const text = (page: Page, value: string | RegExp) => page.getByText(value).first();
-export const myList = (page: Page) => button(page, /^You added/);
 
 export async function pickMe(page: Page, name: string) {
   await expect(sheet(page).getByRole("heading", { name: "Who are you?" })).toBeVisible();
@@ -209,7 +208,7 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
-export async function choose(page: Page, option: "Add bill" | "Join bill") {
+export async function choose(page: Page, option: "Add bill") {
   await page.addStyleTag({ content: "nextjs-portal { display: none }" });
   await button(page, option).click();
 }
@@ -231,12 +230,23 @@ export async function startAdding(page: Page, name: string, digits: string, me?:
 
 export const submit = (form: ReturnType<typeof panel>) => form.locator("button[type=submit]").click();
 
-export async function openJoin(page: Page, me?: string) {
-  await choose(page, "Join bill");
-  if (me) await pickMe(page, me);
+export async function openJoin(page: Page, item = "Hotel") {
+  await page.addStyleTag({ content: "nextjs-portal { display: none }" });
+  await button(page, `Join ${item}`).click();
   const form = panel(page);
   await expect(form.getByText("Which bills are you in?")).toBeVisible();
   return form;
+}
+
+export async function addMe(page: Page, name: string) {
+  await button(page, "Who are you?").click();
+  await addName(page, name);
+  await expect(button(page, `Hi ${name}`)).toBeVisible();
+}
+
+export async function joinAs(page: Page, name: string, item = "Hotel") {
+  await addMe(page, name);
+  return openJoin(page, item);
 }
 
 export const payLine = (page: Page, from: string, to: string) =>

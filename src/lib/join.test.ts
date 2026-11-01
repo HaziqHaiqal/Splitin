@@ -7,6 +7,8 @@ import {
   leaveItem,
   mergeMemberChanges,
   ownerOf,
+  previewMyBills,
+  previewPayment,
   summarize,
   withNewPeople,
   withoutPerson,
@@ -243,9 +245,10 @@ describe("mergeMemberChanges", () => {
   });
 
   it("keeps bank details a member added", () => {
-    const details = { ...aiman, bank: "Maybank", accountNo: "123", detailsAt: join.at };
+    const details = { ...aiman, bank: "Maybank", accountNo: "123", payQr: "000201QR", detailsAt: join.at };
     const merged = mergeMemberChanges({ ...withAiman, people: [...people, details] }, withAiman, seenAt);
     expect(merged.people[4].bank).toBe("Maybank");
+    expect(merged.people[4].payQr).toBe("000201QR");
   });
 
   it("takes the lock from the server, not from the owner's copy", () => {
@@ -260,5 +263,71 @@ describe("memberWho", () => {
   it("ignores an unknown id", () => expect(memberWho(house, "zzz").name).toBeUndefined());
   it("names the first person when the owner is someone else", () => {
     expect(memberWho({ ...house, ownerId: "a" }, "h").name).toBe("Haziq");
+  });
+});
+
+describe("previewMyBills", () => {
+  const doc: BillDoc = {
+    title: "Trip",
+    currency: "MYR",
+    createdAt: "",
+    people: [...people, { id: "z", name: "Aiman", color: 3 }],
+    items: [
+      { id: "a", name: "A", amountMinor: 3000, paidBy: "h", participants: ["h"], overrides: {} },
+      {
+        id: "b",
+        name: "B",
+        amountMinor: 4000,
+        paidBy: "h",
+        participants: ["h", "z"],
+        overrides: {},
+        joins: { z: { at: "" } },
+      },
+    ],
+  };
+
+  it("gives the same shares as joining and leaving for real", () => {
+    const next = previewMyBills(doc, "z", {
+      join: [{ itemId: "a", written: 500 }],
+      change: [],
+      leave: [{ itemId: "b" }],
+    });
+    expect(next.items[0]).toEqual(joinItem(doc.items[0], "z", 500, { at: "" }));
+    expect(next.items[1]).toEqual(leaveItem(doc.items[1], "z"));
+  });
+
+  it("leaves a bill alone when the written amount is too much", () => {
+    const next = previewMyBills(doc, "z", { join: [{ itemId: "a", written: 9000 }], change: [], leave: [] });
+    expect(next.items[0]).toEqual(doc.items[0]);
+  });
+
+  it("does not change the bill it was given", () => {
+    const before = JSON.stringify(doc);
+    previewMyBills(doc, "z", { join: [{ itemId: "a" }], change: [], leave: [] });
+    expect(JSON.stringify(doc)).toBe(before);
+  });
+});
+
+describe("previewPayment", () => {
+  it("counts as paid and leaves the rest to pay", () => {
+    const doc: BillDoc = {
+      title: "Trip",
+      currency: "MYR",
+      createdAt: "",
+      people: people.slice(0, 2),
+      items: [
+        {
+          id: "a",
+          name: "A",
+          amountMinor: 3000,
+          paidBy: people[0].id,
+          participants: [people[0].id, people[1].id],
+          overrides: {},
+        },
+      ],
+    };
+    const summary = summarize(doc, [previewPayment({ from: people[1].id, to: people[0].id, amountMinor: 1000 })]);
+    expect(summary.done).toHaveLength(1);
+    expect(summary.remaining[0].amount).toBe(500);
   });
 });

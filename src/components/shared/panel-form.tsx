@@ -8,6 +8,24 @@ import { cn } from "@/lib/utils";
 export const fieldClass =
   "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
 
+export function PanelHead({ title, onClose }: { title: string; onClose: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-9 items-center justify-between gap-3">
+      <span className="text-[16px] font-extrabold tracking-[-0.01em]">{title}</span>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t.member.cancel}
+        title={t.member.cancel}
+        className="-mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-chip text-muted transition-colors hover:text-ink"
+      >
+        <CloseIcon size={17} />
+      </button>
+    </div>
+  );
+}
+
 export function PanelForm({
   title,
   bare,
@@ -21,7 +39,6 @@ export function PanelForm({
   onCancel: () => void;
   children: ReactNode;
 }) {
-  const { t } = useI18n();
   return (
     <form
       onSubmit={(e: FormEvent) => {
@@ -30,18 +47,7 @@ export function PanelForm({
       }}
       className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
     >
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <span className="text-[16px] font-extrabold tracking-[-0.01em]">{title}</span>
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label={t.member.cancel}
-          title={t.member.cancel}
-          className="-mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-chip text-muted transition-colors hover:text-ink"
-        >
-          <CloseIcon size={17} />
-        </button>
-      </div>
+      <PanelHead title={title} onClose={onCancel} />
       {children}
     </form>
   );

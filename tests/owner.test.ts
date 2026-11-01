@@ -1,9 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
-  addName,
   BILL,
   button,
-  choose,
   clearPayments,
   closePhones,
   dinner,
@@ -11,7 +9,7 @@ import {
   fromMore,
   getDb,
   hotel,
-  myList,
+  joinAs,
   newPhone,
   OLD,
   openAs,
@@ -153,11 +151,7 @@ test.describe("saving over members' changes", () => {
 
     const member = await newPhone(browser);
     await openBill(member);
-    await choose(member, "Join bill");
-    await addName(member, "Aiman");
-    const form = panel(member);
-    await form.getByRole("checkbox", { name: "Hotel" }).click();
-    await submit(form);
+    await submit(await joinAs(member, "Aiman"));
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
     await openBill(member);
     await submit(await startAdding(member, "Snacks", "1000"));
@@ -565,8 +559,7 @@ test.describe("History", () => {
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await settled(async () => (await serverDoc()).items.length, 3);
-    await myList(page).click();
-    await sheet(page).getByRole("button", { name: "Delete" }).click();
+    await button(page, "Delete Snacks").click();
     await settled(async () => (await serverDoc()).items.length, 2);
 
     await button(page, "Hi Najmi").click();
@@ -576,9 +569,7 @@ test.describe("History", () => {
     await name.getByRole("button", { name: "Add", exact: true }).click();
     await settled(async () => (await serverDoc()).people.length, 4);
 
-    const join = await openJoin(page);
-    await join.getByRole("checkbox", { name: "Hotel" }).click();
-    await submit(join);
+    await submit(await openJoin(page));
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
 
     const list = await openHistory(page);

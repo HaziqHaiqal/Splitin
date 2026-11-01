@@ -31,6 +31,7 @@ create table public.bill_people (
   browser_hash text,
   added_at timestamptz,
   details_at timestamptz,
+  pay_qr text check (char_length(pay_qr) <= 512),
   primary key (bill_id, id),
   constraint one_name_per_bill unique (bill_id, name_key) deferrable initially deferred
 );
@@ -155,10 +156,10 @@ begin
   where p.bill_id = p_id
     and not exists (select 1 from jsonb_to_recordset(p_people) as x(id text) where x.id = p.id);
 
-  insert into public.bill_people (bill_id, id, position, name, color, bank, account_no, browser_hash, added_at, details_at)
-  select p_id, x.id, x.position, x.name, x.color, x.bank, x.account_no, x.browser_hash, x.added_at, x.details_at
+  insert into public.bill_people (bill_id, id, position, name, color, bank, account_no, pay_qr, browser_hash, added_at, details_at)
+  select p_id, x.id, x.position, x.name, x.color, x.bank, x.account_no, x.pay_qr, x.browser_hash, x.added_at, x.details_at
   from jsonb_to_recordset(p_people) as x(
-    id text, position integer, name text, color integer, bank text, account_no text,
+    id text, position integer, name text, color integer, bank text, account_no text, pay_qr text,
     browser_hash text, added_at timestamptz, details_at timestamptz
   )
   on conflict (bill_id, id) do update
@@ -167,6 +168,7 @@ begin
       color = excluded.color,
       bank = excluded.bank,
       account_no = excluded.account_no,
+      pay_qr = excluded.pay_qr,
       browser_hash = excluded.browser_hash,
       added_at = excluded.added_at,
       details_at = excluded.details_at;

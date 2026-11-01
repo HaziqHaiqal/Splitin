@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPaymentQr } from "./pay-qr";
 
 const id = z.string().min(1).max(40);
 const minor = z.int().min(0).max(100_000_000_00);
@@ -21,6 +22,7 @@ export const itemSchema = z.object({
 
 export const personNameSchema = z.string().trim().min(1).max(30);
 export const bankSchema = z.string().trim().max(40).nullable();
+export const payQrSchema = z.string().trim().refine(isPaymentQr).nullable();
 
 export const billDocSchema = z
   .object({
@@ -35,6 +37,7 @@ export const billDocSchema = z
           color: z.int().min(0).max(99),
           bank: bankSchema.optional(),
           accountNo: bankSchema.optional(),
+          payQr: payQrSchema.optional(),
           addedAt: when.optional(),
           detailsAt: when.optional(),
         }),

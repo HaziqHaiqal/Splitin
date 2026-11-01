@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MyBillChanges } from "@/app/actions";
-import { CheckIcon } from "@/components/icons";
+import { CheckIcon, PencilIcon } from "@/components/icons";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { itemShares, joinShare, ownerOf, type BillDoc } from "@/lib/bill";
@@ -15,22 +15,28 @@ const parse = (v: string) => parseMoney(v, "MYR") || undefined;
 
 type Pick = { on: boolean; written?: number };
 
+export type JoinStart = { itemId: string; mode: "join" | "change" };
+
 export function JoinForm({
   doc,
   me,
   own,
+  start,
   bare,
   pending,
   onSave,
   onCancel,
+  onPreview,
 }: {
   doc: BillDoc;
   me: string;
   own: readonly string[];
+  start?: JoinStart;
   bare: boolean;
   pending: boolean;
   onSave: (changes: MyBillChanges, undo: MyBillChanges) => void;
   onCancel: () => void;
+  onPreview: (changes: MyBillChanges | null) => void;
 }) {
   const { t, money, plain } = useI18n();
   const owner = ownerOf(doc)?.name ?? t.history.owner;
@@ -42,9 +48,12 @@ export function JoinForm({
   });
   const editable = rows.filter((r) => !r.fixed && !r.full);
 
-  const [picks, setPicks] = useState<Record<string, Pick>>(() =>
-    Object.fromEntries(rows.filter((r) => r.mine).map((r) => [r.item.id, { on: true, written: r.item.overrides[me] }])),
-  );
+  const [picks, setPicks] = useState<Record<string, Pick>>(() => {
+    const already = rows.filter((r) => r.mine).map((r) => [r.item.id, { on: true, written: r.item.overrides[me] }]);
+    return Object.fromEntries(start?.mode === "join" ? [...already, [start.itemId, { on: true }]] : already);
+  });
+  const tapped = useRef<HTMLDivElement>(null);
+  const tappedName = doc.items.find((i) => i.id === start?.itemId)?.name ?? "";
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
 
   const written = (id: string) =>
@@ -101,11 +110,23 @@ export function JoinForm({
   const invalid = rows.some(tooMuch);
   const total = rows.reduce((sum, row) => sum + (shareOf(row) ?? 0), 0);
 
+  const previewKey = JSON.stringify(dirty ? changes : null);
+  useEffect(() => {
+    onPreview(dirty ? changes : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+  useEffect(() => () => onPreview(null), [onPreview]);
+  useEffect(() => {
+    tapped.current?.scrollIntoView({ block: "nearest" });
+  }, []);
+
   return (
     <PanelForm title={t.join.title} bare={bare} onCancel={onCancel} onSubmit={() => onSave(changes, undo)}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[12.5px] text-muted">{t.join.hint}</span>
-        {editable.length > 0 ? (
+        <span className="text-[12.5px] text-muted">
+          {start?.mode === "change" ? fmt(t.join.changeHint, { name: tappedName }) : t.join.hint}
+        </span>
+        {editable.length > 0 && start?.mode !== "change" ? (
           <button type="button" onClick={setAll} className="h-7 shrink-0 text-[12.5px] font-bold text-green-ink">
             {allOn ? t.join.none : t.join.all}
           </button>
@@ -119,7 +140,14 @@ export function JoinForm({
           const share = shareOf(row);
           const isEditing = editing?.id === item.id;
           return (
-            <div key={item.id} className="flex min-h-[52px] items-center gap-2.5 border-t border-line py-1.5">
+            <div
+              key={item.id}
+              ref={start?.itemId === item.id ? tapped : undefined}
+              className={cn(
+                "flex min-h-[52px] items-center gap-2.5 border-t border-line py-1.5",
+                start?.itemId === item.id && "-mx-2.5 rounded-xl border-transparent bg-chip px-2.5",
+              )}
+            >
               <button
                 type="button"
                 role="checkbox"
@@ -175,10 +203,11 @@ export function JoinForm({
                   aria-label={fmt(t.join.amountOf, { name: item.name })}
                   onClick={() => startEditing(item.id, share ?? joinShare(item, me) ?? 0)}
                   className={cn(
-                    "h-[34px] w-[92px] rounded-lg border border-border bg-bg px-2.5 text-right text-[14px] font-bold tabular",
+                    "inline-flex h-[34px] w-[92px] items-center justify-end gap-1.5 rounded-lg border border-border bg-bg px-2.5 text-[14px] font-bold tabular",
                     picks[item.id]?.written !== undefined ? "text-ink" : "text-muted",
                   )}
                 >
+                  {full ? null : <PencilIcon size={12} className="mr-auto shrink-0 text-faint" />}
                   {full ? "–" : on && share !== null ? plain(share) : plain(joinShare(item, me) ?? 0)}
                 </button>
               )}

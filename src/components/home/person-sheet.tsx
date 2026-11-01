@@ -33,7 +33,7 @@ export function PersonSheet({
 
   if (!person) return null;
   const displayName = name.trim() || person.name;
-  const { bankName, accountNo } = details;
+  const { bankName, accountNo, payQr } = details;
 
   const save = () => {
     const trimmed = name.trim();
@@ -47,6 +47,7 @@ export function PersonSheet({
               name: trimmed.slice(0, 30),
               bank: bankName || null,
               accountNo: bankName ? accountNo.trim() || null : null,
+              payQr,
             }
           : p,
       ),

@@ -11,7 +11,6 @@ import {
   getDb,
   hotel,
   must,
-  myList,
   newPhone,
   ownerStorage,
   paymentRow,
@@ -60,7 +59,15 @@ test.describe("the database itself", () => {
       ...trip,
       locked: true,
       people: [
-        { id: "a", name: "Afiq", color: 2, bank: "Maybank", accountNo: "123", detailsAt: "2026-10-31T02:00:00.000Z" },
+        {
+          id: "a",
+          name: "Afiq",
+          color: 2,
+          bank: "Maybank",
+          accountNo: "123",
+          payQr: "000201QR",
+          detailsAt: "2026-10-31T02:00:00.000Z",
+        },
         { id: "h", name: "Haziq", color: 0, addedAt: "2026-10-31T03:00:00.000Z" },
         { id: "n", name: "Najmi", color: 1 },
       ],
@@ -74,7 +81,12 @@ test.describe("the database itself", () => {
     expect(saved.createdAt).toBe(trip.createdAt);
     expect(saved.locked).toBe(true);
     expect(saved.people.map((p) => p.id)).toEqual(["a", "h", "n"]);
-    expect(saved.people[0]).toMatchObject({ bank: "Maybank", accountNo: "123", detailsAt: doc.people[0].detailsAt });
+    expect(saved.people[0]).toMatchObject({
+      bank: "Maybank",
+      accountNo: "123",
+      payQr: "000201QR",
+      detailsAt: doc.people[0].detailsAt,
+    });
     expect(saved.people[1].addedAt).toBe(doc.people[1].addedAt);
     expect(saved.items[0]).toMatchObject({
       participants: ["n", "a", "h"],
@@ -173,9 +185,11 @@ test.describe("the database itself", () => {
     await createBill("K7QM3XPJ", trip);
     await must(database.from("bills").update({ expires_at: NEVER }).eq("id", "K7QM3XPH"));
     await must(database.from("payments").insert({ ...paymentRow("n", "h", 100), bill_id: "K7QM3XPH" }));
+    await must(database.from("bill_people").update({ pay_qr: "000201QR" }).eq("bill_id", "K7QM3XPH"));
     await must(database.from("expired_bills").insert({ id: "K7QM3XPK", expired_at: NEVER }));
     await must(database.rpc("delete_old_bills"));
     const after = await getDb();
+    expect(await must(database.from("bill_people").select("id").eq("bill_id", "K7QM3XPH"))).toEqual([]);
     expect(after.bills.map((b) => b.id)).toEqual(["K7QM3XPJ"]);
     expect(after.payments).toHaveLength(0);
     expect(after.expired_bills.map((e) => e.id)).toEqual(["K7QM3XPH"]);
@@ -246,9 +260,9 @@ test.describe("the browser key", () => {
     await expect(text(page, "SNACKS")).toBeVisible();
     await page.evaluate(() => localStorage.clear());
     await page.goto(`/bill/${BILL}`);
-    await myList(page).click();
-    await sheet(page).getByRole("button", { name: "Delete" }).click();
+    await button(page, "Who are you?").click();
     await pickMe(page, "Najmi");
+    await button(page, "Delete Snacks").click();
     await expect.poll(async () => (await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel"]);
   });
 
@@ -257,10 +271,9 @@ test.describe("the browser key", () => {
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await expect(text(page, "SNACKS")).toBeVisible();
     await page.reload();
-    await expect(myList(page)).toBeVisible();
+    await expect(button(page, "Delete Snacks")).toBeVisible();
     await context.addCookies([{ name: "splitin-browser", value: "another", url: "http://localhost:3457" }]);
-    await myList(page).click();
-    await sheet(page).getByRole("button", { name: "Delete" }).click();
+    await button(page, "Delete Snacks").click();
     await expect(text(page, "Something went wrong")).toBeVisible();
     expect((await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel", "Snacks"]);
   });

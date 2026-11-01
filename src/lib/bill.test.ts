@@ -5,7 +5,9 @@ import {
   latestMemberChange,
   liveRights,
   mineOf,
+  canSetDetails,
   mergeMemberChanges,
+  ownerDetailsWin,
   repeatedName,
   splitItem,
   summarize,
@@ -88,6 +90,59 @@ describe("liveRights", () => {
 
   it("works on a bill with no keys yet", () => {
     expect(liveRights(doc, {})).toEqual({ people: {}, items: {}, joins: {}, payments: {} });
+  });
+});
+
+describe("who can set bank details", () => {
+  const at = "2026-11-01T01:00:00.000Z";
+  const people = [
+    { id: "o", name: "Owner", color: 0 },
+    { id: "k", name: "Kane", color: 1 },
+    { id: "h", name: "Hana", color: 2, bank: "Maybank", accountNo: "123" },
+    { id: "q", name: "Qira", color: 3, payQr: "000201QR" },
+    { id: "m", name: "Mira", color: 4, bank: "CIMB", accountNo: "456", detailsAt: at },
+  ];
+  const doc: BillDoc = { title: "T", currency: "MYR", createdAt: at, ownerId: "o", people, items: [] };
+
+  it("lets someone on a name with no details add them, whoever typed the name", () => {
+    expect(canSetDetails(doc, {}, "k", "b1", "k")).toBe(true);
+  });
+
+  it("lets someone on a name change details another phone added, so a mistake can be fixed", () => {
+    expect(canSetDetails(doc, { people: { m: "b2" } }, "m", "b1", "m")).toBe(true);
+  });
+
+  it("refuses someone on a different name", () => {
+    expect(canSetDetails(doc, {}, "k", "b1", "h")).toBe(false);
+    expect(canSetDetails(doc, {}, "m", "b1", undefined)).toBe(false);
+  });
+
+  it("keeps details the owner typed, including a QR on its own", () => {
+    expect(canSetDetails(doc, {}, "h", "b1", "h")).toBe(false);
+    expect(canSetDetails(doc, {}, "q", "b1", "q")).toBe(false);
+  });
+
+  it("lets the phone that added them change them from any name", () => {
+    expect(canSetDetails(doc, { people: { m: "b1" } }, "m", "b1", "k")).toBe(true);
+  });
+
+  it("never opens the owner's name or an unknown person", () => {
+    expect(canSetDetails(doc, {}, "o", "b1", "o")).toBe(false);
+    expect(canSetDetails(doc, {}, "nobody", "b1", "nobody")).toBe(false);
+  });
+
+  it("makes details the owner's once the owner replaces them", () => {
+    const after = { ...doc, people: people.map((p) => (p.id === "m" ? { ...p, accountNo: "999" } : p)) };
+    const won = ownerDetailsWin(doc, after, { people: { m: "b1", k: "b2" } });
+    expect(won.people).toEqual({ k: "b2" });
+    expect(won.doc.people.find((p) => p.id === "m")?.detailsAt).toBeUndefined();
+    expect(canSetDetails(won.doc, { people: won.people }, "m", "b1", "m")).toBe(false);
+  });
+
+  it("leaves everything alone when the owner saves without changing details", () => {
+    const won = ownerDetailsWin(doc, doc, { people: { m: "b1" } });
+    expect(won.people).toEqual({ m: "b1" });
+    expect(won.doc.people.find((p) => p.id === "m")?.detailsAt).toBe(at);
   });
 });
 

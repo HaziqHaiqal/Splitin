@@ -117,7 +117,7 @@ export function ThemeToggle() {
   );
 }
 
-export function Header({ action }: { action?: ReactNode }) {
+export function Header() {
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-14 max-w-[inherit] items-center justify-between bg-inherit px-[inherit] md:h-16">
@@ -127,7 +127,6 @@ export function Header({ action }: { action?: ReactNode }) {
         />
         <Logo />
         <div className="-mr-2 flex items-center gap-0.5">
-          {action}
           <HelpButton />
           <LanguageToggle />
           <ThemeToggle />

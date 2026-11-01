@@ -2,13 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Header } from "@/components/header";
-import { PrinterPage } from "@/components/receipt/printer";
+import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary } from "@/lib/bill";
 import { saveDraft } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { OwnerGreeting } from "./greeting";
 import { HistoryButton } from "./history";
 import { OwnerActions } from "./owner-actions";
@@ -54,6 +54,12 @@ export function Settled({
       >
         {t.settled.newSplit}
       </button>
+      <ShareBill
+        bill={bill}
+        bigStamp={t.settled.stamp}
+        label
+        className={cn(dockButton, "w-full px-6 md:w-auto md:self-start")}
+      />
       <button type="button" onClick={onReview} className="h-9 text-[13.5px] font-bold text-green-ink md:self-start">
         {t.settled.review}
       </button>
@@ -73,7 +79,6 @@ export function Settled({
 
   return (
     <PrinterPage
-      header={<Header action={<ShareBill bill={bill} bigStamp={t.settled.stamp} />} />}
       side={
         <>
           <OwnerGreeting doc={bill.doc} />

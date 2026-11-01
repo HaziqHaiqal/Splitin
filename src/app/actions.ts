@@ -10,7 +10,10 @@ import {
   joinItem,
   joinShare,
   leaveItem,
+  canSetDetails,
+  hasPayDetails,
   mergeMemberChanges,
+  ownerDetailsWin,
   repeatedName,
   splitItem,
   summarize,
@@ -22,7 +25,15 @@ import {
   type Person,
 } from "@/lib/bill";
 import { eventRows, saveArgs } from "@/lib/bill-rows";
-import { bankSchema, billDocSchema, itemSchema, MAX_ITEMS, MAX_PEOPLE, personNameSchema } from "@/lib/bill-schema";
+import {
+  bankSchema,
+  billDocSchema,
+  itemSchema,
+  MAX_ITEMS,
+  MAX_PEOPLE,
+  payQrSchema,
+  personNameSchema,
+} from "@/lib/bill-schema";
 import { browserHash, ensureBrowserHash, hashToken } from "@/lib/browser-key";
 import { getBill, linkExpired, readBill } from "@/lib/data/bill";
 import { diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
@@ -184,12 +195,14 @@ export async function saveBill(
     if (!parsed.success) return { ok: false, error: "invalid" };
     if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
     let refused = "db";
-    const saved = await writeBill(id, (current) => {
-      const doc = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
-      if (repeatedName(doc)) {
+    const saved = await writeBill(id, (current, rights) => {
+      const merged = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
+      if (repeatedName(merged)) {
         refused = "duplicate";
         return null;
       }
+      const { doc, people } = ownerDetailsWin(current, merged, rights);
+      rights.people = people;
       return { doc, who: ownerWho(doc), events: diffDocs(current, doc) };
     });
     if (!saved) return { ok: false, error: refused };
@@ -380,16 +393,16 @@ export async function saveMyBills(id: string, byId: unknown, input: MyBillChange
 export async function setMyDetails(
   id: string,
   personId: string,
-  input: { bank: unknown; accountNo: unknown },
+  input: { bank: unknown; accountNo: unknown; payQr: unknown },
   byId?: unknown,
 ): Promise<Result> {
   return guard(async () => {
     const bank = bankSchema.safeParse(input.bank);
     const accountNo = bankSchema.safeParse(input.accountNo);
-    if (!bank.success || !accountNo.success) return { ok: false, error: "invalid" };
+    const payQr = payQrSchema.safeParse(input.payQr);
+    if (!bank.success || !accountNo.success || !payQr.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
-    const browser = await browserHash();
-    if (!browser) return { ok: false, error: "forbidden" };
+    const browser = await ensureBrowserHash();
     let refused = "forbidden";
     const saved = await writeBill(id, (doc, rights) => {
       if (doc.locked) {
@@ -397,18 +410,26 @@ export async function setMyDetails(
         return null;
       }
       const person = doc.people.find((p) => p.id === personId);
-      if (!person || rights.people?.[personId] !== browser) return null;
+      if (!person) return null;
+      if (!canSetDetails(doc, rights, personId, browser, byId)) {
+        if (hasPayDetails(person)) refused = "taken";
+        return null;
+      }
       const details = {
         bank: bank.data || null,
         accountNo: bank.data ? accountNo.data || null : null,
+        payQr: payQr.data,
         detailsAt: new Date().toISOString(),
       };
+      if (!hasPayDetails(details) && !hasPayDetails(person)) return null;
+      if (hasPayDetails(details)) rights.people = { ...rights.people, [personId]: browser };
       return {
         doc: { ...doc, people: doc.people.map((p) => (p.id === personId ? { ...p, ...details } : p)) },
         who: memberWho(doc, byId),
         events: [{ kind: "person_details", name: person.name }],
       };
     });
+    if (refused === "taken") changed(id);
     if (!saved) return { ok: false, error: refused };
     changed(id);
     return { ok: true, data: null };

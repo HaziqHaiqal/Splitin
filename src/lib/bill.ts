@@ -6,6 +6,7 @@ export type Person = {
   color: number;
   bank?: string | null;
   accountNo?: string | null;
+  payQr?: string | null;
   addedAt?: string;
   detailsAt?: string;
 };
@@ -149,7 +150,13 @@ export function mergeMemberChanges(server: BillDoc, local: BillDoc, seenAt: stri
       .map((p) => {
         const current = serverPeople.get(p.id);
         return current?.detailsAt && current.detailsAt > seenAt
-          ? { ...p, bank: current.bank, accountNo: current.accountNo, detailsAt: current.detailsAt }
+          ? {
+              ...p,
+              bank: current.bank,
+              accountNo: current.accountNo,
+              payQr: current.payQr,
+              detailsAt: current.detailsAt,
+            }
           : p;
       }),
     ...server.people.filter((p) => p.addedAt && p.addedAt > seenAt && !localPeople.has(p.id)),
@@ -240,6 +247,36 @@ export function leaveItem(item: Item, personId: string): Item | null {
   return withJoins({ ...item, participants, overrides }, without(item.joins ?? {}, personId));
 }
 
+export function previewMyBills(
+  doc: BillDoc,
+  personId: string,
+  changes: {
+    join: readonly { itemId: string; written?: number }[];
+    change: readonly { itemId: string; written?: number }[];
+    leave: readonly { itemId: string }[];
+  },
+): BillDoc {
+  const items = new Map(doc.items.map((i) => [i.id, i]));
+  for (const { itemId, written } of [...changes.join, ...changes.change]) {
+    const item = items.get(itemId);
+    const next = item && joinItem(item, personId, written, { at: "" });
+    if (next) items.set(itemId, next);
+  }
+  for (const { itemId } of changes.leave) {
+    const item = items.get(itemId);
+    const next = item && leaveItem(item, personId);
+    if (next) items.set(itemId, next);
+  }
+  return { ...doc, items: doc.items.map((i) => items.get(i.id) ?? i) };
+}
+
+export const previewPayment = (payment: Pick<Payment, "from" | "to" | "amountMinor">): Payment => ({
+  ...payment,
+  id: "preview",
+  byRole: "member",
+  createdAt: "",
+});
+
 export function withoutOwnItem(doc: BillDoc, rights: BillRights, itemId: string, browser: string): BillDoc | null {
   const hash = rights.items?.[itemId];
   if (!hash || hash !== browser) return null;
@@ -248,6 +285,38 @@ export function withoutOwnItem(doc: BillDoc, rights: BillRights, itemId: string,
 
 const keep = (record: Readonly<Record<string, string>> = {}, live: (id: string) => boolean) =>
   Object.fromEntries(Object.entries(record).filter(([id]) => live(id)));
+
+export const hasPayDetails = (person: Pick<Person, "bank" | "accountNo" | "payQr">) =>
+  Boolean(person.bank || person.accountNo || person.payQr);
+
+export const samePayDetails = (a: Person, b: Person) =>
+  (a.bank ?? "") === (b.bank ?? "") &&
+  (a.accountNo ?? "") === (b.accountNo ?? "") &&
+  (a.payQr ?? "") === (b.payQr ?? "");
+
+export const detailsOpenToName = (doc: BillDoc, person: Person) =>
+  person.id !== doc.ownerId && (!hasPayDetails(person) || Boolean(person.detailsAt));
+
+export function canSetDetails(doc: BillDoc, rights: BillRights, personId: string, browser: string, byId: unknown) {
+  const person = doc.people.find((p) => p.id === personId);
+  if (!person) return false;
+  return rights.people?.[personId] === browser || (byId === personId && detailsOpenToName(doc, person));
+}
+
+export function ownerDetailsWin(before: BillDoc, after: BillDoc, rights: BillRights) {
+  const replaced = new Set(
+    after.people
+      .filter((p) => {
+        const old = before.people.find((o) => o.id === p.id);
+        return old && !samePayDetails(old, p);
+      })
+      .map((p) => p.id),
+  );
+  return {
+    doc: { ...after, people: after.people.map((p) => (replaced.has(p.id) ? { ...p, detailsAt: undefined } : p)) },
+    people: Object.fromEntries(Object.entries(rights.people ?? {}).filter(([id]) => !replaced.has(id))),
+  };
+}
 
 export function liveRights(doc: BillDoc, rights: BillRights): BillRights {
   const people = new Set(doc.people.map((p) => p.id));
