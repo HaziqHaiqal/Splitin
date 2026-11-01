@@ -18,6 +18,7 @@ import {
   openJoin,
   ownerStorage,
   panel,
+  patchDoc,
   paymentRow,
   paymentsOf,
   seed,
@@ -109,10 +110,10 @@ test.describe("sharing", () => {
     const published = db.bills.find((b) => b.id !== BILL)!;
     expect(published.doc.ownerId).toBe("n");
 
-    const friend = await newPhone(browser);
-    await friend.goto(`/bill/${published.id}`);
-    await expect(text(friend, "SHARED BY NAJMI")).toBeAttached();
-    const who = sheet(friend);
+    const member = await newPhone(browser);
+    await member.goto(`/bill/${published.id}`);
+    await expect(text(member, "SHARED BY NAJMI")).toBeAttached();
+    const who = sheet(member);
     await expect(who.getByRole("button", { name: "Haziq" })).toBeVisible();
     await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
   });
@@ -141,23 +142,23 @@ test.describe("sharing", () => {
   });
 });
 
-test.describe("saving over friends' changes", () => {
-  test("an old copy on the owner's phone loses nothing a friend did", async ({ browser }) => {
+test.describe("saving over members' changes", () => {
+  test("an old copy on the owner's phone loses nothing a member did", async ({ browser }) => {
     await seed({ ...trip, items: [hotel, dinner] });
     const owner = await newPhone(browser, ownerStorage({ ...trip, items: [hotel, dinner] }, OLD));
     await owner.goto("/");
     await expect(text(owner, "HOTEL")).toBeVisible();
 
-    const friend = await newPhone(browser);
-    await openBill(friend);
-    await choose(friend, "Join bill");
-    await addName(friend, "Aiman");
-    const form = panel(friend);
+    const member = await newPhone(browser);
+    await openBill(member);
+    await choose(member, "Join bill");
+    await addName(member, "Aiman");
+    const form = panel(member);
     await form.getByRole("checkbox", { name: "Hotel" }).click();
     await submit(form);
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
-    await openBill(friend);
-    await submit(await startAdding(friend, "Snacks", "1000"));
+    await openBill(member);
+    await submit(await startAdding(member, "Snacks", "1000"));
     await settled(async () => (await serverDoc()).items.length, 3);
 
     const eventsBefore = await eventKinds();
@@ -178,7 +179,7 @@ test.describe("saving over friends' changes", () => {
 
     const added = (await eventKinds()).filter((k) => !eventsBefore.includes(k) || k === "title_changed");
     expect(added).toEqual(["title_changed"]);
-    const ownerEvents = (await getDb()).bill_events.filter((e) => e.actor === "owner").map((e) => e.kind);
+    const ownerEvents = (await getDb()).bill_events.filter((e) => e.by_role === "owner").map((e) => e.kind);
     expect(ownerEvents).toEqual(["title_changed"]);
 
     await expect
@@ -188,7 +189,7 @@ test.describe("saving over friends' changes", () => {
       .toBe(4);
   });
 
-  test("the owner's delete stays deleted, and a friend's later bill still arrives", async ({ browser }) => {
+  test("the owner's delete stays deleted, and a member's later bill still arrives", async ({ browser }) => {
     const items = [hotel, dinner];
     await seed({ ...trip, items });
     const owner = await newPhone(browser, ownerStorage({ ...trip, items }, OLD));
@@ -204,9 +205,9 @@ test.describe("saving over friends' changes", () => {
     });
     await settled(async () => (await serverDoc()).items.map((i) => i.name), ["Hotel"]);
 
-    const friend = await newPhone(browser);
-    await openBill(friend);
-    await submit(await startAdding(friend, "Toll", "500", "Najmi"));
+    const member = await newPhone(browser);
+    await openBill(member);
+    await submit(await startAdding(member, "Toll", "500", "Najmi"));
     await settled(async () => (await serverDoc()).items.map((i) => i.name), ["Hotel", "Toll"]);
 
     await owner.goto("/");
@@ -273,7 +274,7 @@ test.describe("owner screen", () => {
     await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 2500 }]);
   });
 
-  test("names the friend who paid", async ({ browser, page }) => {
+  test("names the member who paid", async ({ browser, page }) => {
     await openAs(page, "Afiq");
     await page.getByRole("button", { name: /AFIQ PAYS HAZIQ/ }).click();
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
@@ -297,7 +298,7 @@ test.describe("owner screen", () => {
     expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
   });
 
-  test("shows a banner for friends' changes only", async ({ browser, page }) => {
+  test("shows a banner for members' changes only", async ({ browser, page }) => {
     const owner = await tracking(browser);
     await fromMore(owner, "Lock bill");
     await settled(async () => (await serverDoc()).locked, true);
@@ -426,22 +427,79 @@ test.describe("people on the owner's phone", () => {
   });
 });
 
+test.describe("one name per person", () => {
+  test("the server refuses a name someone else just took, and the owner can fix it", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    const pulled = owner.waitForResponse((r) => r.request().method() === "POST");
+    await owner.goto("/");
+    await pulled;
+    await patchDoc((doc) => ({
+      ...doc,
+      people: [...doc.people, { id: "s", name: "Ali", color: 3, addedAt: new Date().toISOString() }],
+    }));
+    await button(owner, "+ Add").click();
+    await owner.getByLabel("Add person").fill("ali");
+    await owner.getByLabel("Add person").press("Enter");
+    await expect(owner.getByText("Ali is already in the list", { exact: true })).toBeVisible();
+    const names = async () => (await serverDoc()).people.map((p) => p.name);
+    expect(await names()).toEqual(["Haziq", "Najmi", "Afiq", "Ali"]);
+
+    await owner.evaluate(() => {
+      const draft = JSON.parse(localStorage.getItem("splitin:draft:v2")!);
+      draft.doc.people = draft.doc.people.filter((p: { name: string }) => p.name !== "ali");
+      draft.doc.title = "Renamed";
+      localStorage.setItem("splitin:draft:v2", JSON.stringify(draft));
+      window.dispatchEvent(new Event("storage"));
+    });
+    await settled(async () => (await serverDoc()).title, "Renamed");
+    expect(await names()).toEqual(["Haziq", "Najmi", "Afiq", "Ali"]);
+  });
+
+  test("a new bill with a repeated name is not created", async ({ browser }) => {
+    const repeated = { ...trip, people: [...trip.people, { id: "x", name: "NAJMI", color: 3 }] };
+    const owner = await newPhone(browser, openDraft(repeated));
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    await expect(text(owner, "NAJMI is already in the list")).toBeVisible();
+    expect((await getDb()).bills).toHaveLength(1);
+  });
+});
+
 test.describe("History", () => {
+  test("keeps who did what, by role, ID and name", async ({ browser, page }) => {
+    await openBill(page);
+    await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
+    await settled(async () => (await serverDoc()).items.length, 2);
+    const owner = await newPhone(browser, ownerStorage());
+    await openBill(owner);
+    await expect(button(owner, "View receipt")).toBeVisible();
+    await fromMore(owner, "Lock bill");
+    await settled(async () => (await serverDoc()).locked, true);
+    await expect.poll(async () => (await getDb()).bill_events.length).toBe(2);
+
+    const rows = (await getDb()).bill_events;
+    const pick = (kind: string) => rows.find((e) => e.kind === kind)!;
+    expect(pick("item_added")).toMatchObject({ by_role: "member", by_person_id: "n", by_name: "Najmi" });
+    expect(pick("locked")).toMatchObject({ by_role: "owner", by_person_id: "h", by_name: "Haziq" });
+    expect(pick("item_added").data).not.toHaveProperty("by");
+  });
+
   test("reads like a group chat", async ({ page }) => {
-    const event = (kind: string, minutesAgo: number, data: Record<string, unknown>) => ({
+    const event = (kind: string, minutesAgo: number, data: Record<string, unknown>, by_name?: string) => ({
       id: crypto.randomUUID(),
       bill_id: BILL,
       kind,
-      actor: "friend",
+      by_role: "member",
+      by_name,
       created_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
       data,
     });
     await seed(trip, {
       bill_events: [
-        event("paid", 1, { from: "Najmi", to: "Haziq", amountMinor: 10000, by: "Najmi" }),
-        event("item_added", 2, { name: "Snacks", amountMinor: 1000, payer: "Najmi", by: "Najmi" }),
+        event("paid", 1, { from: "Najmi", to: "Haziq", amountMinor: 10000 }, "Najmi"),
+        event("item_added", 2, { name: "Snacks", amountMinor: 1000, payer: "Najmi" }, "Najmi"),
         event("person_joined", 3, { name: "Aiman" }),
-        event("unpaid", 4, { from: "Afiq", to: "Haziq", amountMinor: 10000, by: "Afiq" }),
+        event("unpaid", 4, { from: "Afiq", to: "Haziq", amountMinor: 10000 }, "Afiq"),
       ],
     });
     await openBill(page);
@@ -463,20 +521,27 @@ test.describe("History", () => {
       day.setHours(12, 0, 0, 0);
       return day.toISOString();
     };
-    const event = (kind: string, actor: string, data: Record<string, unknown>, created_at: string) => ({
+    const event = (
+      kind: string,
+      by_role: string,
+      data: Record<string, unknown>,
+      created_at: string,
+      by_name?: string,
+    ) => ({
       id: crypto.randomUUID(),
       bill_id: BILL,
       kind,
-      actor,
+      by_role,
+      by_name,
       data,
       created_at,
     });
     await seed(trip, {
       bill_events: [
-        event("paid", "friend", { from: "Najmi", to: "Haziq", amountMinor: 13000, by: "Najmi" }, noon(0)),
+        event("paid", "member", { from: "Najmi", to: "Haziq", amountMinor: 13000 }, noon(0), "Najmi"),
         event("paid", "owner", { from: "Afiq", to: "Haziq", amountMinor: 4000 }, noon(0)),
-        event("paid", "friend", { from: "Afiq", to: "Haziq", amountMinor: 500 }, noon(0)),
-        event("unpaid", "friend", { from: "Afiq", to: "Haziq", amountMinor: 4000, by: "Afiq" }, noon(1)),
+        event("paid", "member", { from: "Afiq", to: "Haziq", amountMinor: 500 }, noon(0)),
+        event("unpaid", "member", { from: "Afiq", to: "Haziq", amountMinor: 4000 }, noon(1), "Afiq"),
         event("person_details", "owner", { name: "Haziq" }, noon(1)),
         event("item_edited", "owner", { name: "Hotel", changes: { amount: [28000, 30000], split: true } }, noon(5)),
       ],
@@ -488,14 +553,14 @@ test.describe("History", () => {
     await expect(list.getByRole("heading", { level: 3 })).toHaveText(["Today", "Yesterday", /^\d{1,2} \w+$/]);
     await expect(row("Najmi paid Haziq")).toContainText("RM 130.00");
     await expect(list.getByText("Haziq marked Afiq → Haziq as paid")).toBeVisible();
-    await expect(list.getByText("A friend marked Afiq → Haziq as paid")).toBeVisible();
+    await expect(list.getByText("Someone marked Afiq → Haziq as paid")).toBeVisible();
     await expect(list.getByText("Afiq undid their payment to Haziq")).toBeVisible();
     await expect(list.getByText("Haziq updated their bank details")).toBeVisible();
     await expect(row("Haziq changed Hotel")).toContainText("Amount RM 280.00 → RM 300.00");
     await expect(row("Haziq changed Hotel")).toContainText("Split updated");
   });
 
-  test("words every kind of friend change, and never stores secrets", async ({ page }) => {
+  test("words every kind of member change, and never stores secrets", async ({ page }) => {
     await seed({ ...trip, items: [hotel, dinner] });
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));

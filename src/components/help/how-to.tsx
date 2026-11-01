@@ -481,7 +481,7 @@ function PayDemo() {
   if (asking) {
     return (
       <div className="flex flex-col items-center gap-2.5">
-        <div className="text-[15px] font-extrabold text-ink">{t.friend.whoTitle}</div>
+        <div className="text-[15px] font-extrabold text-ink">{t.member.whoTitle}</div>
         <div className="flex flex-wrap justify-center gap-2">
           {NAMES.map((name, i) =>
             i === 0 || name === me ? null : (
@@ -508,7 +508,7 @@ function PayDemo() {
           }}
           className="h-7 text-[12px] font-bold text-green-soft-ink"
         >
-          {t.friend.justLooking}
+          {t.member.justLooking}
         </button>
       </div>
     );
@@ -522,7 +522,7 @@ function PayDemo() {
           onClick={() => setAsking(true)}
           className="flex h-7 items-center gap-1 self-start text-[14px] font-extrabold text-ink"
         >
-          {fmt(t.friend.hi, { name: me })}
+          {fmt(t.member.hi, { name: me })}
           <ChevronDownIcon className="text-muted" />
         </button>
       ) : null}
@@ -537,11 +537,11 @@ function PayDemo() {
               "-mx-1 mt-1 flex w-[calc(100%+8px)] animate-nudge items-center justify-between gap-2 rounded bg-[#f3f2ef] px-1 py-1 text-left font-sans text-[10px] font-semibold",
             )}
           >
-            {t.friend.chooseHint}
+            {t.member.chooseHint}
             <span className="text-[#6b6a65]">›</span>
           </button>
         ) : mine.length > 0 ? (
-          <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{t.friend.tapHint}</div>
+          <div className="font-sans text-[10px] font-semibold text-[#6b6a65]">{t.member.tapHint}</div>
         ) : null}
         {PAYS.map(([from, to, amount], i) => {
           const done = paid.includes(i);
@@ -602,7 +602,7 @@ function AddDemo() {
 
   return (
     <div className={cn(mini, "w-full max-w-[270px] animate-pop px-3 pt-2.5 pb-1")}>
-      <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.yours}</span>
+      <span className="text-[10px] font-bold tracking-[0.06em] text-faint uppercase">{t.member.yours}</span>
       <div className="flex items-center justify-between gap-2 py-2">
         <span className="min-w-0 truncate text-[13px] text-ink">
           <b>{t.help.demoBills[1]}</b>
@@ -616,7 +616,7 @@ function AddDemo() {
             "h-7 shrink-0 animate-nudge rounded-lg border border-border bg-card px-2.5 text-[12px] font-bold text-owe",
           )}
         >
-          {t.friend.deleteMine}
+          {t.member.deleteMine}
         </button>
       </div>
     </div>

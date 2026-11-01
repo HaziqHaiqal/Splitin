@@ -7,11 +7,10 @@ export type Person = {
   bank?: string | null;
   accountNo?: string | null;
   addedAt?: string;
-  keyHash?: string;
   detailsAt?: string;
 };
 
-export type Join = { hash: string; at: string };
+export type Join = { at: string };
 
 export type Item = {
   id: string;
@@ -21,7 +20,6 @@ export type Item = {
   participants: string[];
   overrides: Record<string, number>;
   addedAt?: string;
-  deleteHash?: string;
   joins?: Record<string, Join>;
 };
 
@@ -42,8 +40,14 @@ export type Payment = {
   from: string;
   to: string;
   amountMinor: number;
-  markedBy: "payer" | "owner";
+  byRole: "member" | "owner";
   createdAt: string;
+};
+
+export type BillSecrets = {
+  people?: Record<string, string>;
+  items?: Record<string, string>;
+  joins?: Record<string, Record<string, string>>;
 };
 
 export type ItemSplit =
@@ -82,7 +86,7 @@ export function activePeople(doc: BillDoc): Person[] {
   return doc.people.filter((p) => doc.items.some((i) => i.paidBy === p.id || i.participants.includes(p.id)));
 }
 
-export function latestFriendChange(doc: BillDoc, after = ""): string {
+export function latestMemberChange(doc: BillDoc, after = ""): string {
   const times = [
     ...doc.people.flatMap((p) => [p.addedAt, p.detailsAt]),
     ...doc.items.flatMap((i) => [i.addedAt, ...Object.values(i.joins ?? {}).map((j) => j.at)]),
@@ -127,7 +131,7 @@ function mergeJoins(server: Item | undefined, local: Item, seenAt: string, peopl
   return withJoins({ ...local, participants, overrides }, joins);
 }
 
-export function mergeFriendChanges(server: BillDoc, local: BillDoc, seenAt: string): BillDoc {
+export function mergeMemberChanges(server: BillDoc, local: BillDoc, seenAt: string): BillDoc {
   const serverPeople = new Map(server.people.map((p) => [p.id, p]));
   const localPeople = new Set(local.people.map((p) => p.id));
   const people = [
@@ -165,7 +169,6 @@ export function mergeFriendChanges(server: BillDoc, local: BillDoc, seenAt: stri
 export function withNewPeople(
   doc: BillDoc,
   added: readonly { id: string; name: string }[],
-  keyHash: string,
   at: string,
 ): BillDoc | null {
   const names = new Set(doc.people.map((p) => p.name.toLowerCase()));
@@ -176,7 +179,7 @@ export function withNewPeople(
     if (names.has(name.toLowerCase()) || ids.has(id)) return null;
     names.add(name.toLowerCase());
     ids.add(id);
-    people.push({ id, name, color: color++ % 100, addedAt: at, keyHash });
+    people.push({ id, name, color: color++ % 100, addedAt: at });
   }
   return { ...doc, people };
 }
@@ -228,13 +231,38 @@ export function leaveItem(item: Item, personId: string): Item | null {
   return withJoins({ ...item, participants, overrides }, without(item.joins ?? {}, personId));
 }
 
-export const joinerOf = (item: Item, hash: string) =>
-  Object.entries(item.joins ?? {}).find(([, join]) => join.hash === hash)?.[0];
+export const joinerOf = (secrets: BillSecrets, itemId: string, hash: string) =>
+  Object.entries(secrets.joins?.[itemId] ?? {}).find(([, own]) => own === hash)?.[0];
 
-export function withoutOwnItem(doc: BillDoc, itemId: string, tokenHash: string): BillDoc | null {
-  const item = doc.items.find((i) => i.id === itemId);
-  if (!item?.deleteHash || item.deleteHash !== tokenHash) return null;
+export function withoutOwnItem(doc: BillDoc, secrets: BillSecrets, itemId: string, tokenHash: string): BillDoc | null {
+  const hash = secrets.items?.[itemId];
+  if (!hash || hash !== tokenHash) return null;
   return { ...doc, items: doc.items.filter((i) => i.id !== itemId) };
+}
+
+const keep = (record: Readonly<Record<string, string>> = {}, live: (id: string) => boolean) =>
+  Object.fromEntries(Object.entries(record).filter(([id]) => live(id)));
+
+export function liveSecrets(doc: BillDoc, secrets: BillSecrets): BillSecrets {
+  const people = new Set(doc.people.map((p) => p.id));
+  const items = new Map(doc.items.map((i) => [i.id, i]));
+  const joins = Object.entries(secrets.joins ?? {})
+    .map(([itemId, hashes]) => [itemId, keep(hashes, (id) => Boolean(items.get(itemId)?.joins?.[id]))] as const)
+    .filter(([, hashes]) => Object.keys(hashes).length > 0);
+  return {
+    people: keep(secrets.people, (id) => people.has(id)),
+    items: keep(secrets.items, (id) => Boolean(items.get(id)?.addedAt)),
+    joins: Object.fromEntries(joins),
+  };
+}
+
+export function repeatedName(doc: BillDoc): string | undefined {
+  const names = new Set<string>();
+  for (const { name } of doc.people) {
+    if (names.has(name.toLowerCase())) return name;
+    names.add(name.toLowerCase());
+  }
+  return undefined;
 }
 
 export type PersonSummary = {
@@ -244,7 +272,7 @@ export type PersonSummary = {
   net: number;
 };
 
-export type PlanLine = Transfer & { paymentId?: string; markedBy?: Payment["markedBy"]; paidAt?: string };
+export type PlanLine = Transfer & { paymentId?: string; byRole?: Payment["byRole"]; paidAt?: string };
 
 export type BillSummary = {
   total: number;
@@ -291,7 +319,7 @@ export function summarize(doc: BillDoc, payments: readonly Payment[] = []): Bill
         to: p.to,
         amount: p.amountMinor,
         paymentId: p.id,
-        markedBy: p.markedBy,
+        byRole: p.byRole,
         paidAt: p.createdAt,
       })),
     remaining: simplifyDebts(balances).sort(

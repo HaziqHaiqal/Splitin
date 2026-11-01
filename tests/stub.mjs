@@ -9,6 +9,13 @@ const compare = {
   gte: (a, b) => new Date(a) >= new Date(b),
 };
 
+const picked = (rows, url) => {
+  const columns = url.searchParams.get("select");
+  if (!columns || columns === "*") return rows;
+  const names = columns.split(",");
+  return rows.map((row) => Object.fromEntries(names.map((name) => [name, row[name]])));
+};
+
 function filtersOf(url) {
   return [...url.searchParams.entries()]
     .map(([key, value]) => [key, ...value.split(/\.(.*)/s)])
@@ -59,23 +66,24 @@ const server = http.createServer((req, res) => {
           } else setTimeout(release, 20_000);
         });
       }
-      return send(200, snapshot);
+      return send(200, picked(snapshot, url));
     }
     if (req.method === "PATCH") {
       const hits = rows.filter(match);
       hits.forEach((row) => Object.assign(row, JSON.parse(body)));
-      return send(200, hits);
+      return send(200, picked(hits, url));
     }
     if (req.method === "POST") {
       const input = JSON.parse(body);
       const added = (Array.isArray(input) ? input : [input]).map((row) => ({
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-        ...(table === "bills" ? { updated_at: new Date().toISOString() } : {}),
+        ...(table === "bills" ? { updated_at: new Date().toISOString(), secrets: {} } : {}),
         ...row,
       }));
       rows.push(...added);
-      return send(201, (req.headers.accept ?? "").includes("vnd.pgrst.object") ? added[0] : added);
+      const sent = picked(added, url);
+      return send(201, (req.headers.accept ?? "").includes("vnd.pgrst.object") ? sent[0] : sent);
     }
     if (req.method === "DELETE") {
       db[table] = rows.filter((row) => !match(row));

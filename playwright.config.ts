@@ -28,6 +28,7 @@ export default defineConfig({
         NEXT_PUBLIC_SUPABASE_ANON_KEY: "stub",
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "stub",
         SUPABASE_SERVICE_ROLE_KEY: "stub",
+        BILL_SIGNING_SECRET: "stub",
       },
     },
   ],

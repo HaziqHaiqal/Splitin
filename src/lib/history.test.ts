@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BillDoc, Item } from "./bill";
-import { actorName, diffDocs } from "./history";
+import { diffDocs, memberWho, ownerWho } from "./history";
 
 const everyone = ["h", "n"];
 const water: Item = { id: "w", name: "Water", amountMinor: 5000, paidBy: "h", participants: everyone, overrides: {} };
@@ -15,16 +15,27 @@ const base: BillDoc = {
   items: [water],
 };
 
-describe("actorName", () => {
-  it("gives the name of someone on the bill", () => {
-    expect(actorName(base, "n")).toBe("Najmi");
+describe("memberWho", () => {
+  it("gives the ID and name of someone on the bill", () => {
+    expect(memberWho(base, "n")).toEqual({ role: "member", personId: "n", name: "Najmi" });
   });
 
-  it("gives nothing for anyone else", () => {
-    expect(actorName(base, "-")).toBeUndefined();
-    expect(actorName(base, "Hacker")).toBeUndefined();
-    expect(actorName(base, undefined)).toBeUndefined();
-    expect(actorName(base, { id: "n" })).toBeUndefined();
+  it("gives only the role for anyone else", () => {
+    for (const id of ["-", "Hacker", undefined, { id: "n" }]) expect(memberWho(base, id)).toEqual({ role: "member" });
+  });
+
+  it("does not let someone pose as the owner", () => {
+    expect(memberWho({ ...base, ownerId: "h" }, "h")).toEqual({ role: "member" });
+  });
+});
+
+describe("ownerWho", () => {
+  it("names the owner", () => {
+    expect(ownerWho({ ...base, ownerId: "n" })).toEqual({ role: "owner", personId: "n", name: "Najmi" });
+  });
+
+  it("gives only the role when the owner is not on the bill", () => {
+    expect(ownerWho({ ...base, ownerId: null })).toEqual({ role: "owner" });
   });
 });
 
@@ -33,8 +44,8 @@ describe("diffDocs", () => {
     expect(diffDocs(base, structuredClone(base))).toEqual([]);
   });
 
-  it("ignores friend bookkeeping when the owner edits an item", () => {
-    const before = { ...base, items: [{ ...water, addedAt: "2026-10-31T02:00:00.000Z", deleteHash: "abc" }] };
+  it("ignores member bookkeeping when the owner edits an item", () => {
+    const before = { ...base, items: [{ ...water, addedAt: "2026-10-31T02:00:00.000Z" }] };
     expect(diffDocs(before, base)).toEqual([]);
   });
 

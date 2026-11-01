@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   evenShare,
   itemSplitText,
-  latestFriendChange,
-  mergeFriendChanges,
+  latestMemberChange,
+  liveSecrets,
+  mergeMemberChanges,
+  repeatedName,
   splitItem,
   summarize,
   withoutOwnItem,
   type BillDoc,
+  type BillSecrets,
   type Item,
 } from "./bill";
 import { formatMoney } from "./money";
@@ -33,30 +36,76 @@ const houseBills: BillDoc = {
 };
 
 describe("withoutOwnItem", () => {
-  const mine: Item = { ...houseBills.items[0], id: "mine", deleteHash: "my-hash" };
-  const other: Item = { ...houseBills.items[0], id: "other", deleteHash: "other-hash" };
+  const mine: Item = { ...houseBills.items[0], id: "mine" };
+  const other: Item = { ...houseBills.items[0], id: "other" };
   const doc: BillDoc = { ...houseBills, items: [...houseBills.items, mine, other] };
+  const secrets: BillSecrets = { items: { mine: "my-hash", other: "other-hash" } };
 
-  it("lets a friend delete their own item", () => {
-    expect(withoutOwnItem(doc, "mine", "my-hash")?.items.map((i) => i.id)).toEqual(["1", "2", "3", "other"]);
+  it("lets a member delete their own item", () => {
+    expect(withoutOwnItem(doc, secrets, "mine", "my-hash")?.items.map((i) => i.id)).toEqual(["1", "2", "3", "other"]);
   });
 
-  it("refuses another friend's item", () => {
-    expect(withoutOwnItem(doc, "other", "my-hash")).toBeNull();
+  it("refuses another member's item", () => {
+    expect(withoutOwnItem(doc, secrets, "other", "my-hash")).toBeNull();
   });
 
   it("refuses the owner's item, even with an empty key", () => {
-    expect(withoutOwnItem(doc, "1", "my-hash")).toBeNull();
-    expect(withoutOwnItem(doc, "1", "")).toBeNull();
+    expect(withoutOwnItem(doc, secrets, "1", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, secrets, "1", "")).toBeNull();
   });
 
   it("refuses an item that does not exist", () => {
-    expect(withoutOwnItem(doc, "nope", "my-hash")).toBeNull();
+    expect(withoutOwnItem(doc, secrets, "nope", "my-hash")).toBeNull();
   });
 });
 
-describe("friend items", () => {
-  const friendItem: Item = {
+describe("liveSecrets", () => {
+  const at = "2026-10-31T10:00:00.000Z";
+  const added: Item = { ...houseBills.items[0], id: "added", addedAt: at, joins: { n: { at } } };
+  const doc: BillDoc = { ...houseBills, items: [...houseBills.items, added] };
+  const secrets: BillSecrets = {
+    people: { n: "person", gone: "person" },
+    items: { added: "item", 1: "item", gone: "item" },
+    joins: { added: { n: "join", a: "join" }, 1: { n: "join" }, gone: { n: "join" } },
+  };
+
+  it("keeps only keys that still do something", () => {
+    expect(liveSecrets(doc, secrets)).toEqual({
+      people: { n: "person" },
+      items: { added: "item" },
+      joins: { added: { n: "join" } },
+    });
+  });
+
+  it("drops the delete key once the owner has edited the item", () => {
+    const edited = { ...added, addedAt: undefined };
+    const after = liveSecrets({ ...doc, items: [...houseBills.items, edited] }, secrets);
+    expect(after.items).toEqual({});
+    expect(after.joins).toEqual({ added: { n: "join" } });
+  });
+
+  it("works on a bill with no keys yet", () => {
+    expect(liveSecrets(doc, {})).toEqual({ people: {}, items: {}, joins: {} });
+  });
+});
+
+describe("repeatedName", () => {
+  const named = (...names: string[]): BillDoc => ({
+    ...houseBills,
+    people: names.map((name, i) => ({ id: String(i), name, color: i })),
+  });
+
+  it("is nothing when every name is different", () => {
+    expect(repeatedName(named("Ali", "Abu", "Siti"))).toBeUndefined();
+  });
+
+  it("finds a repeat, ignoring capitals", () => {
+    expect(repeatedName(named("Ali", "Abu", "ALI"))).toBe("ALI");
+  });
+});
+
+describe("member items", () => {
+  const memberItem: Item = {
     id: "f",
     name: "Petrol",
     amountMinor: 6000,
@@ -65,46 +114,46 @@ describe("friend items", () => {
     overrides: {},
     addedAt: "2026-10-31T10:00:00.000Z",
   };
-  const withFriend: BillDoc = { ...houseBills, items: [...houseBills.items, friendItem] };
+  const withMember: BillDoc = { ...houseBills, items: [...houseBills.items, memberItem] };
   const ids = (doc: BillDoc) => doc.items.map((i) => i.id);
 
   it("brings in an item the owner has not seen", () => {
-    expect(ids(mergeFriendChanges(withFriend, houseBills, ""))).toEqual(["1", "2", "3", "f"]);
+    expect(ids(mergeMemberChanges(withMember, houseBills, ""))).toEqual(["1", "2", "3", "f"]);
   });
 
   it("keeps an item deleted once the owner has seen it", () => {
-    expect(ids(mergeFriendChanges(withFriend, houseBills, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+    expect(ids(mergeMemberChanges(withMember, houseBills, memberItem.addedAt!))).toEqual(["1", "2", "3"]);
   });
 
-  it("drops an item the friend undid", () => {
-    expect(ids(mergeFriendChanges(houseBills, withFriend, friendItem.addedAt!))).toEqual(["1", "2", "3"]);
+  it("drops an item the member undid", () => {
+    expect(ids(mergeMemberChanges(houseBills, withMember, memberItem.addedAt!))).toEqual(["1", "2", "3"]);
   });
 
   it("keeps the owner's edit without a duplicate", () => {
-    const edited: Item = { ...friendItem, name: "Petrol + toll", addedAt: undefined };
+    const edited: Item = { ...memberItem, name: "Petrol + toll", addedAt: undefined };
     const local = { ...houseBills, items: [...houseBills.items, edited] };
-    const merged = mergeFriendChanges(withFriend, local, "");
+    const merged = mergeMemberChanges(withMember, local, "");
     expect(ids(merged)).toEqual(["1", "2", "3", "f"]);
     expect(merged.items[3].name).toBe("Petrol + toll");
   });
 
   it("does not touch the owner's own items", () => {
     const local = { ...houseBills, items: [...houseBills.items, { ...houseBills.items[0], id: "new" }] };
-    expect(ids(mergeFriendChanges(houseBills, local, ""))).toEqual(["1", "2", "3", "new"]);
+    expect(ids(mergeMemberChanges(houseBills, local, ""))).toEqual(["1", "2", "3", "new"]);
   });
 
   it("skips an item for a person the owner removed", () => {
     const local = { ...houseBills, people: people.filter((p) => p.id !== "n"), items: [] };
-    expect(ids(mergeFriendChanges(withFriend, local, ""))).toEqual([]);
+    expect(ids(mergeMemberChanges(withMember, local, ""))).toEqual([]);
   });
 
   it("tracks the latest added time", () => {
-    expect(latestFriendChange(houseBills)).toBe("");
-    expect(latestFriendChange(withFriend)).toBe(friendItem.addedAt);
-    expect(latestFriendChange(houseBills, "2026-01-01")).toBe("2026-01-01");
+    expect(latestMemberChange(houseBills)).toBe("");
+    expect(latestMemberChange(withMember)).toBe(memberItem.addedAt);
+    expect(latestMemberChange(houseBills, "2026-01-01")).toBe("2026-01-01");
   });
 
-  it("settles a trip where each friend paid for something different", () => {
+  it("settles a trip where each member paid for something different", () => {
     const trio = people.slice(0, 3);
     const everyone = trio.map((p) => p.id);
     const trip: BillDoc = {
@@ -112,8 +161,8 @@ describe("friend items", () => {
       people: trio,
       items: [
         { id: "1", name: "Hotel", amountMinor: 30000, paidBy: "h", participants: everyone, overrides: {} },
-        { ...friendItem, id: "2", amountMinor: 6000, paidBy: "n", participants: everyone },
-        { ...friendItem, id: "3", name: "Food", amountMinor: 9000, paidBy: "a", participants: everyone },
+        { ...memberItem, id: "2", amountMinor: 6000, paidBy: "n", participants: everyone },
+        { ...memberItem, id: "3", name: "Food", amountMinor: 9000, paidBy: "a", participants: everyone },
       ],
     };
     const lines = summarize(trip).remaining.map((l) => [l.from, l.to, l.amount]);
@@ -164,7 +213,7 @@ describe("summarize (the splitinn screenshot)", () => {
 
   it("marked payments move from remaining to done", () => {
     const after = summarize(houseBills, [
-      { id: "p1", from: "n", to: "h", amountMinor: 11845, markedBy: "payer", createdAt: "2026-10-05T14:00:00Z" },
+      { id: "p1", from: "n", to: "h", amountMinor: 11845, byRole: "member", createdAt: "2026-10-05T14:00:00Z" },
     ]);
     expect(after.done).toHaveLength(1);
     expect(after.remaining).toEqual([

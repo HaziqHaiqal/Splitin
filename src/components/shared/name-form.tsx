@@ -23,14 +23,14 @@ export function NameForm({
 
   return (
     <PanelForm
-      title={t.friend.nameTitle}
+      title={t.member.nameTitle}
       bare={bare}
       onCancel={onCancel}
       onSubmit={() => {
         if (trimmed) onSave(trimmed);
       }}
     >
-      <p className="m-0 text-[12.5px] text-muted">{t.friend.nameDesc}</p>
+      <p className="m-0 text-[12.5px] text-muted">{t.member.nameDesc}</p>
       <input
         type="text"
         value={name}

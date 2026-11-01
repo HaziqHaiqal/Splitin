@@ -10,7 +10,7 @@ const words = "text-[17px] font-extrabold tracking-[-0.01em]";
 
 export function Greeting({ name, onChange, className }: { name: string; onChange?: () => void; className?: string }) {
   const { t } = useI18n();
-  const hi = fmt(t.friend.hi, { name });
+  const hi = fmt(t.member.hi, { name });
   return (
     <div className={cn("flex min-h-9 items-center", className)}>
       {onChange ? (

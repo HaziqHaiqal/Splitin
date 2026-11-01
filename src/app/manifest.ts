@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Splitin",
     short_name: "Splitin",
-    description: "Split bills fairly with friends.",
+    description: "Split bills fairly with anyone.",
     start_url: "/",
     scope: "/",
     display: "standalone",

@@ -15,7 +15,7 @@ export const ms: Dictionary = {
   },
   meta: {
     title: "Splitin · Bahagi bil dengan adil",
-    description: "Bahagi bil dengan adil bersama rakan. Tanpa daftar, tanpa app.",
+    description: "Bahagi bil dengan adil bersama sesiapa sahaja. Tanpa daftar, tanpa app.",
     billSummary: "{total} · {count} orang · {settle} belum selesai",
   },
   home: {
@@ -25,7 +25,7 @@ export const ms: Dictionary = {
     startDesc: "Tanpa daftar. Resit dicetak sambil anda isi.",
     haveCode: "Ada kod?",
     codeTitle: "Masukkan kod anda",
-    codeDesc: "Ada pada resit yang rakan anda kongsi.",
+    codeDesc: "Ada pada resit yang dikongsi dengan anda.",
     codeOpening: "Membuka…",
     codeNotFound: "Tiada resit dengan kod ini. Semak dan cuba lagi.",
     codeBackNew: "Mulakan bil baru",
@@ -114,7 +114,7 @@ export const ms: Dictionary = {
     title: "Kongsi resit",
     previewTitle: "Gambar resit + pautan",
     previewDesc:
-      "Bahagian semua orang, siapa bayar siapa dan butiran bank dalam satu gambar. Pautan atau kod membolehkan rakan tekan “Dah bayar”.",
+      "Bahagian semua orang, siapa bayar siapa dan butiran bank dalam satu gambar. Pautan atau kod membolehkan semua orang tekan “Dah bayar”.",
     whatsapp: "Hantar ke group WhatsApp",
     saveImage: "Simpan gambar",
     copyLink: "Salin pautan",
@@ -153,10 +153,10 @@ export const ms: Dictionary = {
     ownerRestored: "Anda boleh ubah bil ini pada peranti ini sekarang",
     lock: "Kunci bil",
     unlock: "Buka kunci",
-    lockDesc: "Rakan hanya boleh tanda bayaran.",
-    unlockDesc: "Rakan boleh tambah dan sertai bil semula.",
-    lockedNote: "Dikunci. Rakan hanya boleh tanda bayaran sekarang.",
-    unlockedNote: "Kunci dibuka. Rakan boleh tambah dan sertai semula.",
+    lockDesc: "Orang lain hanya boleh tanda bayaran.",
+    unlockDesc: "Semua orang boleh tambah dan sertai bil semula.",
+    lockedNote: "Dikunci. Orang lain hanya boleh tanda bayaran sekarang.",
+    unlockedNote: "Kunci dibuka. Semua orang boleh tambah dan sertai semula.",
     replaceTitle: "Ganti bahagian yang belum dikongsi?",
     replaceDesc: "Ada bahagian pada peranti ini yang belum dikongsi. Mengubah bil ini akan menggantikannya.",
     replace: "Ganti",
@@ -169,7 +169,7 @@ export const ms: Dictionary = {
     newSplit: "Mula bahagi baru",
     deletesOn: "Resit ini dipadam sendiri pada {date}.",
   },
-  friend: {
+  member: {
     sharedLine: "Dikongsi oleh {name} · {date}",
     payTo: "Bayar kepada",
     tapHint: "Dah bayar? Ketik bayaran anda di bawah untuk tanda.",
@@ -224,7 +224,7 @@ export const ms: Dictionary = {
     title: "Sejarah",
     empty: "Belum ada perubahan direkodkan.",
     owner: "Pemilik",
-    friend: "Seorang kawan",
+    someone: "Seseorang",
     today: "Hari ini",
     yesterday: "Semalam",
     created: "{who} kongsi bil ini",
@@ -307,22 +307,22 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan dipadam sendiri selepas 30 hari. Di bawah Lagi, pautan pemilik membolehkan anda ubah bil dari telefon baru, dan Kunci bil menghalang rakan mengubah bil.",
+        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan dipadam sendiri selepas 30 hari. Di bawah Lagi, pautan pemilik membolehkan anda ubah bil dari telefon baru, dan Kunci bil menghalang orang lain mengubah bil.",
         hint: "Cuba: hantar ke WhatsApp.",
       },
       {
         title: "Langkah 6: Tanda siapa dah bayar",
-        desc: "Rakan buka pautan, atau ketik Ada kod? di halaman utama. Mereka pilih nama, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Rekod jumlah itu, dan resit kira selebihnya.",
+        desc: "Semua orang buka pautan, atau ketik Ada kod? di halaman utama. Mereka pilih nama, atau taip jika tiada dalam senarai. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Rekod jumlah itu, dan resit kira selebihnya.",
         hint: "Cuba: pilih nama, kemudian tanda bayaran anda.",
       },
       {
-        title: "Langkah 7: Rakan tambah apa yang mereka bayar",
-        desc: "Rakan bayar sesuatu juga? Pada pautan, mereka ketik Tambah bil. Mereka hanya boleh padam apa yang mereka tambah, pada telefon yang sama.",
+        title: "Langkah 7: Orang lain tambah apa yang mereka bayar",
+        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik Tambah bil. Mereka hanya boleh padam apa yang mereka tambah, pada telefon yang sama.",
         hint: "Cuba: tambah bil, kemudian padam.",
       },
       {
-        title: "Langkah 8: Rakan sertai bil mereka",
-        desc: "Tertinggal? Rakan ketik Sertai bil dan tanda bil mereka, atau Sertai semua. Bahagian mereka dikira sendiri, atau mereka boleh tulis jumlah sendiri. Resit dikemas kini, dan sesiapa yang dah terlebih bayar akan dibayar semula.",
+        title: "Langkah 8: Orang lain sertai bil mereka",
+        desc: "Tertinggal? Mereka ketik Sertai bil dan tanda bil mereka, atau Sertai semua. Bahagian mereka dikira sendiri, atau mereka boleh tulis jumlah sendiri. Resit dikemas kini, dan sesiapa yang dah terlebih bayar akan dibayar semula.",
         hint: "Cuba: tanda bil dan lihat jumlahnya.",
       },
       {

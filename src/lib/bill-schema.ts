@@ -7,7 +7,6 @@ export const MAX_ITEMS = 200;
 export const MAX_PEOPLE = 50;
 
 const when = z.iso.datetime();
-const hash = z.string().max(64);
 
 export const itemSchema = z.object({
   id,
@@ -17,8 +16,7 @@ export const itemSchema = z.object({
   participants: z.array(id).min(1).max(50),
   overrides: z.record(id, minor),
   addedAt: when.optional(),
-  deleteHash: hash.optional(),
-  joins: z.record(id, z.object({ hash, at: when })).optional(),
+  joins: z.record(id, z.object({ at: when })).optional(),
 });
 
 export const personNameSchema = z.string().trim().min(1).max(30);
@@ -38,7 +36,6 @@ export const billDocSchema = z
           bank: bankSchema.optional(),
           accountNo: bankSchema.optional(),
           addedAt: when.optional(),
-          keyHash: hash.optional(),
           detailsAt: when.optional(),
         }),
       )

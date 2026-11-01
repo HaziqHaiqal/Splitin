@@ -231,8 +231,8 @@ export function BillForm({
           <button
             type="button"
             onClick={onCancel}
-            aria-label={t.friend.cancel}
-            title={t.friend.cancel}
+            aria-label={t.member.cancel}
+            title={t.member.cancel}
             className="-mr-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-chip text-muted transition-colors hover:text-ink"
           >
             <CloseIcon size={17} />

@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { loadBillDoc, saveBill } from "@/app/actions";
+import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { latestFriendChange, mergeFriendChanges, type BillDoc } from "@/lib/bill";
+import { latestMemberChange, mergeMemberChanges, repeatedName, type BillDoc } from "@/lib/bill";
 import { getDraft, getOwnerToken, saveDraft, type Draft } from "@/lib/store";
 import { useToast } from "./toast";
 
@@ -11,8 +12,8 @@ function applyServerDoc(billId: string, server: BillDoc) {
   const current = getDraft();
   if (current?.billId !== billId) return;
   const seenAt = current.seenAt ?? "";
-  const doc = mergeFriendChanges(server, current.doc, seenAt);
-  const latest = latestFriendChange(server, seenAt);
+  const doc = mergeMemberChanges(server, current.doc, seenAt);
+  const latest = latestMemberChange(server, seenAt);
   if (latest === seenAt && JSON.stringify(doc) === JSON.stringify(current.doc)) return;
   saveDraft({ ...current, doc, seenAt: latest });
 }
@@ -56,6 +57,13 @@ export function useDraftSync(draft: Draft | null | undefined) {
       if (result.ok) {
         last.current = json;
         applyServerDoc(id, result.data.doc);
+      } else if (result.error === "duplicate") {
+        const latest = await loadBillDoc(id);
+        if (latest.ok) applyServerDoc(id, latest.data.doc);
+        const doc = getDraft()?.doc ?? draft.doc;
+        const name = repeatedName(doc);
+        last.current = JSON.stringify(doc);
+        toast({ message: name ? fmt(t.home.duplicateName, { name }) : t.common.generic });
       } else toast({ message: t.common.generic });
     }, 700);
     return () => clearTimeout(timer);

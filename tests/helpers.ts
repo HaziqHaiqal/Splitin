@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import type { BillDoc, Item, Payment } from "../src/lib/bill";
+import type { BillDoc, BillSecrets, Item, Payment } from "../src/lib/bill";
 
 const STUB = "http://localhost:54399";
 export const BILL = "TestBill01";
@@ -39,19 +39,25 @@ export const trip: BillDoc = {
 
 type Row = Record<string, unknown>;
 export type Db = {
-  bills: (Row & { doc: BillDoc })[];
+  bills: (Row & { doc: BillDoc; secrets: BillSecrets })[];
   payments: Row[];
-  bill_events: (Row & { kind: string; actor: string; data: Row })[];
+  bill_events: (Row & {
+    kind: string;
+    by_role: string;
+    by_person_id: string | null;
+    by_name: string | null;
+    data: Row;
+  })[];
   expired_bills: Row[];
 };
 
-export const paymentRow = (from: string, to: string, amountMinor: number, marked_by = "payer") => ({
+export const paymentRow = (from: string, to: string, amountMinor: number, by_role = "member") => ({
   id: crypto.randomUUID(),
   bill_id: BILL,
   from_person: from,
   to_person: to,
   amount_minor: amountMinor,
-  marked_by,
+  by_role,
   created_at: new Date().toISOString(),
 });
 
@@ -64,6 +70,7 @@ export async function seed(doc: BillDoc = trip, rest: { payments?: Row[]; bill_e
         {
           id: BILL,
           doc,
+          secrets: {},
           owner_token_hash: createHash("sha256").update(TOKEN).digest("hex"),
           created_at: now,
           updated_at: OLD,

@@ -26,7 +26,7 @@ export function NotListedChip({ onClick }: { onClick: () => void }) {
       className="inline-flex h-11 items-center gap-1.5 rounded-full border-[1.5px] border-dashed border-dash px-4 text-[15px] font-semibold whitespace-nowrap text-green-ink transition-[transform,border-color] hover:border-green active:scale-95"
     >
       <PlusIcon size={14} />
-      {t.friend.notListed}
+      {t.member.notListed}
     </button>
   );
 }

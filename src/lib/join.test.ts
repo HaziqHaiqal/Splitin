@@ -6,7 +6,7 @@ import {
   joinItem,
   joinShare,
   leaveItem,
-  mergeFriendChanges,
+  mergeMemberChanges,
   ownerOf,
   summarize,
   withNewPeople,
@@ -15,7 +15,7 @@ import {
   type Item,
   type Payment,
 } from "./bill";
-import { actorName, diffDocs } from "./history";
+import { diffDocs, memberWho } from "./history";
 
 const people = [
   { id: "h", name: "Haziq", color: 0 },
@@ -24,7 +24,7 @@ const people = [
   { id: "i", name: "Imanul", color: 3 },
 ];
 const all = people.map((p) => p.id);
-const join = { hash: "hash", at: "2026-10-31T10:00:00.000Z" };
+const join = { at: "2026-10-31T10:00:00.000Z" };
 const seenAt = "2026-10-31T09:00:00.000Z";
 
 const electricity: Item = {
@@ -47,7 +47,7 @@ const house: BillDoc = {
     { id: "3", name: "Wifi", amountMinor: 9220, paidBy: "h", participants: all, overrides: {} },
   ],
 };
-const aiman = { id: "m", name: "Aiman", color: 4, addedAt: join.at, keyHash: "key" };
+const aiman = { id: "m", name: "Aiman", color: 4, addedAt: join.at };
 const withAiman: BillDoc = { ...house, people: [...people, aiman] };
 const shareOf = (doc: BillDoc, id: string) => summarize(doc).people.find((p) => p.id === id)?.share;
 
@@ -116,7 +116,7 @@ describe("joining a bill", () => {
       from: "n",
       to: "a",
       amountMinor: 11845,
-      markedBy: "payer",
+      byRole: "member",
       createdAt: "2026-10-31T08:00:00.000Z",
     };
     const doc = { ...withAiman, items: [joinItem(electricity, "m", undefined, join)!, ...house.items.slice(1)] };
@@ -141,28 +141,31 @@ describe("leaving a bill", () => {
   });
 
   it("finds who holds a key", () => {
-    expect(joinerOf(joined, "hash")).toBe("m");
-    expect(joinerOf(joined, "other")).toBeUndefined();
+    const secrets = { joins: { "1": { m: "hash" } } };
+    expect(joinerOf(secrets, "1", "hash")).toBe("m");
+    expect(joinerOf(secrets, "1", "other")).toBeUndefined();
+    expect(joinerOf(secrets, "2", "hash")).toBeUndefined();
+    expect(joinerOf({}, "1", "hash")).toBeUndefined();
   });
 });
 
 describe("withNewPeople", () => {
   it("adds a name with the next colour", () => {
-    const doc = withNewPeople(house, [{ id: "m", name: "Aiman" }], "key", join.at)!;
-    expect(doc.people[4]).toEqual({ id: "m", name: "Aiman", color: 4, addedAt: join.at, keyHash: "key" });
+    const doc = withNewPeople(house, [{ id: "m", name: "Aiman" }], join.at)!;
+    expect(doc.people[4]).toEqual({ id: "m", name: "Aiman", color: 4, addedAt: join.at });
   });
   it("refuses a name already on the bill, in any case", () => {
-    expect(withNewPeople(house, [{ id: "m", name: "najmi" }], "key", join.at)).toBeNull();
+    expect(withNewPeople(house, [{ id: "m", name: "najmi" }], join.at)).toBeNull();
   });
   it("refuses the same name twice in one go", () => {
     const twice = [
       { id: "m", name: "Aiman" },
       { id: "o", name: "AIMAN" },
     ];
-    expect(withNewPeople(house, twice, "key", join.at)).toBeNull();
+    expect(withNewPeople(house, twice, join.at)).toBeNull();
   });
   it("refuses an id already on the bill", () => {
-    expect(withNewPeople(house, [{ id: "n", name: "Aiman" }], "key", join.at)).toBeNull();
+    expect(withNewPeople(house, [{ id: "n", name: "Aiman" }], join.at)).toBeNull();
   });
 });
 
@@ -188,7 +191,7 @@ describe("withoutPerson", () => {
   });
 });
 
-describe("mergeFriendChanges", () => {
+describe("mergeMemberChanges", () => {
   const snacks: Item = {
     id: "s",
     name: "Snacks",
@@ -197,15 +200,14 @@ describe("mergeFriendChanges", () => {
     participants: ["m", "n"],
     overrides: {},
     addedAt: join.at,
-    deleteHash: "del",
   };
   const server: BillDoc = {
     ...withAiman,
     items: [joinItem(electricity, "m", 3000, join)!, ...house.items.slice(1), snacks],
   };
 
-  it("keeps a new name, a join and a friend's bill when the owner saves an old copy", () => {
-    const merged = mergeFriendChanges(server, { ...house, title: "Renamed" }, seenAt);
+  it("keeps a new name, a join and a member's bill when the owner saves an old copy", () => {
+    const merged = mergeMemberChanges(server, { ...house, title: "Renamed" }, seenAt);
     expect(merged.title).toBe("Renamed");
     expect(merged.people.map((p) => p.id)).toContain("m");
     expect(merged.items.map((i) => i.id)).toContain("s");
@@ -215,57 +217,57 @@ describe("mergeFriendChanges", () => {
     expect(item.joins?.m).toEqual(join);
   });
 
-  it("writes no false History line for what friends did", () => {
-    const merged = mergeFriendChanges(server, { ...house, title: "Renamed" }, seenAt);
+  it("writes no false History line for what members did", () => {
+    const merged = mergeMemberChanges(server, { ...house, title: "Renamed" }, seenAt);
     expect(diffDocs(server, merged)).toEqual([{ kind: "title_changed", to: "Renamed" }]);
   });
 
-  it("sees that a friend left, even if the owner's copy still has them", () => {
+  it("sees that a member left, even if the owner's copy still has them", () => {
     const local = { ...withAiman, items: [joinItem(electricity, "m", 3000, join)!, ...house.items.slice(1)] };
     const left = { ...withAiman, items: house.items };
-    const item = mergeFriendChanges(left, local, seenAt).items[0];
+    const item = mergeMemberChanges(left, local, seenAt).items[0];
     expect(item.participants).toEqual(all);
     expect(item.overrides).toEqual({});
     expect(item.joins).toBeUndefined();
   });
 
-  it("lets the owner remove someone a friend added", () => {
+  it("lets the owner remove someone a member added", () => {
     const local = withoutPerson(server, "m");
-    const merged = mergeFriendChanges(server, local, join.at);
+    const merged = mergeMemberChanges(server, local, join.at);
     expect(merged.people.map((p) => p.id)).toEqual(all);
     expect(merged.items.every((i) => !i.participants.includes("m"))).toBe(true);
   });
 
-  it("lets the owner take a friend off a bill they have already seen", () => {
+  it("lets the owner take a member off a bill they have already seen", () => {
     const local = { ...server, items: [electricity, ...server.items.slice(1)] };
-    expect(mergeFriendChanges(server, local, join.at).items[0].participants).toEqual(all);
+    expect(mergeMemberChanges(server, local, join.at).items[0].participants).toEqual(all);
   });
 
   it("drops a written amount that no longer fits the owner's new total", () => {
     const local = { ...house, items: [{ ...electricity, amountMinor: 2000 }, ...house.items.slice(1)] };
-    const item = mergeFriendChanges(server, local, seenAt).items[0];
+    const item = mergeMemberChanges(server, local, seenAt).items[0];
     expect(item.participants).toContain("m");
     expect(item.overrides.m).toBeUndefined();
     expect(itemShares(item).m).toBe(400);
   });
 
-  it("keeps bank details a friend added", () => {
+  it("keeps bank details a member added", () => {
     const details = { ...aiman, bank: "Maybank", accountNo: "123", detailsAt: join.at };
-    const merged = mergeFriendChanges({ ...withAiman, people: [...people, details] }, withAiman, seenAt);
+    const merged = mergeMemberChanges({ ...withAiman, people: [...people, details] }, withAiman, seenAt);
     expect(merged.people[4].bank).toBe("Maybank");
   });
 
   it("takes the lock from the server, not from the owner's copy", () => {
-    expect(mergeFriendChanges({ ...house, locked: true }, house, seenAt).locked).toBe(true);
-    expect(mergeFriendChanges(house, { ...house, locked: true }, seenAt).locked).toBeUndefined();
+    expect(mergeMemberChanges({ ...house, locked: true }, house, seenAt).locked).toBe(true);
+    expect(mergeMemberChanges(house, { ...house, locked: true }, seenAt).locked).toBeUndefined();
   });
 });
 
-describe("actorName", () => {
-  it("names a friend", () => expect(actorName(house, "n")).toBe("Najmi"));
-  it("does not let someone pose as the owner", () => expect(actorName(house, "h")).toBeUndefined());
-  it("ignores an unknown id", () => expect(actorName(house, "zzz")).toBeUndefined());
+describe("memberWho", () => {
+  it("names a member", () => expect(memberWho(house, "n").name).toBe("Najmi"));
+  it("does not let someone pose as the owner", () => expect(memberWho(house, "h").name).toBeUndefined());
+  it("ignores an unknown id", () => expect(memberWho(house, "zzz").name).toBeUndefined());
   it("names the first person when the owner is someone else", () => {
-    expect(actorName({ ...house, ownerId: "a" }, "h")).toBe("Haziq");
+    expect(memberWho({ ...house, ownerId: "a" }, "h").name).toBe("Haziq");
   });
 });

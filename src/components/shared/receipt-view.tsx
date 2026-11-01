@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import {
-  addFriendItem,
+  addMemberItem,
   addMyName,
   addPayment,
-  removeFriendItem,
+  removeMemberItem,
   removePayment,
   saveMyBills,
   setMyDetails,
@@ -91,14 +91,14 @@ export function ReceiptView({
       : bill.doc;
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
   const myName = doc.people.find((p) => p.id === me)?.name;
-  const friend = !back;
+  const member = !back;
   const locked = Boolean(doc.locked);
   const owner = ownerOf(doc)?.name;
   const others = doc.people.filter((p) => p.id !== doc.ownerId);
   const canName = !locked || others.length > 0;
 
   const [ask, setAsk] = useState<Ask | null>(() =>
-    friend && canName && !myName && !quiet && !getAsked(bill.id)
+    member && canName && !myName && !quiet && !getAsked(bill.id)
       ? { kind: "who", then: () => undefined, first: true }
       : null,
   );
@@ -108,7 +108,7 @@ export function ReceiptView({
     if (ask?.kind === "who" && ask.first) setAsked(bill.id);
   }, [ask, bill.id]);
 
-  const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => Boolean(myName) && e.by === myName);
+  const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => Boolean(me) && e.byPersonId === me);
   const showHistory = (next: boolean) => {
     if (next) changes.clear();
     setHistoryOpen(next);
@@ -144,9 +144,9 @@ export function ReceiptView({
   const summary = summarize(doc, bill.payments);
 
   const lineHint = () => {
-    if (!friend) return undefined;
-    if (myName) return summary.remaining.some((l) => l.from === me) ? t.friend.tapHint : undefined;
-    return canName && summary.remaining.length > 0 ? t.friend.chooseHint : undefined;
+    if (!member) return undefined;
+    if (myName) return summary.remaining.some((l) => l.from === me) ? t.member.tapHint : undefined;
+    return canName && summary.remaining.length > 0 ? t.member.chooseHint : undefined;
   };
 
   const receivers = [...new Set([...summary.remaining, ...summary.done].map((l) => l.to))]
@@ -155,9 +155,9 @@ export function ReceiptView({
 
   const errorText = (error: string, name = "") =>
     error === "rate_limited"
-      ? t.friend.tooMany
+      ? t.member.tooMany
       : error === "locked"
-        ? t.friend.lockedError
+        ? t.member.lockedError
         : error === "duplicate"
           ? fmt(t.home.duplicateName, { name })
           : t.common.generic;
@@ -180,7 +180,7 @@ export function ReceiptView({
       const { id, undoKey } = result.data;
       setMyPayment(bill.id, id, undoKey);
       toast({
-        message: fmt(t.friend.marked, { name: nameOf(payment.to) }),
+        message: fmt(t.member.marked, { name: nameOf(payment.to) }),
         action: { label: t.common.undo, onClick: () => unpay(id, payment, undoKey) },
       });
     });
@@ -196,7 +196,7 @@ export function ReceiptView({
 
   const addItem = (item: Item, newPeople: readonly Person[] = []) =>
     start(async () => {
-      const result = await addFriendItem(
+      const result = await addMemberItem(
         bill.id,
         item,
         getMe(bill.id),
@@ -209,14 +209,14 @@ export function ReceiptView({
       setFreshId(id);
       setTell(true);
       toast({
-        message: fmt(t.friend.added, { name: item.name }),
+        message: fmt(t.member.added, { name: item.name }),
         action: { label: t.common.undo, onClick: () => deleteItem({ ...item, id }, token) },
       });
     });
 
   const deleteItem = (item: Item, token: string) =>
     start(async () => {
-      const result = await removeFriendItem(bill.id, item.id, token, getMe(bill.id));
+      const result = await removeMemberItem(bill.id, item.id, token, getMe(bill.id));
       if (!result.ok) return void toast({ message: errorText(result.error) });
       setMyItem(bill.id, item.id, null);
       setTell(true);
@@ -273,38 +273,38 @@ export function ReceiptView({
     });
 
   const tellGroup = () => {
-    const text = `${fmt(t.friend.tellMessage, { who: myName ?? t.history.friend, title: bill.doc.title })} ${window.location.origin}/bill/${bill.id}`;
+    const text = `${fmt(t.member.tellMessage, { who: myName ?? t.history.someone, title: bill.doc.title })} ${window.location.origin}/bill/${bill.id}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     setTell(false);
   };
 
   const tellCard =
-    friend && tell && !locked ? (
+    member && tell && !locked ? (
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
-        <span className="min-w-0 text-[13.5px] font-semibold">{t.friend.tellTitle}</span>
+        <span className="min-w-0 text-[13.5px] font-semibold">{t.member.tellTitle}</span>
         <span className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setTell(false)}
             className="h-[34px] px-1 text-[13px] font-bold text-muted"
           >
-            {t.friend.cancel}
+            {t.member.cancel}
           </button>
           <button
             type="button"
             onClick={tellGroup}
             className="h-[34px] rounded-lg bg-green px-3 text-[13px] font-bold text-white"
           >
-            {t.friend.tellSend}
+            {t.member.tellSend}
           </button>
         </span>
       </div>
     ) : null;
 
   const lockedNote =
-    friend && locked ? (
+    member && locked ? (
       <p className="m-0 rounded-xl bg-chip px-3.5 py-2.5 text-[13.5px] font-semibold text-muted">
-        {owner ? fmt(t.friend.locked, { name: owner }) : t.friend.lockedError}
+        {owner ? fmt(t.member.locked, { name: owner }) : t.member.lockedError}
       </p>
     ) : null;
 
@@ -327,16 +327,16 @@ export function ReceiptView({
     </div>
   );
 
-  const myItems = friend ? doc.items.filter((i) => i.deleteHash && mine[i.id]) : [];
-  const joined = friend && me ? doc.items.filter((i) => i.joins?.[me] && myJoins[i.id]) : [];
-  const names = friend ? doc.people.filter((p) => myNames[p.id]) : [];
+  const myItems = member ? doc.items.filter((i) => i.addedAt && mine[i.id]) : [];
+  const joined = member && me ? doc.items.filter((i) => i.joins?.[me] && myJoins[i.id]) : [];
+  const names = member ? doc.people.filter((p) => myNames[p.id]) : [];
   const hasList = !locked && myItems.length + joined.length + names.length > 0;
   const myList = hasList ? (
     <div className="rounded-2xl border border-border bg-card px-4 pt-3 pb-1">
-      <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.yours}</span>
+      <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.member.yours}</span>
       <div>
         {names.map((p) =>
-          row(p.id, p.name, p.bank ? p.bank : t.friend.noBank, t.friend.bankDetails, () =>
+          row(p.id, p.name, p.bank ? p.bank : t.member.noBank, t.member.bankDetails, () =>
             withMe(() => openView({ kind: "bank", personId: p.id })),
           ),
         )}
@@ -354,7 +354,7 @@ export function ReceiptView({
             item.id,
             item.name,
             money(item.amountMinor),
-            t.friend.deleteMine,
+            t.member.deleteMine,
             () => withMe(() => deleteItem(item, mine[item.id])),
             true,
           ),
@@ -366,7 +366,7 @@ export function ReceiptView({
   const history = <HistoryButton doc={doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />;
 
   const greeting = (className?: string) =>
-    friend && myName ? (
+    member && myName ? (
       <Greeting
         name={myName}
         className={className}
@@ -386,7 +386,7 @@ export function ReceiptView({
             first={false}
             bare={bare}
             autoFocus={desktop}
-            title={t.friend.addTitle}
+            title={t.member.addTitle}
             defaultPaidBy={myName ? (me ?? undefined) : undefined}
             onAdd={addItem}
             onPrinted={close}
@@ -443,7 +443,7 @@ export function ReceiptView({
     }
   };
 
-  const canChange = friend && !locked;
+  const canChange = member && !locked;
   const canJoin = myName ? doc.items.some((i) => !i.participants.includes(me!)) : doc.items.length > 0;
 
   const changeButtons = (className: string) => {
@@ -466,7 +466,7 @@ export function ReceiptView({
             onClick={() => withMe(() => openView({ kind: "join" }))}
             className={shape}
           >
-            {t.friend.joinBill}
+            {t.member.joinBill}
           </button>
         ) : null}
       </>
@@ -489,7 +489,7 @@ export function ReceiptView({
             </div>
             {ask.first || ask.hide ? (
               <button type="button" onClick={forgetMe} className="h-11 shrink-0 text-[15px] font-bold text-muted">
-                {t.friend.justLooking}
+                {t.member.justLooking}
               </button>
             ) : null}
           </>
@@ -499,7 +499,7 @@ export function ReceiptView({
         return (
           <>
             <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
-            <p className="m-0 text-[14px] text-muted">{t.friend.confirmDesc}</p>
+            <p className="m-0 text-[14px] text-muted">{t.member.confirmDesc}</p>
             <div className="flex flex-col gap-1.5 pt-1">
               <button
                 type="button"
@@ -520,7 +520,7 @@ export function ReceiptView({
                 {t.pay.different}
               </button>
               <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
-                {t.friend.cancel}
+                {t.member.cancel}
               </button>
             </div>
           </>
@@ -531,7 +531,7 @@ export function ReceiptView({
         return (
           <>
             <div className="text-[30px] font-extrabold tracking-[-0.02em] tabular">{money(line.amount)}</div>
-            <p className="m-0 text-[14px] text-muted">{t.friend.undoDesc}</p>
+            <p className="m-0 text-[14px] text-muted">{t.member.undoDesc}</p>
             <div className="flex flex-col gap-1.5 pt-1">
               <button
                 type="button"
@@ -542,7 +542,7 @@ export function ReceiptView({
                 {t.track.markUnpaid}
               </button>
               <button type="button" onClick={() => setAsking(false)} className="h-11 text-[15px] font-bold text-muted">
-                {t.friend.cancel}
+                {t.member.cancel}
               </button>
             </div>
           </>
@@ -556,7 +556,7 @@ export function ReceiptView({
       {greeting()}
       <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">
         {sharedBy
-          ? fmt(t.friend.sharedLine, { name: sharedBy, date: date(bill.createdAt, { day: "numeric", month: "short" }) })
+          ? fmt(t.member.sharedLine, { name: sharedBy, date: date(bill.createdAt, { day: "numeric", month: "short" }) })
           : date(bill.createdAt, { day: "numeric", month: "short" })}
       </span>
       <h1 className="m-0 text-[30px] font-extrabold tracking-[-0.025em]">{bill.doc.title}</h1>
@@ -565,7 +565,7 @@ export function ReceiptView({
       {tellCard}
       {receivers.length > 0 ? (
         <div className="rounded-2xl border border-border bg-card px-4 pt-3 pb-1">
-          <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.friend.payTo}</span>
+          <span className="text-[11px] font-bold tracking-[0.06em] text-faint uppercase">{t.member.payTo}</span>
           {receivers.map((p, i) => (
             <div
               key={p!.id}
@@ -616,7 +616,7 @@ export function ReceiptView({
           )
         }
         phoneBelow={<div className="flex justify-center">{history}</div>}
-        panel={friend && view ? body(true) : undefined}
+        panel={member && view ? body(true) : undefined}
         dock={
           canChange && !view ? <div className="flex gap-2">{changeButtons(`flex-1 ${dockButton}`)}</div> : undefined
         }
@@ -630,24 +630,24 @@ export function ReceiptView({
             preview={view?.kind === "add" ? preview : null}
             freshItemId={freshId}
             hint={lineHint()}
-            onHint={friend && !myName ? () => showAsk({ kind: "who", then: () => undefined }) : undefined}
-            onLine={friend && myName ? tapLine : undefined}
+            onHint={member && !myName ? () => showAsk({ kind: "who", then: () => undefined }) : undefined}
+            onLine={member && myName ? tapLine : undefined}
             onlyFrom={me}
             canUndo={(line) => Boolean(line.paymentId && myPayments[line.paymentId])}
           />
         }
       />
-      {friend ? (
+      {member ? (
         <Sheet
           open={asking}
           onOpenChange={setAsking}
           title={
             ask?.kind === "who"
-              ? t.friend.whoTitle
+              ? t.member.whoTitle
               : ask?.kind === "undo"
-                ? fmt(t.friend.undoTitle, { to: nameOf(ask.line.to) })
+                ? fmt(t.member.undoTitle, { to: nameOf(ask.line.to) })
                 : ask
-                  ? fmt(t.friend.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
+                  ? fmt(t.member.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
                   : ""
           }
         >

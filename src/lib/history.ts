@@ -1,4 +1,4 @@
-import type { BillDoc, Item } from "./bill";
+import { ownerOf, type BillDoc, type Item } from "./bill";
 
 export type ItemChanges = {
   name?: [string, string];
@@ -26,14 +26,29 @@ export type EventBody =
   | { kind: "paid"; from: string; to: string; amountMinor: number; paymentId?: string }
   | { kind: "unpaid"; from: string; to: string; amountMinor: number };
 
-export type EventActor = "owner" | "friend";
+export type ByRole = "owner" | "member";
 
-export type BillEvent = EventBody & { id: string; actor: EventActor; by?: string; createdAt: string };
+export type Who = { role: ByRole; personId?: string; name?: string };
+
+export type BillEvent = EventBody & {
+  id: string;
+  byRole: ByRole;
+  byPersonId?: string;
+  byName?: string;
+  createdAt: string;
+};
 
 export const personName = (doc: BillDoc, id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
-export const actorName = (doc: BillDoc, id: unknown) =>
-  id === doc.ownerId ? undefined : doc.people.find((p) => p.id === id)?.name;
+export const memberWho = (doc: BillDoc, id: unknown): Who => {
+  const person = id === doc.ownerId ? undefined : doc.people.find((p) => p.id === id);
+  return { role: "member", personId: person?.id, name: person?.name };
+};
+
+export const ownerWho = (doc: BillDoc): Who => {
+  const person = ownerOf(doc);
+  return { role: "owner", personId: person?.id, name: person?.name };
+};
 
 const splitKey = (item: Item) =>
   JSON.stringify([

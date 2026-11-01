@@ -7,7 +7,7 @@ import { setBillLock } from "@/app/actions";
 import { Sheet, SheetOption } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
-import { latestFriendChange } from "@/lib/bill";
+import { latestMemberChange } from "@/lib/bill";
 import { getDraft, saveDraft, useDraft } from "@/lib/store";
 import type { SharedBillData } from "./shared-bill";
 
@@ -32,7 +32,7 @@ export function OwnerActions({
   const locked = Boolean(bill.doc.locked);
 
   const editHere = () => {
-    saveDraft({ doc: bill.doc, billId: bill.id, seenAt: latestFriendChange(bill.doc) });
+    saveDraft({ doc: bill.doc, billId: bill.id, seenAt: latestMemberChange(bill.doc) });
     router.push("/");
   };
   const edit = () => {
@@ -102,7 +102,7 @@ export function OwnerActions({
             {t.track.replace}
           </button>
           <button type="button" onClick={() => setReplaceOpen(false)} className="h-11 text-[15px] font-bold text-muted">
-            {t.friend.cancel}
+            {t.member.cancel}
           </button>
         </div>
       </Sheet>

@@ -33,7 +33,7 @@ export function Tracking({
   const [pending, start] = useTransition();
   const [paying, setPaying] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => e.actor === "owner");
+  const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) => e.byRole === "owner");
   const showHistory = (next: boolean) => {
     if (next) changes.clear();
     setHistoryOpen(next);
@@ -51,7 +51,7 @@ export function Tracking({
       if (!result.ok) return void toast({ message: t.common.generic });
       setPaying(false);
       toast({
-        message: fmt(t.friend.marked, { name: nameOf(payment.to) }),
+        message: fmt(t.member.marked, { name: nameOf(payment.to) }),
         action: { label: t.common.undo, onClick: () => void removePayment(bill.id, result.data.id, { ownerToken }) },
       });
     });
@@ -59,8 +59,8 @@ export function Tracking({
   const markPaid = (line: PlanLine) => pay({ from: line.from, to: line.to, amountMinor: line.amount });
 
   const markedBy = (line: PlanLine) => {
-    if (line.markedBy === "owner") return fmt(t.track.youMarked, { time: time(line.paidAt!) });
-    const by = bill.events.find((e) => e.kind === "paid" && e.paymentId === line.paymentId)?.by;
+    if (line.byRole === "owner") return fmt(t.track.youMarked, { time: time(line.paidAt!) });
+    const by = bill.events.find((e) => e.kind === "paid" && e.paymentId === line.paymentId)?.byName;
     return by
       ? fmt(t.track.tappedPaid, { name: by, time: time(line.paidAt!) })
       : fmt(t.track.markedPaid, { time: time(line.paidAt!) });

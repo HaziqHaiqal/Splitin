@@ -37,7 +37,7 @@ export function HistoryRun({
           aria-hidden
           className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-full bg-chip text-[12px] font-extrabold text-muted"
         >
-          {who === t.history.friend ? "?" : initial(who)}
+          {who === t.history.someone ? "?" : initial(who)}
         </span>
       ) : (
         <Avatar name={who} color={color} size={30} />
@@ -135,7 +135,7 @@ function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
 
   const whoDid = (e: BillEvent) => {
     if (e.kind === "person_joined") return e.name;
-    return e.actor === "owner" ? owner : (e.by ?? h.friend);
+    return e.byName ?? (e.byRole === "owner" ? owner : h.someone);
   };
 
   const entry = (e: BillEvent, who: string): Entry => {
@@ -205,7 +205,7 @@ function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
     else days.push([e]);
   }
 
-  const colorOf = (who: string) => doc.people.find((p) => p.name === who)?.color;
+  const colorOf = (e: BillEvent, who: string) => doc.people.find((p) => p.id === e.byPersonId || p.name === who)?.color;
 
   const runsOf = (day: BillEvent[]) => {
     const runs: BillEvent[][] = [];
@@ -233,7 +233,7 @@ function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
                 </p>
               );
             return (
-              <HistoryRun key={run[0].id} who={who} color={colorOf(who)}>
+              <HistoryRun key={run[0].id} who={who} color={colorOf(run[0], who)}>
                 {run.map((e) => (
                   <HistoryBubble key={e.id} who={who} at={e.createdAt} {...entry(e, who)} />
                 ))}

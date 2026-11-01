@@ -13,7 +13,7 @@ export const en = {
   },
   meta: {
     title: "Splitin · Split bills fairly",
-    description: "Split bills fairly with friends. No sign-up, no app.",
+    description: "Split bills fairly with anyone. No sign-up, no app.",
     billSummary: "{total} · {count} people · {settle} to settle",
   },
   home: {
@@ -23,7 +23,7 @@ export const en = {
     startDesc: "No sign-up. Your receipt prints as you go.",
     haveCode: "Have a code?",
     codeTitle: "Enter your code",
-    codeDesc: "It's on the receipt your friend shared.",
+    codeDesc: "It's on the receipt someone shared with you.",
     codeOpening: "Opening…",
     codeNotFound: "No receipt with that code. Check it and try again.",
     codeBackNew: "Start a new bill instead",
@@ -112,7 +112,7 @@ export const en = {
     title: "Share receipt",
     previewTitle: "Receipt image + live link",
     previewDesc:
-      "Everyone's share, who pays who and bank details in one picture. The link or code lets friends tap “I've paid”.",
+      "Everyone's share, who pays who and bank details in one picture. The link or code lets everyone tap “I've paid”.",
     whatsapp: "Send to WhatsApp",
     saveImage: "Save image",
     copyLink: "Copy link",
@@ -151,10 +151,10 @@ export const en = {
     ownerRestored: "You can edit this bill on this device now",
     lock: "Lock bill",
     unlock: "Unlock bill",
-    lockDesc: "Friends can only mark payments.",
-    unlockDesc: "Friends can add and join bills again.",
-    lockedNote: "Locked. Friends can only mark payments now.",
-    unlockedNote: "Unlocked. Friends can add and join again.",
+    lockDesc: "Everyone else can only mark payments.",
+    unlockDesc: "Everyone can add and join bills again.",
+    lockedNote: "Locked. Everyone else can only mark payments now.",
+    unlockedNote: "Unlocked. Everyone can add and join again.",
     replaceTitle: "Replace your unshared split?",
     replaceDesc: "You have a split on this device that you haven't shared. Editing this bill replaces it.",
     replace: "Replace it",
@@ -167,7 +167,7 @@ export const en = {
     newSplit: "Start a new split",
     deletesOn: "This receipt deletes itself on {date}.",
   },
-  friend: {
+  member: {
     sharedLine: "Shared by {name} · {date}",
     payTo: "Pay to",
     tapHint: "Paid? Tap your payment below to mark it.",
@@ -222,7 +222,7 @@ export const en = {
     title: "History",
     empty: "No changes recorded yet.",
     owner: "The owner",
-    friend: "A friend",
+    someone: "Someone",
     today: "Today",
     yesterday: "Yesterday",
     created: "{who} shared this bill",
@@ -305,22 +305,22 @@ export const en = {
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. Links delete themselves after 30 days. Under More, your owner link lets you edit from a new phone, and Lock bill stops friends changing the bills.",
+        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. Links delete themselves after 30 days. Under More, your owner link lets you edit from a new phone, and Lock bill stops everyone else changing the bills.",
         hint: "Try it: send it to WhatsApp.",
       },
       {
         title: "Step 6: Mark who has paid",
-        desc: "Friends open the link, or tap Have a code? on the home page. They pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Record it, and the receipt works out the rest.",
+        desc: "Everyone opens the link, or taps Have a code? on the home page. They pick their name, or type it if it's not on the list. Once they've paid, they tap their payment and everyone sees a PAID stamp. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Record it, and the receipt works out the rest.",
         hint: "Try it: pick a name, then mark your payment.",
       },
       {
-        title: "Step 7: Friends add what they paid",
-        desc: "Did a friend pay for something too? On the link they tap Add bill. They can delete only what they added, on that same phone.",
+        title: "Step 7: Others add what they paid",
+        desc: "Did someone else pay for something too? On the link they tap Add bill. They can delete only what they added, on that same phone.",
         hint: "Try it: add a bill, then delete it.",
       },
       {
-        title: "Step 8: Friends join the bills they're in",
-        desc: "Missed out? Friends tap Join bill and tick the bills they're in, or Join all. Their share is worked out, or they can write their own amount. The receipt updates, and anyone who already paid too much gets paid back.",
+        title: "Step 8: Others join the bills they're in",
+        desc: "Missed out? They tap Join bill and tick the bills they're in, or Join all. Their share is worked out, or they can write their own amount. The receipt updates, and anyone who already paid too much gets paid back.",
         hint: "Try it: tick a bill and watch the amount.",
       },
       {

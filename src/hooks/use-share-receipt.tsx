@@ -5,7 +5,9 @@ import { publishBill } from "@/app/actions";
 import { NameChip, NotListedChip } from "@/components/name-chip";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
+import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
+import { repeatedName } from "@/lib/bill";
 import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 
@@ -25,7 +27,9 @@ export function useShareReceipt(draft: Draft | null | undefined) {
     start(async () => {
       const result = await publishBill(current.doc);
       if (!result.ok) {
-        toast({ message: result.error === "rate_limited" ? t.share.rateLimited : t.common.generic });
+        const name = repeatedName(current.doc);
+        if (result.error === "duplicate" && name) toast({ message: fmt(t.home.duplicateName, { name }) });
+        else toast({ message: result.error === "rate_limited" ? t.share.rateLimited : t.common.generic });
         return;
       }
       setOwnerToken(result.data.id, result.data.ownerToken);

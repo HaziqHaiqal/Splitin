@@ -29,14 +29,14 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
 
   const { data: rows, error: payError } = await client
     .from("payments")
-    .select("id, from_person, to_person, amount_minor, marked_by, created_at")
+    .select("id, from_person, to_person, amount_minor, by_role, created_at")
     .eq("bill_id", id)
     .order("created_at");
   if (payError) throw payError;
 
   const { data: eventRows, error: eventError } = await client
     .from("bill_events")
-    .select("id, kind, actor, data, created_at")
+    .select("id, kind, by_role, by_person_id, by_name, data, created_at")
     .eq("bill_id", id)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -50,11 +50,20 @@ export const getBill = cache(async (id: string): Promise<SharedBill | null> => {
       from: r.from_person,
       to: r.to_person,
       amountMinor: Number(r.amount_minor),
-      markedBy: r.marked_by,
+      byRole: r.by_role,
       createdAt: r.created_at,
     })),
     events: (eventRows ?? []).map(
-      (r) => ({ ...r.data, id: r.id, kind: r.kind, actor: r.actor, createdAt: r.created_at }) as BillEvent,
+      (r) =>
+        ({
+          ...r.data,
+          id: r.id,
+          kind: r.kind,
+          byRole: r.by_role,
+          byPersonId: r.by_person_id ?? undefined,
+          byName: r.by_name ?? undefined,
+          createdAt: r.created_at,
+        }) as BillEvent,
     ),
     createdAt: data.created_at,
     expiresAt: new Date(created + KEEP_DAYS * DAY).toISOString(),

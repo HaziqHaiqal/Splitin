@@ -24,7 +24,7 @@ export function BankForm({
 
   return (
     <PanelForm
-      title={t.friend.bankDetails}
+      title={t.member.bankDetails}
       bare={bare}
       onCancel={onCancel}
       onSubmit={() => onSave({ bank: bankName || null, accountNo: bankName ? accountNo.trim() || null : null })}
