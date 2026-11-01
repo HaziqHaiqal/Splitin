@@ -14,6 +14,7 @@ export const en = {
   meta: {
     title: "Splitin · Split bills fairly",
     description: "Split bills fairly with friends. No sign-up, no app.",
+    billSummary: "{total} · {count} people · {settle} to settle",
   },
   home: {
     step1: "Who's splitting?",
@@ -117,8 +118,8 @@ export const en = {
     copyLink: "Copy link",
     more: "More apps",
     note: "Anyone with the link or code can see this receipt. It deletes itself after 30 days.",
-    message: "{title}. Tap to see what you owe and mark paid:",
-    titleWithCode: "{title} (code {code})",
+    message: "Tap to see what you owe and mark paid:",
+    details: "{total} · {count} people",
     code: "Code",
     linkCopied: "Link copied",
     codeCopied: "Code copied",

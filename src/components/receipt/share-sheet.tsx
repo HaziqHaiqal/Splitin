@@ -7,6 +7,7 @@ import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
+import { summarize, type BillDoc } from "@/lib/bill";
 import { isCode } from "@/lib/utils";
 
 const BACKDROP = "#0e131b";
@@ -38,26 +39,27 @@ export function ShareSheet({
   open,
   onOpenChange,
   billId,
-  title,
-  createdAt,
+  doc,
   receiptRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   billId: string | null;
-  title: string;
-  createdAt: string;
+  doc: BillDoc;
   receiptRef: RefObject<HTMLDivElement | null>;
 }) {
-  const { t } = useI18n();
+  const { t, money } = useI18n();
   const toast = useToast();
   const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
   const [pasteHint, setPasteHint] = useState(false);
 
+  const { title, createdAt } = doc;
   const url = billId && typeof window !== "undefined" ? `${window.location.origin}/bill/${billId}` : "";
   const code = billId && isCode(billId) ? billId : null;
-  const intro = fmt(t.share.message, { title: code ? fmt(t.share.titleWithCode, { title, code }) : title });
-  const message = `${intro} ${url}`;
+  const details = fmt(t.share.details, { total: money(summarize(doc).total), count: doc.people.length });
+  const lines = (heading: string) =>
+    `${heading}\n${details}${code ? `\n${t.share.code}: ${code}` : ""}\n\n${t.share.message}`;
+  const message = `${lines(`*${title}*`)}\n${url}`;
 
   useEffect(() => {
     if (!open || !receiptRef.current) return;
@@ -137,7 +139,7 @@ export function ShareSheet({
   const more = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: intro, url });
+        await navigator.share({ title, text: lines(title), url });
       } catch {}
     } else {
       await copyLink();

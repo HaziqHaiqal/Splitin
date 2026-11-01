@@ -2,16 +2,22 @@ import type { Metadata } from "next";
 import { Expired } from "@/components/shared/expired";
 import { NotFound } from "@/components/shared/not-found";
 import { SharedBill } from "@/components/shared/shared-bill";
+import { fmt } from "@/i18n";
 import { getI18n } from "@/i18n/server";
 import { summarize } from "@/lib/bill";
 import { getBill, linkExpired } from "@/lib/data/bill";
+import { rm } from "@/lib/utils";
 
 export async function generateMetadata({ params }: PageProps<"/bill/[id]">): Promise<Metadata> {
   const { id } = await params;
   const [bill, { t }] = await Promise.all([getBill(id), getI18n()]);
   if (!bill) return { title: (await linkExpired(id)) ? t.expired.title : t.notFound.title, robots: { index: false } };
   const s = summarize(bill.doc, bill.payments);
-  const description = `RM ${(s.total / 100).toFixed(2)} · ${bill.doc.people.length} · ${s.remaining.length}`;
+  const description = fmt(t.meta.billSummary, {
+    total: rm(s.total),
+    count: bill.doc.people.length,
+    settle: s.remaining.length,
+  });
   return {
     title: bill.doc.title,
     description,

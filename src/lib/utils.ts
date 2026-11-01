@@ -31,6 +31,9 @@ export function parseNames(input: string): string[] {
     .filter(Boolean);
 }
 
+export const rm = (minor: number) =>
+  `RM ${(minor / 100).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export const CODE_LENGTH = 8;
 export const isCode = (id: string) => id.length === CODE_LENGTH;
 

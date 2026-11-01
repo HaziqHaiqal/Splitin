@@ -50,14 +50,7 @@ export function useShareReceipt(draft: Draft | null | undefined) {
 
   const sheet = draft ? (
     <>
-      <ShareSheet
-        open={open}
-        onOpenChange={setOpen}
-        billId={draft.billId}
-        title={draft.doc.title}
-        createdAt={draft.doc.createdAt}
-        receiptRef={receiptRef}
-      />
+      <ShareSheet open={open} onOpenChange={setOpen} billId={draft.billId} doc={draft.doc} receiptRef={receiptRef} />
       <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
         <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
         <div className="flex flex-wrap gap-2">

@@ -27,19 +27,21 @@ async function enter(page: Page, code: string) {
   await codeBox(page).fill(code);
 }
 
-async function share(page: Page) {
+async function share(page: Page, label = "Share receipt", ready = "Copy link") {
   await page.goto("/");
-  await button(page, "Share receipt").click();
-  await expect(sheet(page).getByText("Copy link")).toBeVisible();
+  await button(page, label).click();
+  await expect(sheet(page).getByText(ready)).toBeVisible();
   const db = await getDb();
   return db.bills.find((b) => b.id !== BILL)?.id as string;
 }
 
-async function sentToWhatsApp(page: Page) {
-  await sheet(page).getByRole("button", { name: "Send to WhatsApp" }).click();
+async function sentToWhatsApp(page: Page, label = "Send to WhatsApp") {
+  await sheet(page).getByRole("button", { name: label }).click();
   const opened = await page.evaluate(() => (window as unknown as { opened: string }).opened);
   return decodeURIComponent(opened);
 }
+
+const linkTo = (page: Page, id: string) => `${new URL(page.url()).origin}/bill/${id}`;
 
 const catchWhatsApp = (page: Page) =>
   page.addInitScript(() => {
@@ -70,13 +72,50 @@ test.describe("sharing a code", () => {
     expect(await owner.evaluate(() => navigator.clipboard.readText())).toBe(code);
   });
 
-  test("the WhatsApp message carries the code and the link", async ({ browser }) => {
+  test("the WhatsApp message is set out in lines, with the code and the link", async ({ browser }) => {
     const owner = await newPhone(browser, draft);
     await catchWhatsApp(owner);
     const code = await share(owner);
     const message = await sentToWhatsApp(owner);
-    expect(message).toContain(`Trip (code ${code}).`);
-    expect(message).toContain(`/bill/${code}`);
+    expect(message).toContain(
+      `*Trip*\nRM 300.00 · 3 people\nCode: ${code}\n\nTap to see what you owe and mark paid:\n${linkTo(owner, code)}`,
+    );
+  });
+
+  test("the message is in BM too", async ({ browser }) => {
+    const owner = await newPhone(browser, draft);
+    await owner.context().addCookies([{ name: "splitin-locale", value: "ms", url: "http://localhost:3457" }]);
+    await catchWhatsApp(owner);
+    const code = await share(owner, "Kongsi resit", "Salin pautan");
+    const message = await sentToWhatsApp(owner, "Hantar ke group WhatsApp");
+    expect(message).toContain(
+      `*Trip*\nRM 300.00 · 3 orang\nKod: ${code}\n\nTekan untuk lihat berapa anda berhutang dan tanda dah bayar:\n${linkTo(owner, code)}`,
+    );
+  });
+
+  test("More apps sends the same lines, without WhatsApp's bold stars", async ({ browser }) => {
+    const owner = await newPhone(browser, draft);
+    await owner.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        value: async (data: ShareData) => {
+          (window as unknown as { shared: ShareData }).shared = data;
+        },
+      });
+    });
+    const code = await share(owner);
+    await sheet(owner).getByRole("button", { name: "More apps" }).click();
+    const shared = await owner.evaluate(() => (window as unknown as { shared: ShareData }).shared);
+    expect(shared.text).toBe(`Trip\nRM 300.00 · 3 people\nCode: ${code}\n\nTap to see what you owe and mark paid:`);
+    expect(shared.url).toBe(linkTo(owner, code));
+  });
+
+  test("the link preview spells out the numbers", async ({ page }) => {
+    await page.goto(`/bill/${BILL}`);
+    await expect(page.locator('meta[property="og:description"]').first()).toHaveAttribute(
+      "content",
+      "RM 300.00 · 3 people · 2 to settle",
+    );
+    expect((await page.request.get(`/bill/${BILL}/opengraph-image`)).status()).toBe(200);
   });
 
   test("the saved picture's file name has the code", async ({ browser }) => {
@@ -99,8 +138,9 @@ test.describe("sharing a code", () => {
     await expect(codeRow(owner)).toHaveCount(0);
     await expect(owner.getByText(`CODE ${BILL}`)).toHaveCount(0);
     const message = await sentToWhatsApp(owner);
-    expect(message).toContain("Trip. Tap to see");
-    expect(message).toContain(`/bill/${BILL}`);
+    expect(message).toContain(
+      `*Trip*\nRM 300.00 · 3 people\n\nTap to see what you owe and mark paid:\n${linkTo(owner, BILL)}`,
+    );
   });
 });
 

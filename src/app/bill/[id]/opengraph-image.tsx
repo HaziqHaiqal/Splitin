@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { summarize } from "@/lib/bill";
 import { getBill } from "@/lib/data/bill";
+import { rm } from "@/lib/utils";
 
 export const alt = "Splitin receipt";
 export const size = { width: 1200, height: 630 };
@@ -10,8 +11,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const { id } = await params;
   const bill = await getBill(id);
   const s = bill ? summarize(bill.doc, bill.payments) : null;
-  const rm = (minor: number) =>
-    `RM ${(minor / 100).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return new ImageResponse(
     <div

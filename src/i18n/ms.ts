@@ -16,6 +16,7 @@ export const ms: Dictionary = {
   meta: {
     title: "Splitin · Bahagi bil dengan adil",
     description: "Bahagi bil dengan adil bersama rakan. Tanpa daftar, tanpa app.",
+    billSummary: "{total} · {count} orang · {settle} belum selesai",
   },
   home: {
     step1: "Siapa yang berkongsi?",
@@ -119,8 +120,8 @@ export const ms: Dictionary = {
     copyLink: "Salin pautan",
     more: "App lain",
     note: "Sesiapa yang ada pautan atau kod boleh lihat resit ini. Ia dipadam sendiri selepas 30 hari.",
-    message: "{title}. Tekan untuk lihat berapa anda berhutang dan tanda dah bayar:",
-    titleWithCode: "{title} (kod {code})",
+    message: "Tekan untuk lihat berapa anda berhutang dan tanda dah bayar:",
+    details: "{total} · {count} orang",
     code: "Kod",
     linkCopied: "Pautan disalin",
     codeCopied: "Kod disalin",
