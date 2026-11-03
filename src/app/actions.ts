@@ -37,7 +37,7 @@ import {
 } from "@/lib/bill-schema";
 import { browserHash, ensureBrowserHash, hashToken } from "@/lib/browser-key";
 import { getBill, linkExpired, readBill } from "@/lib/data/bill";
-import { diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
+import { createdEvent, diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
 import { broadcastChange } from "@/lib/realtime-server";
 import { db } from "@/lib/supabase/server";
 import { CODE_LENGTH } from "@/lib/utils";
@@ -139,7 +139,7 @@ export async function publishBill(input: BillDoc): Promise<Result<{ id: string; 
         p_id: id,
         p_bill: bill,
         ...rows,
-        p_events: eventRows(ownerWho(doc), [{ kind: "created" }]),
+        p_events: eventRows(ownerWho(doc), [createdEvent(doc)]),
       });
       if (!error) return { ok: true, data: { id, ownerToken } };
       if (error.code !== "23505") {
@@ -602,11 +602,7 @@ const paymentSchema = z.object({
 export async function addPayment(
   id: string,
   input: z.input<typeof paymentSchema>,
-  {
-    ownerToken,
-    different = false,
-    byId,
-  }: { ownerToken?: string | null; different?: boolean; byId?: unknown } = {},
+  { ownerToken, different = false, byId }: { ownerToken?: string | null; different?: boolean; byId?: unknown } = {},
 ): Promise<Result<{ id: string }>> {
   return guard(async () => {
     const parsed = paymentSchema.safeParse(input);

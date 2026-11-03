@@ -7,8 +7,10 @@ export type ItemChanges = {
   split?: boolean;
 };
 
+export type StartItem = { name: string; amountMinor: number; payer: string };
+
 export type EventBody =
-  | { kind: "created" }
+  | { kind: "created"; items?: StartItem[] }
   | { kind: "item_added"; name: string; amountMinor: number; payer: string }
   | { kind: "item_deleted"; name: string; amountMinor: number }
   | { kind: "item_edited"; name: string; changes: ItemChanges }
@@ -39,6 +41,11 @@ export type BillEvent = EventBody & {
 };
 
 export const personName = (doc: BillDoc, id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
+
+export const createdEvent = (doc: BillDoc): EventBody => ({
+  kind: "created",
+  items: doc.items.map((i) => ({ name: i.name, amountMinor: i.amountMinor, payer: personName(doc, i.paidBy) })),
+});
 
 export const memberWho = (doc: BillDoc, id: unknown): Who => {
   const person = id === doc.ownerId ? undefined : doc.people.find((p) => p.id === id);

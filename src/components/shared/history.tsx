@@ -198,8 +198,25 @@ function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
     return date(at, { day: "numeric", month: "short" });
   };
 
+  const shown = events.flatMap((e): BillEvent[] =>
+    e.kind === "created" && e.items?.length
+      ? [
+          ...e.items.map((item, i) => ({
+            ...item,
+            id: `${e.id}:${i}`,
+            kind: "item_added" as const,
+            byRole: e.byRole,
+            byPersonId: e.byPersonId,
+            byName: e.byName,
+            createdAt: e.createdAt,
+          })),
+          e,
+        ]
+      : [e],
+  );
+
   const days: BillEvent[][] = [];
-  for (const e of events) {
+  for (const e of shown) {
     const last = days[days.length - 1];
     if (last && dayOf(last[0].createdAt) === dayOf(e.createdAt)) last.push(e);
     else days.push([e]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BillDoc, Item } from "./bill";
-import { diffDocs, memberWho, ownerWho } from "./history";
+import { createdEvent, diffDocs, memberWho, ownerWho } from "./history";
 
 const everyone = ["h", "n"];
 const water: Item = { id: "w", name: "Water", amountMinor: 5000, paidBy: "h", participants: everyone, overrides: {} };
@@ -14,6 +14,22 @@ const base: BillDoc = {
   ],
   items: [water],
 };
+
+describe("createdEvent", () => {
+  it("keeps the bills the bill started with, with the payer's name", () => {
+    expect(createdEvent({ ...base, items: [water, { ...water, id: "x", name: "Gas", paidBy: "n" }] })).toEqual({
+      kind: "created",
+      items: [
+        { name: "Water", amountMinor: 5000, payer: "Haziq" },
+        { name: "Gas", amountMinor: 5000, payer: "Najmi" },
+      ],
+    });
+  });
+
+  it("keeps no bank details or keys", () => {
+    expect(JSON.stringify(createdEvent(base))).not.toMatch(/Maybank|111|Hash/);
+  });
+});
 
 describe("memberWho", () => {
   it("gives the ID and name of someone on the bill", () => {

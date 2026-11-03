@@ -195,7 +195,7 @@ export const ms: Dictionary = {
     lockedError: "Bil ini dikunci. Anda masih boleh tanda bayaran.",
     tooMany: "Terlalu banyak perubahan pada bil ini. Cuba sebentar lagi.",
     tellTitle: "Jumlah dah berubah. Beritahu group?",
-    tellSend: "WhatsApp",
+    tellSend: "Kongsi",
     tellMessage: "{who} kemas kini {title}. Jumlah mungkin berubah, lihat yang terkini di sini:",
     bankDetails: "Butiran bank",
     detailsSaved: "Butiran bank anda disimpan",

@@ -193,7 +193,7 @@ export const en = {
     lockedError: "This bill is locked. You can still mark payments.",
     tooMany: "Too many changes on this bill. Try again in a bit.",
     tellTitle: "The amounts changed. Tell the group?",
-    tellSend: "WhatsApp",
+    tellSend: "Share",
     tellMessage: "{who} updated {title}. The amounts may have changed, see the latest here:",
     bankDetails: "Bank details",
     detailsSaved: "Your bank details are saved",

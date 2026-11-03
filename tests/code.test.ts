@@ -371,7 +371,7 @@ test.describe("entering a code", () => {
 test("nothing on the first screen is highlighted until you tap it", async ({ page }) => {
   await page.goto("/");
   const name = page.getByLabel("What are you splitting?");
-  const field = name.locator("xpath=..");
+  const field = name.locator("xpath=../..");
   await expect(name).not.toBeFocused();
   await expect(field).toHaveCSS("box-shadow", "none");
   await name.click();

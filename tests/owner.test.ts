@@ -25,6 +25,7 @@ import {
   payLine,
   paymentRow,
   paymentsOf,
+  pickMe,
   seed,
   serverDoc,
   serverItem,
@@ -36,6 +37,7 @@ import {
   tick,
   TOKEN,
   trip,
+  wipe,
 } from "./helpers";
 
 test.beforeEach(() => seed());
@@ -288,6 +290,25 @@ test.describe("owner screen", () => {
     const list = await openHistory(owner);
     await expect(list.getByText(/Haziq marked/)).toBeVisible();
     await expect(list.getByText(/Haziq undid the payment/)).toBeVisible();
+  });
+
+  test("Remind sends a reminder through the phone's share menu", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    await owner.addInitScript(() => {
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data: ShareData) => {
+          (window as unknown as { shared: ShareData }).shared = data;
+        },
+      });
+    });
+    await openBill(owner);
+    await payLine(owner, "NAJMI", "HAZIQ").click();
+    await sheet(owner).getByRole("button", { name: "Remind Najmi" }).click();
+    await expect(sheet(owner)).toHaveCount(0);
+    const shared = await owner.evaluate(() => (window as unknown as { shared: ShareData }).shared.text!);
+    expect(shared).toContain("Hi Najmi, a gentle reminder for Trip: please pay Haziq RM 100.00.");
+    expect(shared.endsWith(`/bill/${BILL}`)).toBe(true);
   });
 
   test("a payment already removed elsewhere shows no error and is not logged twice", async ({ browser }) => {
@@ -565,6 +586,33 @@ test.describe("History", () => {
     expect(pick("item_added")).toMatchObject({ by_role: "member", by_person_id: "n", by_name: "Najmi" });
     expect(pick("locked")).toMatchObject({ by_role: "owner", by_person_id: "h", by_name: "Haziq" });
     expect(pick("item_added").data).not.toHaveProperty("by");
+  });
+
+  test("starts with the bills the owner shared", async ({ browser, page }) => {
+    await wipe();
+    const owner = await newPhone(browser, openDraft({ ...trip, items: [hotel, dinner] }));
+    await owner.goto("/");
+    await button(owner, "Share receipt").click();
+    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    const { bills, bill_events } = await getDb();
+    expect(bill_events.map((e) => e.data)).toEqual([
+      {
+        items: [
+          { name: "Hotel", amountMinor: 30000, payer: "Haziq" },
+          { name: "Dinner", amountMinor: 9000, payer: "Afiq" },
+        ],
+      },
+    ]);
+
+    await page.goto(`/bill/${bills[0].id}`);
+    await pickMe(page, "Just looking");
+    const list = await openHistory(page);
+    const row = (words: string) => list.getByRole("listitem").filter({ hasText: words });
+    await expect(row("added Hotel")).toContainText("Paid by Haziq");
+    await expect(row("added Hotel")).toContainText("RM 300.00");
+    await expect(row("added Dinner")).toContainText("Paid by Afiq");
+    await expect(list.getByText(/^Haziq shared this bill/)).toBeVisible();
+    await expect(list.getByText("Haziq", { exact: true })).toHaveCount(1);
   });
 
   test("reads like a group chat", async ({ page }) => {

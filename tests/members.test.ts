@@ -1292,22 +1292,34 @@ test.describe("locked and limited", () => {
 });
 
 test.describe("telling the group", () => {
-  test("offers WhatsApp after a change, and can be dismissed", async ({ page }) => {
+  test("offers to share after a change through the phone's share menu, and can be dismissed", async ({ page }) => {
     await page.addInitScript(() => {
-      window.open = ((url: string) => {
-        (window as unknown as { opened: string }).opened = url;
-        return null;
-      }) as typeof window.open;
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (data: ShareData) => {
+          (window as unknown as { shared: ShareData }).shared = data;
+        },
+      });
     });
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await expect(text(page, "The amounts changed. Tell the group?")).toBeVisible();
-    await button(page, "WhatsApp").click();
-    const opened = await page.evaluate(() => (window as unknown as { opened: string }).opened);
-    expect(opened).toContain("wa.me");
-    expect(decodeURIComponent(opened)).toContain("Najmi updated Trip");
-    expect(decodeURIComponent(opened).endsWith(`/bill/${BILL}`)).toBe(true);
+    await expect(button(page, "WhatsApp")).toHaveCount(0);
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    const shared = await page.evaluate(() => (window as unknown as { shared: ShareData }).shared.text!);
+    expect(shared).toContain("Najmi updated Trip");
+    expect(shared.endsWith(`/bill/${BILL}`)).toBe(true);
     await expect(page.getByText("The amounts changed. Tell the group?")).toHaveCount(0);
+  });
+
+  test("without a share menu, the message is copied instead", async ({ page }) => {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.addInitScript(() => Object.defineProperty(navigator, "share", { configurable: true, value: undefined }));
+    await openBill(page);
+    await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await expect(text(page, "Copied")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain("Najmi updated Trip");
   });
 
   test("shows changes since the last visit, without counting your own", async ({ browser }) => {

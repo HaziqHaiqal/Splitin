@@ -240,10 +240,18 @@ export function BillPage({
       toast({ message: fmt(t.track.unmarked, { from: nameOf(line.from), to: nameOf(line.to) }) });
     });
 
+  const send = async (text: string) => {
+    if (!navigator.share) return copy(text);
+    try {
+      await navigator.share({ text });
+    } catch {}
+  };
+
   const remind = (line: PlanLine) => {
-    const text = `${fmt(t.track.remindMessage, { from: nameOf(line.from), title: doc.title, to: nameOf(line.to), amount: money(line.amount) })} ${window.location.origin}/bill/${bill.id}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     setAsking(false);
+    void send(
+      `${fmt(t.track.remindMessage, { from: nameOf(line.from), title: doc.title, to: nameOf(line.to), amount: money(line.amount) })} ${window.location.origin}/bill/${bill.id}`,
+    );
   };
 
   const addItem = (item: Item, newPeople: readonly Person[] = []) => {
@@ -285,12 +293,15 @@ export function BillPage({
         (d) => ({ ...d, items: d.items.filter((i) => i.id !== item.id) }),
         fmt(t.bill.deleted, { name: item.name }),
         () =>
-          ownerSave((d) => {
-            if (d.items.some((i) => i.id === item.id)) return d;
-            const items = [...d.items];
-            items.splice(index < 0 ? items.length : index, 0, restored);
-            return { ...d, items };
-          }, fmt(t.member.added, { name: item.name })),
+          ownerSave(
+            (d) => {
+              if (d.items.some((i) => i.id === item.id)) return d;
+              const items = [...d.items];
+              items.splice(index < 0 ? items.length : index, 0, restored);
+              return { ...d, items };
+            },
+            fmt(t.member.added, { name: item.name }),
+          ),
       );
     }
     const base = bill.doc;
@@ -314,14 +325,23 @@ export function BillPage({
       return ownerSave(
         (d) =>
           withItem(
-            { ...d, people: [...d.people, ...peopleOnly(newPeople.filter((p) => !d.people.some((q) => q.id === p.id)))] },
+            {
+              ...d,
+              people: [...d.people, ...peopleOnly(newPeople.filter((p) => !d.people.some((q) => q.id === p.id)))],
+            },
             item,
           ),
         message,
         () => ownerSave((d) => withItem(d, old), message),
       );
     run(
-      () => editMemberItem(bill.id, next, me, newPeople.map(({ id, name }) => ({ id, name }))),
+      () =>
+        editMemberItem(
+          bill.id,
+          next,
+          me,
+          newPeople.map(({ id, name }) => ({ id, name })),
+        ),
       newPeople.length > 0 ? null : withItem(bill.doc, item),
       () => {
         setTell(true);
@@ -332,7 +352,12 @@ export function BillPage({
   };
 
   const replaceItem = (old: Item, next: Item, message: string) => {
-    if (owner) return ownerSave((d) => withItem(d, next), message, () => ownerSave((d) => withItem(d, old), t.join.saved));
+    if (owner)
+      return ownerSave(
+        (d) => withItem(d, next),
+        message,
+        () => ownerSave((d) => withItem(d, old), t.join.saved),
+      );
     run(
       () => editMemberItem(bill.id, next, me),
       withItem(bill.doc, next),
@@ -511,9 +536,10 @@ export function BillPage({
   };
 
   const tellGroup = () => {
-    const text = `${fmt(t.member.tellMessage, { who: myName ?? t.history.someone, title: doc.title })} ${window.location.origin}/bill/${bill.id}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     setTell(false);
+    void send(
+      `${fmt(t.member.tellMessage, { who: myName ?? t.history.someone, title: doc.title })} ${window.location.origin}/bill/${bill.id}`,
+    );
   };
 
   const hasAccount = (p: Person) => Boolean(p.bank && p.accountNo);
@@ -558,7 +584,12 @@ export function BillPage({
     });
   if (owner) {
     tiles.push(
-      { key: "rename", icon: <PencilIcon size={21} />, label: t.page.rename, onClick: () => openView({ kind: "rename" }) },
+      {
+        key: "rename",
+        icon: <PencilIcon size={21} />,
+        label: t.page.rename,
+        onClick: () => openView({ kind: "rename" }),
+      },
       {
         key: "lock",
         icon: locked ? <UnlockIcon /> : <LockIcon />,
@@ -1151,7 +1182,11 @@ export function BillPage({
       <Sheet open={replaceOpen} onOpenChange={setReplaceOpen} title={t.track.replaceTitle}>
         <p className="m-0 text-[14px] leading-[1.5] text-muted">{t.track.replaceDesc}</p>
         <div className="flex flex-col gap-1.5 pt-1">
-          <button type="button" onClick={editHere} className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white">
+          <button
+            type="button"
+            onClick={editHere}
+            className="h-14 rounded-2xl bg-green text-[16px] font-bold text-white"
+          >
             {t.track.replace}
           </button>
           <button type="button" onClick={() => setReplaceOpen(false)} className="h-11 text-[15px] font-bold text-muted">
