@@ -40,7 +40,7 @@ import {
   startAdding,
   submit,
   text,
-  tick,
+  joinButton,
   trip,
 } from "./helpers";
 
@@ -150,7 +150,7 @@ test.describe("who are you", () => {
 
   test("after Just looking, the first action asks and then carries on", async ({ page }) => {
     await openBill(page);
-    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
 
     await choose(page, "Add bill");
@@ -185,7 +185,7 @@ test.describe("who are you", () => {
     expect(await page.evaluate((id) => localStorage.getItem(`splitin:me:${id}`), BILL)).toBeNull();
     await openMenu(page);
     await expect(menuCard(page).getByRole("button", { name: "Add bill" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^In \d+ of \d+ bills/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Your bills/ })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
     await button(page, "Who are you?").click();
@@ -206,9 +206,9 @@ test.describe("who are you", () => {
     await openMenu(page);
     const card = menuCard(page);
     await expect(card.getByRole("button", { name: /^Share receipt/ })).toBeVisible();
-    for (const label of ["Add bill", "History", "Bank", "My name"])
+    for (const label of ["Add bill", "History", "Bank", "Edit name"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: /^In 1 of 1 bills/ })).toContainText("Your share RM 100.00");
+    await expect(card.getByRole("button", { name: /^Your bills/ })).toContainText("In 1 of 1 · you pay RM 100.00");
     await expect(button(page, "Close menu")).toBeVisible();
   });
 
@@ -288,7 +288,7 @@ test.describe("adding your own name", () => {
     const people = Array.from({ length: 50 }, (_, i) => ({ id: `p${i}`, name: `Person ${i}`, color: i }));
     await seed({ ...trip, ownerId: "p0", people, items: [] });
     await openBill(page);
-    await button(page, "Add bill").click();
+    await choose(page, "Add bill");
     await addName(page, "Aiman");
     await expect(text(page, "Something went wrong")).toBeVisible();
     expect(await names()).toHaveLength(50);
@@ -571,7 +571,7 @@ test.describe("adding your own name", () => {
     await openAs(first, "Najmi");
     await openAs(second, "Najmi");
     await openAs(other, "Afiq");
-    await expect(button(other, "Add bill")).toBeVisible();
+    await expect(other.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await expect(button(other, /bank details Najmi/i)).toHaveCount(0);
 
     await button(first, "Add bank details Najmi").click();
@@ -620,7 +620,7 @@ test.describe("adding your own name", () => {
     await expect(button(page, /Bank details (Najmi|Afiq)/)).toHaveCount(0);
     await seed({ ...trip, items: [hotel] });
     await openBill(page);
-    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
     await expect(page.getByText("PAY TO", { exact: true })).toHaveCount(0);
   });
 
@@ -718,7 +718,6 @@ test.describe("adding a bill", () => {
     await expect(menuCard(stranger).getByRole("button", { name: "Edit bill" })).toHaveCount(0);
 
     await openBillDetail(mine, "Snacks");
-    await menuCard(mine).getByRole("button", { name: "Edit bill" }).click();
     await panel(mine).getByRole("button", { name: "Delete bill · you can undo" }).click();
     await settled(itemNames, ["Hotel"]);
     await button(mine, "Undo").click();
@@ -822,12 +821,16 @@ test.describe("seeing a change before saving", () => {
   });
 
   test("Share waits until the form is closed, so nothing unsaved goes out", async ({ page }) => {
+    const menu = page.getByRole("button", { name: "Menu", exact: true });
     await openBill(page);
-    await expect(button(page, "Share receipt")).toBeVisible();
+    await expect(menu).toBeVisible();
     const form = await startAdding(page, "Snacks", "3000", "Najmi");
-    await expect(button(page, "Share receipt")).toHaveCount(0);
+    await expect(menu).toHaveCount(0);
+    await expect(button(page, /^Share receipt/)).toHaveCount(0);
     await form.getByRole("button", { name: "Cancel" }).click();
-    await expect(button(page, "Share receipt")).toBeVisible();
+    await expect(menu).toBeVisible();
+    await menu.click();
+    await expect(menuCard(page).getByRole("button", { name: /^Share receipt/ })).toBeVisible();
   });
 });
 
@@ -842,17 +845,16 @@ test.describe("joining bills", () => {
   const row = (page: Page, item: string) => menuCard(page).getByRole("button", { name: new RegExp(`^${item}`) });
   const amountBox = (page: Page, item: string) => page.getByRole("textbox", { name: `Your amount for ${item}` });
 
-  test("each bill shows what you would pay before you tick it", async ({ page }) => {
+  test("each Join button shows what you would pay", async ({ page }) => {
     await openBill(page);
     await addMe(page, "Aiman");
     await openBills(page);
-    await expect(row(page, "Hotel")).toContainText("RM 75.00");
-    await expect(row(page, "Dinner")).toContainText("RM 22.50");
-    await expect(tick(page, "Hotel")).not.toBeChecked();
+    await expect(joinButton(page, "Hotel")).toHaveText("Join · RM 75.00");
+    await expect(joinButton(page, "Dinner")).toHaveText("Join · RM 22.50");
     expect((await serverItem("hotel"))?.participants).toHaveLength(3);
   });
 
-  test("a tick saves at once, and Undo takes it back", async ({ page }) => {
+  test("Join saves at once, and Undo takes it back", async ({ page }) => {
     await startJoining(page);
     await expect(text(page, "Joined Hotel. You pay RM 75.00.")).toBeVisible();
     const id = await me();
@@ -866,7 +868,7 @@ test.describe("joining bills", () => {
     await button(page, "Undo").click();
     await settled(async () => (await serverItem("hotel"))?.participants.includes(id), false);
     expect((await serverItem("hotel"))?.joins).toBeUndefined();
-    await expect(tick(page, "Hotel")).not.toBeChecked();
+    await expect(joinButton(page, "Hotel")).toBeVisible();
   });
 
   test("your part can be written, and set back to equal", async ({ page }) => {
@@ -913,31 +915,33 @@ test.describe("joining bills", () => {
     expect(await eventKinds()).not.toContain("share_changed");
   });
 
-  test("unticking leaves the bill on the same phone", async ({ page }) => {
+  test("Leave takes you out of a bill you joined on the same phone", async ({ page }) => {
     await startJoining(page);
     const id = await me();
     await expect(text(page, "Joined Hotel. You pay RM 75.00.")).toBeVisible();
     await settled(async () => (await serverItem("hotel"))?.participants.includes(id), true);
-    await tick(page, "Hotel").click();
+    await row(page, "Hotel").click();
+    await menuCard(page).getByRole("button", { name: "Leave Hotel" }).click();
     await expect(text(page, "You left Hotel")).toBeVisible();
     await settled(async () => (await serverItem("hotel"))?.participants.includes(id), false);
     expect(await eventKinds()).toContain("bill_left");
-    await expect(tick(page, "Hotel")).not.toBeChecked();
+    await expect(joinButton(page, "Hotel")).toBeVisible();
   });
 
   test("a bill someone else put you in can't be left or changed here", async ({ page }) => {
     await openAs(page, "Najmi");
     await openBills(page);
-    await expect(tick(page, "Hotel")).toBeChecked();
-    await expect(tick(page, "Hotel")).toHaveAttribute("aria-disabled", "true");
-    await tick(page, "Hotel").click();
-    await expect(text(page, "Haziq put you in this bill, so only Haziq can take you out.")).toBeVisible();
-    expect((await serverItem("hotel"))?.participants).toContain("n");
+    await expect(row(page, "Hotel")).toContainText("RM 100.00your part");
+    await expect(joinButton(page, "Hotel")).toHaveCount(0);
 
     await row(page, "Hotel").click();
-    await expect(menuCard(page).getByText("Haziq paid RM 300.00, split between Haziq, you and Afiq.")).toBeVisible();
+    const card = menuCard(page);
+    await expect(card.getByText("Haziq paid RM 300.00, split between Haziq, you and Afiq.")).toBeVisible();
+    await expect(card.getByText("Haziq put you in this bill, so only Haziq can take you out.")).toBeVisible();
     await expect(amountBox(page, "Hotel")).toHaveCount(0);
-    await expect(menuCard(page).getByRole("button", { name: "Edit bill" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Leave Hotel" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Edit bill" })).toHaveCount(0);
+    expect((await serverItem("hotel"))?.participants).toContain("n");
   });
 
   test("a bill with every amount set can't be joined", async ({ page }) => {
@@ -948,10 +952,10 @@ test.describe("joining bills", () => {
     await openBill(page);
     await addMe(page, "Aiman");
     await openBills(page);
-    await expect(row(page, "Hotel")).toContainText("–");
-    await tick(page, "Hotel").click();
+    await expect(joinButton(page, "Hotel")).toHaveText("Join");
+    await joinButton(page, "Hotel").click();
     await expect(text(page, "Every amount is set. Ask Haziq.")).toBeVisible();
-    await expect(tick(page, "Hotel")).not.toBeChecked();
+    await expect(joinButton(page, "Hotel")).toBeVisible();
   });
 
   test("someone who already paid too much gets paid back", async ({ page }) => {
@@ -1329,22 +1333,23 @@ test.describe("telling the group", () => {
     await submit(await startAdding(me, "Mine", "1000", "Najmi"));
     await settled(itemNames, ["Hotel", "Mine"]);
 
+    const dot = me.locator("[data-menu-button] > i");
     await openBill(me);
-    await expect(button(me, "Add bill")).toBeVisible();
-    await expect(me.getByText(/since your last visit/)).toHaveCount(0);
+    await expect(me.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+    await expect(dot).toHaveCount(0);
 
     await openBill(other);
     await submit(await startAdding(other, "Theirs", "2000", "Afiq"));
     await settled(itemNames, ["Hotel", "Mine", "Theirs"]);
 
     await openBill(me);
-    await expect(text(me, "1 change since your last visit")).toBeVisible();
-    await me.getByText("1 change since your last visit").click();
+    await expect(dot).toBeVisible();
+    await openHistory(me);
     await expect(sheet(me).getByText(/Afiq added Theirs/)).toBeVisible();
 
     await openBill(me);
-    await expect(button(me, "Add bill")).toBeVisible();
-    await expect(me.getByText(/since your last visit/)).toHaveCount(0);
+    await expect(me.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
+    await expect(dot).toHaveCount(0);
   });
 
   test("your own change is still yours after your name changes", async ({ browser }) => {

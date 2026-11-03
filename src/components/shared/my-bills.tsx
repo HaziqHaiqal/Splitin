@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { PencilIcon, ResetIcon } from "@/components/icons";
+import { CloseIcon, PencilIcon, ResetIcon } from "@/components/icons";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { itemShares, joinShare, type BillDoc, type Item } from "@/lib/bill";
 import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { MenuHead, MenuItem, Tick } from "./bill-menu";
+import { MenuHead, MenuItem } from "./bill-menu";
 
 export type BillRules = {
   canPart: (item: Item) => boolean;
@@ -98,19 +98,25 @@ export function BillRows({
                   })}
                 </small>
               </span>
-              {amount === undefined ? null : (
-                <span className={cn("shrink-0 text-[14px] font-bold tabular", on ? "text-ink" : "text-faint")}>
+              {amount === undefined ? null : on ? (
+                <span className="shrink-0 text-right">
+                  <b className="block text-[14px] font-bold tabular">{money(amount ?? 0)}</b>
+                  <small className="block text-[11.5px] font-semibold text-muted">{t.page.partLabel}</small>
+                </span>
+              ) : rules.dim(item) ? (
+                <span className="shrink-0 text-[14px] font-bold text-faint tabular">
                   {amount === null ? "–" : money(amount)}
                 </span>
-              )}
+              ) : null}
             </button>
-            {me ? (
-              <Tick
-                on={on}
-                dim={rules.dim(item)}
-                label={fmt(t.page.imIn, { name: item.name })}
+            {me && !on && !rules.dim(item) ? (
+              <button
+                type="button"
                 onClick={() => onToggle(item)}
-              />
+                className="h-9 shrink-0 rounded-full bg-green-soft px-3.5 text-[13px] font-extrabold text-green-soft-ink tabular"
+              >
+                {amount === null || amount === undefined ? t.page.join : fmt(t.page.joinFor, { amount: money(amount) })}
+              </button>
             ) : null}
             {popover && expanded ? (
               <div className="absolute inset-x-0 top-[calc(100%-6px)] z-10 animate-drop rounded-2xl border border-border bg-card p-1.5 shadow-[0_14px_34px_var(--pop-shadow)]">
@@ -133,8 +139,10 @@ export function BillDetail({
   rules,
   pending,
   onBack,
+  note,
   onPart,
   onEdit,
+  onLeave,
 }: {
   item: Item;
   doc: BillDoc;
@@ -142,8 +150,10 @@ export function BillDetail({
   rules: BillRules;
   pending: boolean;
   onBack?: () => void;
+  note?: string;
   onPart: (item: Item, written: number | undefined) => void;
   onEdit: (item: Item) => void;
+  onLeave: (item: Item) => void;
 }) {
   const { t, money, locale } = useI18n();
   const share = me ? itemShares(item)[me] : undefined;
@@ -204,6 +214,19 @@ export function BillDetail({
           {own ? (
             <MenuItem icon={<ResetIcon size={16} />} label={t.page.splitEqually} onClick={() => onPart(item, undefined)} />
           ) : null}
+          <MenuItem
+            icon={<CloseIcon size={16} />}
+            label={fmt(t.page.leave, { name: item.name })}
+            onClick={() => onLeave(item)}
+          />
+        </>
+      ) : on ? (
+        <>
+          <div className="mx-1 mt-1 flex items-center justify-between rounded-xl bg-chip px-3 py-2.5">
+            <span className="text-[13px] font-semibold text-muted">{t.page.yourPart}</span>
+            <b className="text-[15px] font-extrabold tabular">{money(share ?? 0)}</b>
+          </div>
+          {note ? <p className="m-0 pt-2 pr-14 pb-1 pl-2.5 text-[12.5px] leading-[1.45] text-muted">{note}</p> : null}
         </>
       ) : null}
       {edit ? (

@@ -144,6 +144,13 @@ export const ClockIcon = (p: IconProps) => (
   </svg>
 );
 
+export const ReceiptIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
+    <path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5-2 1.5z" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </svg>
+);
+
 export const BankIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
     <path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18M12 3l9 5H3z" />

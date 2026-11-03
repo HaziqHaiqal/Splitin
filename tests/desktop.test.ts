@@ -13,7 +13,8 @@ import {
   seedWithCode,
   sheet,
   text,
-  tick,
+  billRow,
+  joinButton,
   trip,
 } from "./helpers";
 
@@ -57,8 +58,8 @@ test("the side holds the name, Share, the buttons and your bills, with the recei
   const share = await box(button(page, /^Share receipt/));
   const add = await box(button(page, "Add bill"));
   const history = await box(page.getByRole("button", { name: "History", exact: true }));
-  const bills = await box(tick(page, "Hotel"));
-  const paper = await box(page.getByText("HOTEL").first());
+  const bills = await box(billRow(page, "Hotel"));
+  const paper = await box(page.getByText("HOTEL", { exact: true }));
   const side = await box(page.locator("main"));
   expect(share.y).toBeGreaterThan(hi.y);
   expect(add.y).toBeGreaterThan(share.y + share.height);
@@ -71,20 +72,20 @@ test("the side holds the name, Share, the buttons and your bills, with the recei
 
   await button(page, "Add bill").click();
   await expect(page.getByText("Add what you paid")).toBeVisible();
-  await expect(page.getByText("HOTEL").first()).toBeVisible();
+  await expect(page.getByText("HOTEL", { exact: true })).toBeVisible();
 });
 
-test("a tick joins at once, and a bill opens beside its row with your part", async ({ page }) => {
+test("Join adds you at once, and a bill opens beside its row with your part", async ({ page }) => {
   await seed({ ...trip, items: [hotel, { ...dinner, participants: ["h", "a"] }] });
   await openAs(page, "Najmi");
-  await tick(page, "Dinner").click();
+  await joinButton(page, "Dinner").click();
   await expect(text(page, "Joined Dinner. You pay RM 30.00.")).toBeVisible();
   await expect(page.getByText("30.00 EACH").first()).toBeVisible();
 
   await page.getByRole("button", { name: /^Dinner/ }).click();
   const part = page.getByRole("textbox", { name: "Your amount for Dinner" });
   await expect(part).toBeVisible();
-  await expect(page.getByText("Haziq paid RM 90.00, split between Haziq, Afiq and you.")).toBeVisible();
+  await expect(page.getByText("Afiq paid RM 90.00, split between Haziq, Afiq and you.")).toBeVisible();
   await expect(sheet(page)).toHaveCount(0);
   await expect(panel(page)).toHaveCount(0);
   await page.keyboard.press("Escape");

@@ -6,7 +6,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 
 |                                                Add people and bills                                                 |                                          Everyone opens the link                                          |                                                       Others join the bills they're in                                                        |                                             Everyone sees every change                                             |
 | :-----------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
-| <img src="docs/images/home.png" alt="Splitin on a phone, with the people on top and the receipt below" width="190"> | <img src="docs/images/link.png" alt="The shared link, showing who pays who and a PAID stamp" width="190"> | <img src="docs/images/join.png" alt="The bills list in the menu, with a tick on each bill they are in and their share beside it" width="190"> | <img src="docs/images/history.png" alt="The History list, showing each change with the name and time" width="190"> |
+| <img src="docs/images/home.png" alt="Splitin on a phone, with the people on top and the receipt below" width="190"> | <img src="docs/images/link.png" alt="The shared link, showing who pays who and a PAID stamp" width="190"> | <img src="docs/images/join.png" alt="The bills list from the menu, with their part beside each bill they are in and a Join button on the rest" width="190"> | <img src="docs/images/history.png" alt="The History list, showing each change with the name and time" width="190"> |
 
 ## What it does
 
@@ -15,7 +15,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 - **Share to the group.** Send a receipt picture, a link and a short code through WhatsApp or the phone's share menu. Nothing is saved online until you share.
 - **Everyone uses the link or code.** They pick their name, see who to pay, and tap their payment once they've paid. The person getting paid can mark it too.
 - **Pay by QR or bank details.** Anyone can add their account or payment QR to their name. Others can save the QR or copy the account number, then pay in their own bank app. Splitin warns them if the QR's name doesn't match, and never moves any money.
-- **Anyone on the bill can add to it.** They can add a bill they paid, tick the bills they're in, change their part, or add their own name if it's missing.
+- **Anyone on the bill can add to it.** They can add a bill they paid, join the bills they're in, change their part, or add their own name if it's missing.
 - **The owner stays in control.** The owner can edit any bill, mark any payment, lock the bill, and use a private link to edit from a new phone.
 - **History.** Everyone with the link can see every change, with the name and time.
 - **Links delete themselves** 30 days after they are created.

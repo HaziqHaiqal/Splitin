@@ -34,7 +34,7 @@ import {
   startAdding,
   submit,
   text,
-  tick,
+  joinButton,
   TOKEN,
   trip,
   wipe,
@@ -261,8 +261,8 @@ test.describe("owner screen", () => {
     const card = menuCard(owner);
     for (const label of ["Add bill", "History", "Bank", "Rename", "Lock", "Owner link"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: "My name" })).toHaveCount(0);
-    await expect(card.getByRole("button", { name: /^In 1 of 1 bills/ })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Edit name" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: /^Your bills/ })).toBeVisible();
   });
 
   test("a bill whose owner is not on the list has no greeting", async ({ browser }) => {
@@ -697,7 +697,6 @@ test.describe("History", () => {
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await settled(async () => (await serverDoc()).items.length, 3);
     await openBillDetail(page, "Snacks");
-    await menuCard(page).getByRole("button", { name: "Edit bill" }).click();
     await panel(page).getByRole("button", { name: "Delete bill · you can undo" }).click();
     await settled(async () => (await serverDoc()).items.length, 2);
 
@@ -709,7 +708,7 @@ test.describe("History", () => {
     await settled(async () => (await serverDoc()).people.length, 4);
 
     await openBills(page);
-    await tick(page, "Hotel").click();
+    await joinButton(page, "Hotel").click();
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
     await page.keyboard.press("Escape");
 

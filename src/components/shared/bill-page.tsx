@@ -17,7 +17,16 @@ import {
   type MyBillChanges,
 } from "@/app/actions";
 import { BillForm } from "@/components/home/bill-form";
-import { BankIcon, ClockIcon, LinkIcon, LockIcon, PencilIcon, PlusIcon, UnlockIcon } from "@/components/icons";
+import {
+  BankIcon,
+  ClockIcon,
+  LinkIcon,
+  LockIcon,
+  PencilIcon,
+  PlusIcon,
+  ReceiptIcon,
+  UnlockIcon,
+} from "@/components/icons";
 import { NameChip, NotListedChip } from "@/components/name-chip";
 import { PayQr } from "@/components/pay-qr";
 import { PrinterPage } from "@/components/receipt/printer";
@@ -50,7 +59,7 @@ import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
 import { getAsked, getDraft, getMe, saveDraft, setAsked, setMe, useMe } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { BankForm } from "./bank-form";
-import { IconTile, MenuCard, MenuFab, MenuHead, Rise, type Tile } from "./bill-menu";
+import { IconTile, MenuCard, MenuFab, MenuHead, MenuItem, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
 import { HistorySheet, useChangesSinceVisit } from "./history";
 import { BillDetail, BillRows, NameBody, type BillRules } from "./my-bills";
@@ -993,12 +1002,20 @@ export function BillPage({
       rules={rules}
       pending={pending}
       onBack={onBack}
+      note={locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : fmt(t.page.cantLeave, { name: ownerName })}
       onPart={setPart}
       onEdit={(i) => openView({ kind: "edit", itemId: i.id })}
+      onLeave={toggleBill}
     />
   );
 
   const billsSub = locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : undefined;
+
+  const openRow = (id: string | null, show: (id: string | null) => void) => {
+    const item = id ? doc.items.find((i) => i.id === id) : undefined;
+    if (item && rules.canEdit(item)) return openView({ kind: "edit", itemId: item.id });
+    show(id);
+  };
 
   const menuBody = () => {
     if (menu === "bills")
@@ -1014,9 +1031,12 @@ export function BillPage({
             me={me}
             open={null}
             rules={rules}
-            onOpen={(id) => (id ? setMenu(`bill:${id}`) : undefined)}
+            onOpen={(id) => openRow(id, (next) => (next ? setMenu(`bill:${next}`) : undefined))}
             onToggle={toggleBill}
           />
+          <div className="mt-1 border-t border-line pt-1 pr-14">
+            <MenuItem icon={<PlusIcon size={18} />} label={t.home.nextBill} onClick={addBill} />
+          </div>
         </>
       );
     if (menu?.startsWith("bill:")) {
@@ -1032,8 +1052,24 @@ export function BillPage({
             onBack={() => setMenu("root")}
           />
           <NameBody name={myName ?? ""} allowed={nameAllowed} pending={pending} onSave={renameMine} />
+          <div className="h-11" />
         </>
       );
+    const rows: Tile[] =
+      me || owner
+        ? [
+            {
+              key: "bills",
+              icon: <ReceiptIcon />,
+              label: t.page.yourBills,
+              sub: me
+                ? fmt(t.page.inBills, { count: myItems.length, total: doc.items.length, amount: money(myShare) })
+                : undefined,
+              onClick: () => setMenu("bills"),
+            },
+            ...tiles,
+          ]
+        : tiles;
     return (
       <Rise className="flex flex-col gap-1">
         {[
@@ -1044,26 +1080,11 @@ export function BillPage({
               share.show();
             }}
           />,
-          <div key="tiles" className="grid grid-cols-4 gap-x-0.5 gap-y-3.5 px-0.5 pt-3 pb-2.5">
-            {tiles.map((tile) => (
-              <IconTile key={tile.key} tile={tile} />
+          <div key="rows" className="flex flex-col divide-y divide-line pt-1">
+            {rows.map((tile) => (
+              <MenuRow key={tile.key} tile={tile} />
             ))}
           </div>,
-          me || owner ? (
-            <button
-              key="bills"
-              type="button"
-              onClick={() => setMenu("bills")}
-              className="flex w-full items-center justify-between gap-2 rounded-[11px] bg-chip px-3 py-[11px] text-left text-[13px] font-bold"
-            >
-              {me ? fmt(t.page.inBills, { count: myItems.length, total: doc.items.length }) : t.page.yourBills}
-              {me ? (
-                <span className="text-muted">{fmt(t.page.yourShare, { amount: money(myShare) })} ›</span>
-              ) : (
-                <span className="text-muted">›</span>
-              )}
-            </button>
-          ) : null,
         ]}
       </Rise>
     );
@@ -1091,7 +1112,7 @@ export function BillPage({
           me={me}
           open={openBill}
           rules={rules}
-          onOpen={setOpenBill}
+          onOpen={(id) => openRow(id, setOpenBill)}
           onToggle={toggleBill}
           onHover={setHover}
           detail={(item) => detail(item)}

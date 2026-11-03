@@ -703,6 +703,7 @@ function JoinDemo() {
     [t.help.demoBills[2], 9220, 1844],
   ];
   const total = bills.reduce((sum, [, , share], i) => sum + (picked[i] ? share : 0), 0);
+  const toggle = (i: number) => setPicked(picked.map((on, j) => (j === i ? !on : on)));
   const [before, after = ""] = t.page.yourShare.split("{amount}");
   return (
     <div className={cn(mini, "flex w-full max-w-[290px] flex-col px-3 pt-2.5 pb-1.5")}>
@@ -722,24 +723,29 @@ function JoinDemo() {
               {fmt(t.page.paidBy, { name: NAMES[0], amount: money(amount) })}
             </small>
           </span>
-          <span className={cn("text-[12.5px] font-bold tabular", picked[i] ? "text-ink" : "text-faint")}>
-            {money(share)}
-          </span>
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={picked[i]}
-            aria-label={fmt(t.page.imIn, { name })}
-            onClick={() => setPicked(picked.map((on, j) => (j === i ? !on : on)))}
-            className={cn(
-              press,
-              "inline-flex size-[22px] shrink-0 items-center justify-center rounded-full transition-colors duration-200",
-              picked[i] ? "bg-green text-white" : "border-2 border-dash",
-              i === 1 && !picked[i] && "animate-nudge",
-            )}
-          >
-            {picked[i] ? <CheckIcon size={12} /> : null}
-          </button>
+          {picked[i] ? (
+            <button
+              type="button"
+              aria-label={fmt(t.page.leave, { name })}
+              onClick={() => toggle(i)}
+              className={cn(press, "shrink-0 text-right")}
+            >
+              <b className="block text-[12.5px] font-bold text-ink tabular">{money(share)}</b>
+              <small className="block text-[10.5px] font-semibold text-muted">{t.page.partLabel}</small>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggle(i)}
+              className={cn(
+                press,
+                "h-7 shrink-0 rounded-full bg-green-soft px-2.5 text-[11.5px] font-extrabold text-green-soft-ink tabular",
+                i === 1 && "animate-nudge",
+              )}
+            >
+              {fmt(t.page.joinFor, { amount: money(share) })}
+            </button>
+          )}
         </div>
       ))}
     </div>

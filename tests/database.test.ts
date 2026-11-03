@@ -1,18 +1,23 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { saveArgs } from "../src/lib/bill-rows";
 import type { BillDoc } from "../src/lib/bill";
 import {
   BILL,
   button,
+  choose,
   createBill,
   closePhones,
   database,
   getDb,
   hotel,
   must,
+  menuCard,
   newPhone,
+  openBillDetail,
+  openMenu,
   ownerStorage,
+  panel,
   paymentRow,
   pickMe,
   seed,
@@ -25,6 +30,11 @@ import {
   trip,
   wipe,
 } from "./helpers";
+
+async function deleteSnacks(page: Page) {
+  await openBillDetail(page, "Snacks");
+  await panel(page).getByRole("button", { name: "Delete bill · you can undo" }).click();
+}
 
 const TABLES = ["bills", "bill_people", "bill_items", "item_shares", "payments", "bill_events", "expired_bills"];
 const FUNCTIONS = ["log_events", "save_bill", "create_bill", "add_payment", "remove_payment", "delete_old_bills"];
@@ -272,7 +282,7 @@ test.describe("the browser key", () => {
     await page.goto(`/bill/${BILL}`);
     await button(page, "Who are you?").click();
     await pickMe(page, "Najmi");
-    await button(page, "Delete Snacks").click();
+    await deleteSnacks(page);
     await expect.poll(async () => (await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel"]);
   });
 
@@ -281,9 +291,8 @@ test.describe("the browser key", () => {
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await expect(text(page, "SNACKS")).toBeVisible();
     await page.reload();
-    await expect(button(page, "Delete Snacks")).toBeVisible();
     await context.addCookies([{ name: "splitin-browser", value: "another", url: "http://localhost:3457" }]);
-    await button(page, "Delete Snacks").click();
+    await deleteSnacks(page);
     await expect(text(page, "Something went wrong")).toBeVisible();
     expect((await serverDoc()).items.map((i) => i.name)).toEqual(["Hotel", "Snacks"]);
   });
@@ -298,14 +307,15 @@ test.describe("the browser key", () => {
     await owner.evaluate(() => localStorage.clear());
     await owner.goto(`/bill/${id}`);
     await expect(text(owner, "Hi Haziq")).toBeVisible();
-    await owner.getByRole("button", { name: "More", exact: true }).click();
-    await expect(sheet(owner).getByRole("button", { name: /Lock/ })).toBeVisible();
-    await expect(sheet(owner).getByRole("button", { name: "Copy owner link" })).toHaveCount(0);
+    await openMenu(owner);
+    await expect(menuCard(owner).getByRole("button", { name: "Lock", exact: true })).toBeVisible();
+    await expect(menuCard(owner).getByRole("button", { name: "Owner link" })).toHaveCount(0);
 
-    await sheet(owner).getByRole("button", { name: /Lock/ }).click();
+    await menuCard(owner).getByRole("button", { name: "Lock", exact: true }).click();
     await expect.poll(async () => (await getDb()).bills.find((b) => b.id === id)?.doc.locked).toBe(true);
 
-    await button(owner, "Edit bills").click();
+    await choose(owner, "Rename");
+    await panel(owner).getByRole("button", { name: "Remove people or change more ›" }).click();
     await expect(owner).toHaveURL(/\/$/);
     await owner.evaluate(() => {
       const draft = JSON.parse(localStorage.getItem("splitin:draft:v2")!);
@@ -320,7 +330,7 @@ test.describe("the browser key", () => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.goto(`/bill/${BILL}`);
     await expect(text(owner, "Hi Haziq")).toBeVisible();
-    await owner.getByRole("button", { name: "More", exact: true }).click();
-    await expect(sheet(owner).getByRole("button", { name: "Copy owner link" })).toBeVisible();
+    await openMenu(owner);
+    await expect(menuCard(owner).getByRole("button", { name: "Owner link" })).toBeVisible();
   });
 });

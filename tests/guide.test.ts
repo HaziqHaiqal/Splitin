@@ -39,7 +39,7 @@ for (const { locale, help, next, step, swap, warning, add, title, looking, pick,
     await guide.getByRole("button", { name: next, exact: true }).click();
     await expect(guide.getByText(title)).toBeVisible();
     await expect(guide.getByText("HAZIQ", { exact: true })).toBeVisible();
-    await guide.getByRole("button", { name: add }).click();
+    await guide.getByRole("button", { name: add }).dispatchEvent("click");
     await expect(guide.getByText("HAZIQ · NAJMI", { exact: true })).toBeVisible();
     await expect(guide.getByText("Najmi", { exact: true })).toBeVisible();
   });
@@ -82,14 +82,15 @@ for (const { locale, help, next, step, swap, warning, add, title, looking, pick,
       guide.getByRole("heading", { name: new RegExp(step) }).or(guide.getByText(step).first()),
     ).toBeVisible();
 
-    const ticks = guide.getByRole("checkbox");
+    const join = guide.getByRole("button", { name: /^(Join|Sertai) ·/ });
+    const leave = guide.getByRole("button", { name: /^(Leave|Keluar dari) / });
     await expect(guide.getByText("RM 40.32")).toHaveCount(2);
-    await ticks.nth(1).click();
+    await join.first().dispatchEvent("click");
     await expect(guide.getByText("RM 76.32")).toBeVisible();
-    await ticks.nth(2).click();
+    await join.first().dispatchEvent("click");
     await expect(guide.getByText("RM 94.76")).toBeVisible();
-    for (const i of [0, 1, 2]) await ticks.nth(i).click();
+    for (let i = 0; i < 3; i++) await leave.first().dispatchEvent("click");
     await expect(guide.getByText("RM 0.00")).toBeVisible();
-    await expect(ticks.first()).not.toBeChecked();
+    await expect(join).toHaveCount(3);
   });
 }

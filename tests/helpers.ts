@@ -224,11 +224,13 @@ export async function choose(page: Page, option: string) {
 
 export async function openBills(page: Page) {
   await openMenu(page);
-  const strip = page.getByRole("button", { name: /^In \d+ of \d+ bills/ });
-  if (await strip.isVisible()) await strip.click();
+  const list = page.getByRole("button", { name: /^Your bills/ });
+  if (await list.isVisible()) await list.click();
 }
 
-export const tick = (page: Page, item: string) => page.getByRole("checkbox", { name: `I'm in ${item}` });
+export const billRow = (page: Page, item: string) =>
+  page.locator("[data-row]").filter({ has: page.getByRole("button", { name: new RegExp(`^${item}`) }) });
+export const joinButton = (page: Page, item: string) => billRow(page, item).getByRole("button", { name: /^Join/ });
 
 export async function openBillDetail(page: Page, item: string) {
   await openBills(page);
@@ -256,8 +258,8 @@ export async function addMe(page: Page, name: string) {
 export async function joinAs(page: Page, name: string, item = "Hotel") {
   await addMe(page, name);
   await openBills(page);
-  await tick(page, item).click();
-  await expect(tick(page, item)).toBeChecked();
+  await joinButton(page, item).click();
+  await expect(joinButton(page, item)).toHaveCount(0);
 }
 
 export const payLine = (page: Page, from: string, to: string) =>

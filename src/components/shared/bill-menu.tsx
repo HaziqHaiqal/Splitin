@@ -1,11 +1,40 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { BackIcon, CheckIcon, CloseIcon, DotsIcon } from "@/components/icons";
+import { BackIcon, CloseIcon, DotsIcon } from "@/components/icons";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-export type Tile = { key: string; icon: ReactNode; label: string; dot?: boolean; onClick: () => void };
+export type Tile = { key: string; icon: ReactNode; label: string; sub?: string; dot?: boolean; onClick: () => void };
+
+export function MenuRow({ tile }: { tile: Tile }) {
+  return (
+    <button
+      type="button"
+      onClick={tile.onClick}
+      className="flex min-h-12 w-full items-center gap-3 rounded-[11px] px-2.5 py-1.5 text-left text-ink hover:bg-chip"
+    >
+      <span className="relative shrink-0 text-muted">
+        {tile.icon}
+        {tile.dot ? (
+          <i
+            aria-hidden
+            className="absolute -top-0.5 -right-1 size-[9px] rounded-full bg-green shadow-[0_0_0_2px_var(--card)]"
+          />
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block text-[14.5px] font-semibold">{tile.label}</b>
+        {tile.sub ? <small className="block truncate text-[12px] font-semibold text-muted">{tile.sub}</small> : null}
+      </span>
+      {tile.sub ? (
+        <span aria-hidden className="text-[16px] text-faint">
+          ›
+        </span>
+      ) : null}
+    </button>
+  );
+}
 
 export function IconTile({ tile, ring = "var(--card)" }: { tile: Tile; ring?: string }) {
   return (
@@ -93,19 +122,24 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
   return (
     <>
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 animate-fade bg-overlay" />
-      <div
-        ref={card}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t.page.menu}
-        tabIndex={-1}
-        className="fixed right-3 bottom-[calc(max(16px,env(safe-area-inset-bottom))+56px)] z-40 max-h-[calc(100dvh-150px)] w-[calc(100vw-24px)] max-w-[420px] origin-[calc(100%-27px)_calc(100%+33px)] animate-grow overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink shadow-[0_14px_34px_var(--pop-shadow)] outline-none"
-      >
-        {children}
+      <div className="fixed right-3 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 w-[calc(100vw-24px)] max-w-[420px] origin-[calc(100%-27px)_calc(100%-23px)] animate-grow drop-shadow-[0_14px_24px_var(--pop-shadow)]">
+        <div
+          ref={card}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.page.menu}
+          tabIndex={-1}
+          style={{ mask: notch, WebkitMask: notch }}
+          className="max-h-[calc(100dvh-110px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
+        >
+          {children}
+        </div>
       </div>
     </>
   );
 }
+
+const notch = "radial-gradient(circle at calc(100% - 27px) calc(100% - 23px), transparent 29px, #000 29.5px)";
 
 export function Rise({ children, className }: { children: ReactNode[]; className?: string }) {
   return (
@@ -152,40 +186,6 @@ export function MenuItem({ icon, label, onClick }: { icon: ReactNode; label: str
     >
       <span className="shrink-0 text-muted">{icon}</span>
       {label}
-    </button>
-  );
-}
-
-export function Tick({
-  on,
-  label,
-  dim = false,
-  onClick,
-}: {
-  on: boolean;
-  label: string;
-  dim?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={on}
-      aria-disabled={dim || undefined}
-      aria-label={label}
-      onClick={onClick}
-      className={cn("-mr-2.5 inline-flex size-11 shrink-0 items-center justify-center", dim && "opacity-50")}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "inline-flex size-[26px] items-center justify-center rounded-full transition-colors duration-200",
-          on ? "bg-green text-white" : "border-2 border-dash",
-        )}
-      >
-        {on ? <CheckIcon size={15} className="animate-pop" /> : null}
-      </span>
     </button>
   );
 }
