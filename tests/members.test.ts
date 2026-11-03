@@ -238,6 +238,22 @@ test.describe("who are you", () => {
     await expect(card.getByText("Add what you paid")).toHaveCount(0);
   });
 
+  test("Calculation goes bill by bill to the fewest payments", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await choose(page, "Calculation");
+    const card = menuCard(page);
+    await expect(card.getByText("Step 1 of 3")).toBeVisible();
+    await expect(card.getByText("Haziq paid Hotel · RM 300.00")).toBeVisible();
+    await expect(card.getByText("Najmi and Afiq owe Haziq RM 100.00.")).toBeVisible();
+    await card.getByRole("button", { name: /^Next/ }).click();
+    await expect(card.getByText("Add up each person")).toBeVisible();
+    await card.getByRole("button", { name: /^Next/ }).click();
+    await expect(card.getByText("Haziq gets RM 200.00: Najmi 100.00 + Afiq 100.00.")).toBeVisible();
+    await expect(card.getByText("2 payments in total.")).toBeVisible();
+    await card.getByRole("button", { name: "Done" }).click();
+    await expect(card.getByRole("button", { name: /^Your bills/ })).toBeVisible();
+  });
+
   test("with no bills yet the menu still adds, after asking the name", async ({ page }) => {
     await seed({ ...trip, items: [] });
     await openBill(page);

@@ -4,8 +4,8 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 
 ![Splitin on a computer, with the bills on the left and the receipt printing on the right](docs/images/desktop.png)
 
-|                                                Add people and bills                                                 |                                          Everyone opens the link                                          |                                                       Others join the bills they're in                                                        |                                             Everyone sees every change                                             |
-| :-----------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
+|                                                Add people and bills                                                 |                                          Everyone opens the link                                          |                                                              Others join the bills they're in                                                               |                                             Everyone sees every change                                             |
+| :-----------------------------------------------------------------------------------------------------------------: | :-------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------------------------------------------: |
 | <img src="docs/images/home.png" alt="Splitin on a phone, with the people on top and the receipt below" width="190"> | <img src="docs/images/link.png" alt="The shared link, showing who pays who and a PAID stamp" width="190"> | <img src="docs/images/join.png" alt="The bills list from the menu, with their part beside each bill they are in and a Join button on the rest" width="190"> | <img src="docs/images/history.png" alt="The History list, showing each change with the name and time" width="190"> |
 
 ## What it does
@@ -18,6 +18,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 - **Anyone on the bill can add to it.** They can add a bill they paid, join the bills they're in, change their part, or add their own name if it's missing.
 - **The owner stays in control.** The owner can edit any bill, mark any payment, lock the bill, and use a private link to edit from a new phone.
 - **History.** Everyone with the link can see every change, with the name and time.
+- **See how it's worked out.** Calculation goes through the bills one by one with arrows for who owes who, cancels out debts that go both ways, then shows the fewest payments.
 - **Links delete themselves** 30 days after they are created.
 - **English and Bahasa Melayu**, light and dark mode, and a built-in guide.
 

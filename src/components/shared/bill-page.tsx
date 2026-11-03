@@ -20,6 +20,7 @@ import { BillForm } from "@/components/home/bill-form";
 import {
   BankIcon,
   ClockIcon,
+  FlowIcon,
   LinkIcon,
   LockIcon,
   PencilIcon,
@@ -68,6 +69,7 @@ import { PanelBack, PanelHead } from "./panel-form";
 import { PayForm } from "./pay-form";
 import { RenameForm, type Names } from "./rename-form";
 import { ShareCard, useShareBill } from "./share-bill";
+import { Workings } from "./workings";
 import type { SharedBillData } from "./shared-bill";
 
 type View =
@@ -77,7 +79,8 @@ type View =
   | { kind: "name"; then: () => void }
   | { kind: "bank"; personId: string }
   | { kind: "rename" }
-  | { kind: "myName" };
+  | { kind: "myName" }
+  | { kind: "how" };
 
 type Ask =
   | { kind: "who"; then: () => void; hide?: string | null; first?: boolean }
@@ -590,6 +593,13 @@ export function BillPage({
       },
     },
   ];
+  if (doc.items.length)
+    tiles.push({
+      key: "how",
+      icon: <FlowIcon />,
+      label: t.how.tile,
+      onClick: () => openView({ kind: "how" }, "root"),
+    });
   if (me) tiles.push({ key: "bank", icon: <BankIcon />, label: t.page.bank, onClick: () => openBank("root") });
   if (!owner && me)
     tiles.push({
@@ -742,6 +752,13 @@ export function BillPage({
             <PanelHead title={nameAllowed ? t.page.nameTitle : t.page.myName} onClose={close} />
             <p className="m-0 text-[12.5px] text-muted">{nameAllowed ? t.page.nameDesc : nameReason}</p>
             <NameBody name={myName ?? ""} allowed={nameAllowed} pending={pending} onSave={renameMine} />
+          </div>
+        );
+      case "how":
+        return (
+          <div className="flex flex-col gap-2.5">
+            <PanelHead title={t.how.title} onClose={close} />
+            <Workings doc={doc} onDone={backTo ? goBack : close} />
           </div>
         );
     }
@@ -1012,7 +1029,9 @@ export function BillPage({
       rules={rules}
       pending={pending}
       onBack={onBack}
-      note={locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : fmt(t.page.cantLeave, { name: ownerName })}
+      note={
+        locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : fmt(t.page.cantLeave, { name: ownerName })
+      }
       onPart={setPart}
       onEdit={(i) => openView({ kind: "edit", itemId: i.id }, menu ?? undefined)}
       onLeave={(i) => {
@@ -1182,7 +1201,7 @@ export function BillPage({
       <Rise className="flex flex-col gap-[22px]">
         {[
           <ShareCard key="share" big onClick={share.show} />,
-          <div key="tiles" className="grid grid-cols-6 gap-1">
+          <div key="tiles" className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
             {tiles.map((tile) => (
               <IconTile key={tile.key} tile={tile} ring="var(--bg)" />
             ))}
