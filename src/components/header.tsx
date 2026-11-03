@@ -8,8 +8,8 @@ import type { Locale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { useHydrated } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { HelpButton } from "./help/how-to";
-import { BackIcon, CheckIcon, ChevronDownIcon, MoonIcon, SunIcon } from "./icons";
+import { useGuide } from "./help/how-to";
+import { BackIcon, HelpIcon, MoonIcon, SettingsIcon, SunIcon } from "./icons";
 
 export function Logo() {
   return (
@@ -19,17 +19,61 @@ export function Logo() {
   );
 }
 
-const LANGUAGES: { code: Locale; label: string; name: string }[] = [
-  { code: "en", label: "EN", name: "English" },
-  { code: "ms", label: "BM", name: "Bahasa Melayu" },
+const LANGUAGES: { code: Locale; name: string }[] = [
+  { code: "en", name: "English" },
+  { code: "ms", name: "Bahasa Melayu" },
 ];
 
-export function LanguageToggle() {
-  const { locale } = useI18n();
+const LOOKS = [
+  { value: "light", icon: <SunIcon size={15} /> },
+  { value: "dark", icon: <MoonIcon size={14} /> },
+  { value: "system", icon: null },
+] as const;
+
+function Segments({
+  label,
+  options,
+}: {
+  label: string;
+  options: { key: string; text: ReactNode; on: boolean; pick: () => void }[];
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="px-0.5 text-[12px] font-bold text-muted">{label}</span>
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-xl bg-chip p-[3px]"
+      >
+        {options.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            role="radio"
+            aria-checked={o.on}
+            onClick={o.pick}
+            className={cn(
+              "flex h-[34px] items-center justify-center gap-1.5 rounded-[9px] px-1.5 text-[13px] font-bold transition-colors",
+              o.on ? "bg-card text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-muted hover:text-ink",
+            )}
+          >
+            {o.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function SettingsMenu() {
+  const { t, locale } = useI18n();
+  const { theme, setTheme } = useTheme();
+  const hydrated = useHydrated();
+  const guide = useGuide();
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const current = LANGUAGES.find((l) => l.code === locale) ?? LANGUAGES[0];
+  const looks = { light: t.common.light, dark: t.common.dark, system: t.common.auto };
 
   useEffect(() => {
     if (!open) return;
@@ -51,69 +95,67 @@ export function LanguageToggle() {
     <div ref={box} className="relative">
       <button
         type="button"
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Language: ${current.name}`}
-        disabled={pending}
+        aria-label={t.common.settings}
+        title={t.common.settings}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex h-9 items-center gap-1 rounded-full pr-2 pl-2.5 text-[13px] font-extrabold text-ink transition-colors hover:bg-chip",
-          (open || pending) && "bg-chip",
-          pending && "opacity-60",
+          "inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-chip hover:text-ink",
+          open && "bg-chip text-ink",
         )}
       >
-        {current.label}
-        <ChevronDownIcon className={cn("text-muted transition-transform", open && "rotate-180")} />
+        <SettingsIcon className={cn("transition-transform duration-300", open && "rotate-45")} />
       </button>
       {open ? (
         <div
-          role="menu"
-          aria-label="Language"
-          className="absolute top-full right-0 z-40 mt-1.5 min-w-[184px] rounded-2xl border border-border bg-sheet p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
+          role="dialog"
+          aria-label={t.common.settings}
+          className="absolute top-full right-0 z-40 mt-1.5 flex w-[264px] animate-rise flex-col gap-3.5 rounded-2xl border border-border bg-sheet p-3 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
         >
-          {LANGUAGES.map((l) => {
-            const active = l.code === locale;
-            return (
-              <button
-                key={l.code}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => {
-                  setOpen(false);
-                  if (!active) start(() => setLocale(l.code));
-                }}
-                className="flex h-10 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-[14px] font-semibold text-ink transition-colors hover:bg-chip"
-              >
-                {l.name}
-                {active ? <CheckIcon size={15} className="text-green-ink" /> : null}
-              </button>
-            );
-          })}
+          <Segments
+            label={t.common.language}
+            options={LANGUAGES.map((l) => ({
+              key: l.code,
+              text: l.name,
+              on: l.code === locale,
+              pick: () => {
+                if (l.code !== locale && !pending) start(() => setLocale(l.code));
+              },
+            }))}
+          />
+          <Segments
+            label={t.common.look}
+            options={LOOKS.map((l) => ({
+              key: l.value,
+              text: (
+                <>
+                  {l.icon}
+                  {looks[l.value]}
+                </>
+              ),
+              on: hydrated && (theme ?? "light") === l.value,
+              pick: () => setTheme(l.value),
+            }))}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              guide.show();
+            }}
+            className="-mx-1 -mb-1 flex h-11 items-center gap-2.5 rounded-xl border-t border-line px-2 text-left text-[14px] font-semibold text-ink hover:bg-chip"
+          >
+            <HelpIcon size={18} className="text-muted" />
+            <span className="flex-1">{t.help.button}</span>
+            <span aria-hidden className="text-faint">
+              ›
+            </span>
+          </button>
         </div>
       ) : null}
+      {guide.sheet}
     </div>
-  );
-}
-
-export function ThemeToggle() {
-  const { t } = useI18n();
-  const { resolvedTheme, setTheme } = useTheme();
-  const hydrated = useHydrated();
-  const dark = hydrated && resolvedTheme === "dark";
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={dark}
-      aria-label={t.common.darkMode}
-      title={dark ? t.common.lightMode : t.common.darkMode}
-      onClick={() => setTheme(dark ? "light" : "dark")}
-      className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-chip hover:text-ink"
-    >
-      <SunIcon size={19} className="hidden dark:block" />
-      <MoonIcon size={19} className="dark:hidden" />
-    </button>
   );
 }
 
@@ -126,10 +168,8 @@ export function Header() {
           className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-14 border-b border-line bg-inherit md:h-16"
         />
         <Logo />
-        <div className="-mr-2 flex items-center gap-0.5">
-          <HelpButton />
-          <LanguageToggle />
-          <ThemeToggle />
+        <div className="-mr-2 flex items-center">
+          <SettingsMenu />
         </div>
       </header>
       <div aria-hidden className="h-16 shrink-0 md:h-20" />

@@ -23,7 +23,7 @@ export function Providers({ locale, children }: { locale: Locale; children: Reac
       attribute="class"
       defaultTheme="light"
       storageKey="splitin-theme"
-      enableSystem={false}
+      enableSystem
       enableColorScheme={false}
       disableTransitionOnChange
     >

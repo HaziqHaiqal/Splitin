@@ -1201,7 +1201,7 @@ export function BillPage({
       <Rise className="flex flex-col gap-[22px]">
         {[
           <ShareCard key="share" big onClick={share.show} />,
-          <div key="tiles" className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
+          <div key="tiles" className="flex flex-wrap justify-center gap-x-2 gap-y-3 [&>*]:w-[76px]">
             {tiles.map((tile) => (
               <IconTile key={tile.key} tile={tile} ring="var(--bg)" />
             ))}

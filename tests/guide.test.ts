@@ -4,6 +4,7 @@ import { sheet } from "./helpers";
 const languages = [
   {
     locale: "en",
+    settings: "Settings",
     help: "How to use Splitin",
     next: "Next",
     step: "Step 9",
@@ -17,6 +18,7 @@ const languages = [
   },
   {
     locale: "ms",
+    settings: "Tetapan",
     help: "Cara menggunakan Splitin",
     next: "Seterusnya",
     step: "Langkah 9",
@@ -30,10 +32,11 @@ const languages = [
   },
 ];
 
-for (const { locale, help, next, step, swap, warning, add, title, looking, pick, hi } of languages) {
+for (const { locale, settings, help, next, step, swap, warning, add, title, looking, pick, hi } of languages) {
   test(`the guide's first step prints the names on a receipt (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
     await page.getByRole("button", { name: help }).click();
     const guide = sheet(page);
     await guide.getByRole("button", { name: next, exact: true }).click();
@@ -47,6 +50,7 @@ for (const { locale, help, next, step, swap, warning, add, title, looking, pick,
   test(`the guide's name menu hides your name (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
     await page.getByRole("button", { name: help }).click();
     const guide = sheet(page);
     for (let i = 0; i < 6; i++) await guide.getByRole("button", { name: next, exact: true }).click();
@@ -63,6 +67,7 @@ for (const { locale, help, next, step, swap, warning, add, title, looking, pick,
   test(`the guide teaches paying by QR (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
     await page.getByRole("button", { name: help }).click();
     const guide = sheet(page);
     for (let i = 0; i < 7; i++) await guide.getByRole("button", { name: next, exact: true }).click();
@@ -74,6 +79,7 @@ for (const { locale, help, next, step, swap, warning, add, title, looking, pick,
   test(`the guide teaches joining a bill (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
     await page.getByRole("button", { name: help }).click();
     const guide = sheet(page);
     await expect(guide.locator("[data-step]")).toHaveCount(11);

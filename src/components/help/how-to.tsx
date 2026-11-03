@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, HelpIcon, PlusIcon, SendIcon } from "@/components/icons";
+import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, PlusIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { HistoryBubble, HistoryRun } from "@/components/shared/history";
 import { fmt } from "@/i18n";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 const NAMES = ["Haziq", "Najmi", "Afiq", "Imanul"];
 
-export function HelpButton() {
+export function useGuide() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -38,17 +38,8 @@ export function HelpButton() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, count]);
 
-  return (
+  const sheet = (
     <>
-      <button
-        type="button"
-        aria-label={t.help.button}
-        title={t.help.button}
-        onClick={show}
-        className="inline-flex size-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-chip hover:text-ink"
-      >
-        <HelpIcon size={19} />
-      </button>
       <Sheet open={open} onOpenChange={setOpen} title={t.help.title} wide>
         <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:grid-rows-[auto_1fr_auto] md:gap-x-7 md:gap-y-5">
           <div className="-my-[5px] flex gap-1.5 md:col-start-1 md:row-start-1" aria-hidden>
@@ -119,6 +110,7 @@ export function HelpButton() {
       </Sheet>
     </>
   );
+  return { show, sheet };
 }
 
 const mini = "rounded-xl bg-card shadow-[0_1px_2px_rgba(28,31,29,0.08)]";
