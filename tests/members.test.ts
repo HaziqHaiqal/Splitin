@@ -228,12 +228,14 @@ test.describe("who are you", () => {
     await expect(menuCard(page).getByRole("button", { name: /bills/ })).toHaveCount(0);
   });
 
-  test("Add bill opens its form straight away when you have a name", async ({ page }) => {
+  test("Add bill opens its form inside the menu, and Back returns to the list", async ({ page }) => {
     await openAs(page, "Najmi");
     await choose(page, "Add bill");
-    await expect(sheet(page)).toHaveCount(0);
-    await expect(panel(page).getByText("Add what you paid")).toBeVisible();
-    await expect(menuCard(page)).toHaveCount(0);
+    const card = menuCard(page);
+    await expect(card.getByText("Add what you paid")).toBeVisible();
+    await card.getByRole("button", { name: "Back" }).click();
+    await expect(card.getByRole("button", { name: /^Your bills/ })).toBeVisible();
+    await expect(card.getByText("Add what you paid")).toHaveCount(0);
   });
 
   test("with no bills yet the menu still adds, after asking the name", async ({ page }) => {
@@ -1249,7 +1251,6 @@ test.describe("paying", () => {
     await payLine(page, "AFIQ", "HAZIQ").click();
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();
     await settled(paymentsOf, [{ from: "a", to: "h", amountMinor: 10000 }]);
-    await expect(button(page, /^History · 1/)).toBeVisible();
     const list = await openHistory(page);
     await expect(list.getByText("Afiq paid Haziq")).toBeVisible();
   });

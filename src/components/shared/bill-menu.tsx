@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { BackIcon, CloseIcon, DotsIcon } from "@/components/icons";
+import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +103,7 @@ export function MenuFab({ open, dot, onClick }: { open: boolean; dot: boolean; o
 export function MenuCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const { t } = useI18n();
   const card = useRef<HTMLDivElement>(null);
+  const keyboard = useKeyboardViewport(card);
   const close = useRef(onClose);
 
   useEffect(() => {
@@ -122,17 +124,22 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
   return (
     <>
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 animate-fade bg-overlay" />
-      <div className="fixed right-3 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 w-[calc(100vw-24px)] max-w-[420px] origin-[calc(100%-27px)_calc(100%-23px)] animate-grow drop-shadow-[0_14px_24px_var(--pop-shadow)]">
-        <div
-          ref={card}
-          role="dialog"
-          aria-modal="true"
-          aria-label={t.page.menu}
-          tabIndex={-1}
-          style={{ mask: notch, WebkitMask: notch }}
-          className="max-h-[calc(100dvh-110px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
-        >
-          {children}
+      <div
+        style={keyboard ? { top: keyboard.bottom - 8, bottom: "auto", transform: "translateY(-100%)" } : undefined}
+        className="fixed right-3 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 w-[calc(100vw-24px)] max-w-[420px]"
+      >
+        <div className="origin-[calc(100%-27px)_calc(100%-23px)] animate-grow drop-shadow-[0_14px_24px_var(--pop-shadow)]">
+          <div
+            ref={card}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.page.menu}
+            tabIndex={-1}
+            style={keyboard ? { maxHeight: keyboard.height - 16 } : { mask: notch, WebkitMask: notch }}
+            className="max-h-[calc(100dvh-110px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
+          >
+            {children}
+          </div>
         </div>
       </div>
     </>
@@ -170,7 +177,7 @@ export function MenuHead({ title, sub, onBack }: { title: string; sub?: string; 
         </button>
       ) : null}
       <span className="min-w-0 text-[12.5px] leading-[1.4] font-semibold text-muted">
-        <b className="block text-[14px] font-extrabold text-ink">{title}</b>
+        <h2 className="m-0 text-[14px] font-extrabold text-ink">{title}</h2>
         {sub ? <small className="mt-0.5 block text-[12px] font-medium">{sub}</small> : null}
       </span>
     </div>

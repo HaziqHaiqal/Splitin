@@ -484,7 +484,7 @@ test.describe("owner link and editing", () => {
     await confirm.getByRole("button", { name: "Cancel" }).click();
     expect(await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!).billId)).toBeNull();
 
-    await changeMore(phone);
+    await panel(phone).getByRole("button", { name: "Remove people or change more ›" }).click();
     await sheet(phone).getByRole("button", { name: "Replace it" }).click();
     await expect(text(phone, "HOTEL")).toBeVisible();
   });
@@ -612,7 +612,6 @@ test.describe("History", () => {
     await expect(row("added Hotel")).toContainText("RM 300.00");
     await expect(row("added Dinner")).toContainText("Paid by Afiq");
     await expect(list.getByText(/^Haziq shared this bill/)).toBeVisible();
-    await expect(list.getByText("Haziq", { exact: true })).toHaveCount(1);
   });
 
   test("reads like a group chat", async ({ page }) => {

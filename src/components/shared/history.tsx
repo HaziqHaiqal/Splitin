@@ -118,7 +118,7 @@ const NOTICES: BillEvent["kind"][] = [
 
 const dayOf = (at: string | Date) => new Date(at).toDateString();
 
-function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
+export function HistoryList({ doc, events }: { doc: BillDoc; events: BillEvent[] }) {
   const { t, money, date, time } = useI18n();
   const h = t.history;
   const owner = ownerOf(doc)?.name ?? h.owner;

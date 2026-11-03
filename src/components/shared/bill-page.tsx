@@ -61,10 +61,10 @@ import { cn } from "@/lib/utils";
 import { BankForm } from "./bank-form";
 import { IconTile, MenuCard, MenuFab, MenuHead, MenuItem, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
-import { HistorySheet, useChangesSinceVisit } from "./history";
+import { HistoryList, HistorySheet, useChangesSinceVisit } from "./history";
 import { BillDetail, BillRows, NameBody, type BillRules } from "./my-bills";
 import { NameForm } from "./name-form";
-import { PanelHead } from "./panel-form";
+import { PanelBack, PanelHead } from "./panel-form";
 import { PayForm } from "./pay-form";
 import { RenameForm, type Names } from "./rename-form";
 import { ShareCard, useShareBill } from "./share-bill";
@@ -85,7 +85,7 @@ type Ask =
   | { kind: "undo"; line: PlanLine }
   | { kind: "details"; personId: string };
 
-type Menu = "root" | "bills" | "name" | `bill:${string}`;
+type Menu = "root" | "bills" | "name" | "history" | `bill:${string}`;
 
 type Done = { ok: true } | { ok: false; error: string };
 
@@ -152,6 +152,7 @@ export function BillPage({
     if (next) changes.clear();
     setHistoryOpen(next);
   };
+  const [backTo, setBackTo] = useState<Menu | null>(null);
 
   const showAsk = (next: Ask) => {
     setMenu(null);
@@ -175,11 +176,12 @@ export function BillPage({
     setMe(bill.id, null);
     setAsking(false);
   };
-  const openView = (next: View) =>
+  const openView = (next: View, from?: Menu) =>
     requestAnimationFrame(() => {
       setAsking(false);
       setMenu(null);
       setOpenBill(null);
+      setBackTo(desktop ? null : (from ?? null));
       setView(next);
       if (next.kind !== "bank") window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -554,36 +556,41 @@ export function BillPage({
   const hasAccount = (p: Person) => Boolean(p.bank && p.accountNo);
   const hasDetails = (p: Person) => Boolean(p.payQr) || hasAccount(p);
 
-  const openBank = () => {
+  const openBank = (from?: Menu) => {
     setMenu(null);
     if (!me || !meRow) return;
-    if (owner) return openView({ kind: "bank", personId: me });
+    if (owner) return openView({ kind: "bank", personId: me }, from);
     if (locked) return toast({ message: lockedText });
-    if (mine.people.includes(me) || detailsOpenToName(doc, meRow)) return openView({ kind: "bank", personId: me });
+    if (mine.people.includes(me) || detailsOpenToName(doc, meRow))
+      return openView({ kind: "bank", personId: me }, from);
     if (hasDetails(meRow)) return showAsk({ kind: "details", personId: me });
     toast({ message: t.member.detailsTaken });
   };
 
-  const addBill = () => {
+  const addBill = (from?: Menu) => {
     setMenu(null);
     if (locked && !owner) return toast({ message: lockedText });
-    withMe(() => openView({ kind: "add" }));
+    withMe(() => openView({ kind: "add" }, from));
   };
 
   const tiles: Tile[] = [
-    { key: "add", icon: <PlusIcon size={21} />, label: t.home.nextBill, onClick: addBill },
+    { key: "add", icon: <PlusIcon size={21} />, label: t.home.nextBill, onClick: () => addBill("root") },
     {
       key: "history",
       icon: <ClockIcon />,
       label: t.history.title,
       dot: changes.count > 0,
       onClick: () => {
+        if (!desktop) {
+          changes.clear();
+          return setMenu("history");
+        }
         setMenu(null);
         showHistory(true);
       },
     },
   ];
-  if (me) tiles.push({ key: "bank", icon: <BankIcon />, label: t.page.bank, onClick: openBank });
+  if (me) tiles.push({ key: "bank", icon: <BankIcon />, label: t.page.bank, onClick: () => openBank("root") });
   if (!owner && me)
     tiles.push({
       key: "name",
@@ -597,7 +604,7 @@ export function BillPage({
         key: "rename",
         icon: <PencilIcon size={21} />,
         label: t.page.rename,
-        onClick: () => openView({ kind: "rename" }),
+        onClick: () => openView({ kind: "rename" }, "root"),
       },
       {
         key: "lock",
@@ -650,7 +657,10 @@ export function BillPage({
 
   const body = (bare: boolean) => {
     if (!view) return null;
-    const close = () => setView(null);
+    const close = () => {
+      setView(null);
+      setBackTo(null);
+    };
     switch (view.kind) {
       case "add":
         return (
@@ -1004,16 +1014,31 @@ export function BillPage({
       onBack={onBack}
       note={locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : fmt(t.page.cantLeave, { name: ownerName })}
       onPart={setPart}
-      onEdit={(i) => openView({ kind: "edit", itemId: i.id })}
-      onLeave={toggleBill}
+      onEdit={(i) => openView({ kind: "edit", itemId: i.id }, menu ?? undefined)}
+      onLeave={(i) => {
+        backToBills();
+        toggleBill(i);
+      }}
     />
   );
 
   const billsSub = locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : undefined;
 
-  const openRow = (id: string | null, show: (id: string | null) => void) => {
+  const inMenu = Boolean(view && backTo);
+  const closeMenu = () => {
+    setMenu(null);
+    setView(null);
+    setBackTo(null);
+  };
+  const goBack = () => {
+    setView(null);
+    setMenu(backTo);
+    setBackTo(null);
+  };
+
+  const openRow = (id: string | null, show: (id: string | null) => void, from?: Menu) => {
     const item = id ? doc.items.find((i) => i.id === id) : undefined;
-    if (item && rules.canEdit(item)) return openView({ kind: "edit", itemId: item.id });
+    if (item && rules.canEdit(item)) return openView({ kind: "edit", itemId: item.id }, from);
     show(id);
   };
 
@@ -1031,12 +1056,26 @@ export function BillPage({
             me={me}
             open={null}
             rules={rules}
-            onOpen={(id) => openRow(id, (next) => (next ? setMenu(`bill:${next}`) : undefined))}
+            onOpen={(id) => openRow(id, (next) => (next ? setMenu(`bill:${next}`) : undefined), "bills")}
             onToggle={toggleBill}
           />
           <div className="mt-1 border-t border-line pt-1 pr-14">
-            <MenuItem icon={<PlusIcon size={18} />} label={t.home.nextBill} onClick={addBill} />
+            <MenuItem icon={<PlusIcon size={18} />} label={t.home.nextBill} onClick={() => addBill("bills")} />
           </div>
+        </>
+      );
+    if (menu === "history")
+      return (
+        <>
+          <MenuHead title={t.history.title} onBack={() => setMenu("root")} />
+          {bill.events.length === 0 ? (
+            <p className="m-0 px-2.5 py-2 text-[14px] text-muted">{t.history.empty}</p>
+          ) : (
+            <div className="px-1.5">
+              <HistoryList doc={doc} events={bill.events} />
+            </div>
+          )}
+          <div className="h-11" />
         </>
       );
     if (menu?.startsWith("bill:")) {
@@ -1168,12 +1207,28 @@ export function BillPage({
             </>
           )
         }
-        panel={view ? body(true) : undefined}
+        panel={view && !inMenu ? body(true) : undefined}
         fab={
           desktop ? undefined : (
             <>
-              {menu ? <MenuCard onClose={() => setMenu(null)}>{menuBody()}</MenuCard> : null}
-              <MenuFab open={menu !== null} dot={changes.count > 0} onClick={() => setMenu(menu ? null : "root")} />
+              {menu || inMenu ? (
+                <MenuCard onClose={closeMenu}>
+                  {inMenu ? (
+                    <PanelBack.Provider value={goBack}>
+                      <div data-panel className="p-2 pb-11">
+                        {body(true)}
+                      </div>
+                    </PanelBack.Provider>
+                  ) : (
+                    menuBody()
+                  )}
+                </MenuCard>
+              ) : null}
+              <MenuFab
+                open={menu !== null || inMenu}
+                dot={changes.count > 0}
+                onClick={() => (menu || inMenu ? closeMenu() : setMenu("root"))}
+              />
             </>
           )
         }

@@ -190,7 +190,7 @@ export async function openAs(page: Page, name: string) {
   await expect(sheet(page)).toHaveCount(0);
 }
 
-export const panel = (page: Page) => page.locator('[class*="rounded-t-[22px]"]');
+export const panel = (page: Page) => page.locator('[class*="rounded-t-[22px]"], [data-panel]');
 export const sheet = (page: Page) => page.getByRole("dialog");
 export const button = (page: Page, name: string | RegExp) => page.getByRole("button", { name });
 export const text = (page: Page, value: string | RegExp) => page.getByText(value).first();
