@@ -19,8 +19,8 @@ import {
 import { BillForm } from "@/components/home/bill-form";
 import {
   BankIcon,
+  CalculatorIcon,
   ClockIcon,
-  FlowIcon,
   LinkIcon,
   LockIcon,
   PencilIcon,
@@ -596,7 +596,7 @@ export function BillPage({
   if (doc.items.length)
     tiles.push({
       key: "how",
-      icon: <FlowIcon />,
+      icon: <CalculatorIcon />,
       label: t.how.tile,
       onClick: () => openView({ kind: "how" }, "root"),
     });

@@ -144,12 +144,10 @@ export const ClockIcon = (p: IconProps) => (
   </svg>
 );
 
-export const FlowIcon = (p: IconProps) => (
+export const CalculatorIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
-    <circle cx="5" cy="6" r="2" />
-    <circle cx="5" cy="18" r="2" />
-    <circle cx="19" cy="12" r="2.5" />
-    <path d="M7 6.9l9.6 4.1M7 17.1l9.6-4.1" />
+    <rect x="5" y="2.5" width="14" height="19" rx="2.5" />
+    <path d="M8.5 6.5h7M9 11h.01M12 11h.01M15 11h.01M9 14.5h.01M12 14.5h.01M9 18h.01M12 18h.01M15 14.5V18" />
   </svg>
 );
 
