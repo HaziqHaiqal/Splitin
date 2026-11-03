@@ -1234,7 +1234,7 @@ export function BillPage({
                 <MenuCard onClose={closeMenu}>
                   {inMenu ? (
                     <PanelBack.Provider value={goBack}>
-                      <div data-panel className="p-2 pb-11">
+                      <div data-panel className="px-2 pt-2 pb-px [&_form>:last-child]:mr-[46px]">
                         {body(true)}
                       </div>
                     </PanelBack.Provider>

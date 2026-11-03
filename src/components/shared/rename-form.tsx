@@ -60,10 +60,10 @@ export function RenameForm({
           />
         ))}
       </div>
-      <SubmitButton disabled={pending}>{t.common.save}</SubmitButton>
       <button type="button" onClick={onMore} className="h-11 text-[14px] font-bold text-green-ink">
         {t.page.moreChanges} ›
       </button>
+      <SubmitButton disabled={pending}>{t.common.save}</SubmitButton>
     </PanelForm>
   );
 }
