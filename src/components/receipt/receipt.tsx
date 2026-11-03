@@ -19,6 +19,7 @@ import {
 
 const INK = "#37352f";
 const MUTED = "#6b6a65";
+const FAINT = "#9b9a96";
 const RED = "#b5413b";
 const GREEN = "#2f7552";
 
@@ -152,6 +153,7 @@ export type ReceiptProps = {
   highlight?: string | null;
   payToWord?: (person: Person) => ReceiptWord | null;
   bigStamp?: string;
+  blank?: boolean;
 };
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt(
@@ -174,6 +176,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     highlight,
     payToWord,
     bigStamp,
+    blank = false,
   },
   ref,
 ) {
@@ -277,8 +280,8 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
         >
           SPLITIN
         </div>
-        <div className="text-center" style={{ fontWeight: 600 }}>
-          {doc.title.toUpperCase()}
+        <div className="text-center" style={{ fontWeight: 600, color: blank && !doc.title ? FAINT : undefined }}>
+          {blank && !doc.title ? r.blankTitle : doc.title.toUpperCase()}
         </div>
         {draft ? null : (
           <div className="text-center" style={{ color: MUTED, fontSize: 11.5 }}>
@@ -287,11 +290,15 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               : `${created} ${createdTime}`}
           </div>
         )}
-        {draft && people && doc.people.length > 0 ? (
+        {draft && people && (blank || doc.people.length > 0) ? (
           <>
             <Dashed />
-            <div key={people.key} className={cn("-mx-1.5 rounded px-1.5", people.fresh && "animate-printed")}>
-              {doc.people.map((p) => p.name.toUpperCase()).join(" · ")}
+            <div
+              key={people.key}
+              className={cn("-mx-1.5 rounded px-1.5", people.fresh && "animate-printed")}
+              style={doc.people.length > 0 ? undefined : { color: FAINT }}
+            >
+              {doc.people.length > 0 ? doc.people.map((p) => p.name.toUpperCase()).join(" · ") : r.blankPeople}
             </div>
           </>
         ) : null}

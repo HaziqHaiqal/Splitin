@@ -9,8 +9,8 @@ const languages = [
     step: "Step 9",
     swap: "Swap the QR",
     warning: "This QR says AMIR BIN ZULKIFLI, not Haziq.",
-    all: "Join all",
-    none: "Untick all",
+    add: "+ Add",
+    title: "HOUSE BILLS",
     looking: "Just looking",
     pick: "Paid? Tap to pick your name",
     hi: "Hi Afiq",
@@ -22,15 +22,28 @@ const languages = [
     step: "Langkah 9",
     swap: "Tukar QR",
     warning: "QR ini tertulis AMIR BIN ZULKIFLI, bukan Haziq.",
-    all: "Sertai semua",
-    none: "Nyahtanda semua",
+    add: "+ Tambah",
+    title: "BIL RUMAH",
     looking: "Tengok sahaja",
     pick: "Dah bayar? Ketik untuk pilih nama anda",
     hi: "Hai Afiq",
   },
 ];
 
-for (const { locale, help, next, step, swap, warning, all, none, looking, pick, hi } of languages) {
+for (const { locale, help, next, step, swap, warning, add, title, looking, pick, hi } of languages) {
+  test(`the guide's first step prints the names on a receipt (${locale})`, async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
+    await page.goto("/");
+    await page.getByRole("button", { name: help }).click();
+    const guide = sheet(page);
+    await guide.getByRole("button", { name: next, exact: true }).click();
+    await expect(guide.getByText(title)).toBeVisible();
+    await expect(guide.getByText("HAZIQ", { exact: true })).toBeVisible();
+    await guide.getByRole("button", { name: add }).click();
+    await expect(guide.getByText("HAZIQ · NAJMI", { exact: true })).toBeVisible();
+    await expect(guide.getByText("Najmi", { exact: true })).toBeVisible();
+  });
+
   test(`the guide's name menu hides your name (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
@@ -69,12 +82,14 @@ for (const { locale, help, next, step, swap, warning, all, none, looking, pick, 
       guide.getByRole("heading", { name: new RegExp(step) }).or(guide.getByText(step).first()),
     ).toBeVisible();
 
-    await expect(guide.getByText("RM 40.32").nth(1)).toBeVisible();
-    await guide.getByRole("checkbox").nth(1).click();
+    const ticks = guide.getByRole("checkbox");
+    await expect(guide.getByText("RM 40.32")).toHaveCount(2);
+    await ticks.nth(1).click();
     await expect(guide.getByText("RM 76.32")).toBeVisible();
-    await guide.getByRole("button", { name: all }).dispatchEvent("click");
+    await ticks.nth(2).click();
     await expect(guide.getByText("RM 94.76")).toBeVisible();
-    await guide.getByRole("button", { name: none }).click();
+    for (const i of [0, 1, 2]) await ticks.nth(i).click();
     await expect(guide.getByText("RM 0.00")).toBeVisible();
+    await expect(ticks.first()).not.toBeChecked();
   });
 }

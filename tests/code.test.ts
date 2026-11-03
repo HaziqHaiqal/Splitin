@@ -359,20 +359,21 @@ test.describe("entering a code", () => {
 
   test("the code replaces the first screen, and going back keeps what was typed", async ({ page }) => {
     await page.goto("/");
-    await page.getByLabel("Bill name").fill("Trip");
+    await page.getByLabel("What are you splitting?").fill("Trip");
     await button(page, "Have a code?").click();
-    await expect(page.getByLabel("Bill name")).toBeHidden();
+    await expect(page.getByLabel("What are you splitting?")).toBeHidden();
     await button(page, "Start a new bill instead").click();
-    await expect(page.getByLabel("Bill name")).toHaveValue("Trip");
+    await expect(page.getByLabel("What are you splitting?")).toHaveValue("Trip");
     await expect(codeBox(page)).toHaveCount(0);
   });
 });
 
 test("nothing on the first screen is highlighted until you tap it", async ({ page }) => {
   await page.goto("/");
-  const name = page.getByLabel("Bill name");
+  const name = page.getByLabel("What are you splitting?");
+  const field = name.locator("xpath=..");
   await expect(name).not.toBeFocused();
-  await expect(name).toHaveCSS("box-shadow", "none");
+  await expect(field).toHaveCSS("box-shadow", "none");
   await name.click();
-  await expect(name).not.toHaveCSS("box-shadow", "none");
+  await expect(field).not.toHaveCSS("box-shadow", "none");
 });

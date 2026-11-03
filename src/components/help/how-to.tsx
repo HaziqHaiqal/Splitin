@@ -123,7 +123,6 @@ export function HelpButton() {
 
 const mini = "rounded-xl bg-card shadow-[0_1px_2px_rgba(28,31,29,0.08)]";
 const press = "transition-transform active:scale-95";
-const dashed = "rounded-full border-[1.5px] border-dashed border-green-ink font-bold text-green-ink";
 
 function useFlash(): [boolean, () => void] {
   const [on, setOn] = useState(false);
@@ -219,15 +218,40 @@ function PeopleDemo() {
   const { t } = useI18n();
   const [count, setCount] = useState(1);
   const full = count === NAMES.length;
+  const names = NAMES.slice(0, count);
   return (
-    <div className="flex max-w-[300px] flex-wrap justify-center gap-2">
-      {NAMES.slice(0, count).map((n, i) => (
-        <Chip key={n} name={n} color={i} />
-      ))}
+    <div className="flex w-full max-w-[250px] flex-col items-center gap-3">
+      <div className="w-full">
+        <div className="h-1.5 rounded-full bg-[#37352f]/75" />
+        <div className="px-2">
+          <Paper className="flex flex-col gap-0.5 text-center">
+            <div className="text-[12px] font-bold tracking-[0.3em]">SPLITIN</div>
+            <div className="font-bold">{t.help.demoTitle.toUpperCase()}</div>
+            <div className="my-1 border-t border-dashed border-[#37352f]" />
+            <div key={count} className="-mx-1 animate-printed rounded px-1 text-left">
+              {names.join(" · ").toUpperCase()}
+            </div>
+          </Paper>
+        </div>
+      </div>
+      <div className={cn(mini, "flex min-h-9 w-full flex-wrap items-center gap-1 px-1.5 py-1.5")}>
+        {names.map((n) => (
+          <span
+            key={n}
+            className="inline-flex h-6 animate-pop items-center rounded-full bg-chip px-2.5 text-[12px] font-semibold text-ink"
+          >
+            {n}
+          </span>
+        ))}
+      </div>
       <button
         type="button"
         onClick={() => setCount(full ? 1 : count + 1)}
-        className={cn(press, dashed, "inline-flex h-8 items-center px-3 text-[13px]", count === 1 && "animate-nudge")}
+        className={cn(
+          press,
+          "h-8 rounded-lg px-3.5 text-[12px] font-bold",
+          full ? "bg-card text-ink shadow-[0_1px_2px_rgba(28,31,29,0.08)]" : "animate-nudge bg-green text-white",
+        )}
       >
         {full ? t.help.replay : t.home.addPerson}
       </button>

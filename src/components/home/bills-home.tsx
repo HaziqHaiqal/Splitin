@@ -1,14 +1,13 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { useDraftSync } from "@/components/draft-sync";
-import { CheckIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
-import { dockButton, PaperStub, PrinterPage } from "@/components/receipt/printer";
+import { ArrowRightIcon, CheckIcon, CloseIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
+import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
-import { fieldClass } from "@/components/shared/panel-form";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -40,14 +39,14 @@ export function BillsHome() {
   const [peopleKey, setPeopleKey] = useState(0);
   const [peopleFresh, setPeopleFresh] = useState(false);
   const [entering, setEntering] = useState(false);
+  const [starting, setStarting] = useState<StartDraft>(NEW_START);
 
   if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
 
   const doc = draft?.doc ?? emptyDraft().doc;
   const update = (fn: (doc: BillDoc) => BillDoc) => updateDraft((d) => ({ ...d, doc: fn(d.doc) }));
 
-  const addPeople = (text: string) => {
-    const names = parseNames(text);
+  const addNames = (names: string[]) => {
     if (names.length === 0) return;
     update((d) => {
       const taken = new Set(d.people.map((p) => p.name.toLowerCase()));
@@ -66,16 +65,19 @@ export function BillsHome() {
     setPeopleKey((k) => k + 1);
     setPeopleFresh(true);
   };
+  const addPeople = (text: string) => addNames(parseNames(text));
 
-  const startBill = (title: string, names: string) => {
+  const startBill = (title: string, names: string[]) => {
     update((d) => ({ ...d, title }));
-    addPeople(names);
+    addNames(names);
+    setStarting(NEW_START);
   };
 
   const clearAll = () => {
     if (!draft) return;
     const previous = draft;
     saveDraft(null);
+    setStarting(NEW_START);
     setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
     toast({ message: t.home.cleared, action: { label: t.common.undo, onClick: () => saveDraft(previous) } });
   };
@@ -132,8 +134,18 @@ export function BillsHome() {
     </div>
   );
 
+  const typedNames = [...starting.names, ...parseNames(starting.text)];
   const paper = !hasPeople ? (
-    <PaperStub text={t.home.stubHint} />
+    <Receipt
+      doc={{
+        ...doc,
+        title: (starting.title ?? doc.title).trim(),
+        people: typedNames.map((name, i) => ({ id: String(i), name, color: i })),
+      }}
+      variant="draft"
+      people={{ key: starting.names.length, fresh: starting.names.length > 0 }}
+      blank
+    />
   ) : formOpen ? (
     <Receipt doc={doc} variant="draft" people={{ key: peopleKey, fresh: peopleFresh }} preview={preview} />
   ) : (
@@ -161,9 +173,15 @@ export function BillsHome() {
 
   const start = (
     <div className="flex flex-col md:max-w-[430px]">
-      <HomeIntro title={t.home.startTitle} desc={t.home.startDesc} />
-      <StartForm title={doc.title} autoFocus={desktop} onStart={startBill} />
-      {codeLink("mt-2.5 md:mt-5")}
+      {desktop ? <HomeIntro title={t.home.startTitle} desc={t.home.startDesc} /> : null}
+      <StartForm
+        value={starting}
+        savedTitle={doc.title}
+        autoFocus={desktop}
+        codeLink={codeLink()}
+        onChange={setStarting}
+        onStart={startBill}
+      />
     </div>
   );
 
@@ -437,82 +455,155 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
   );
 }
 
+type StartDraft = { step: "title" | "names"; title: string | null; names: string[]; text: string };
+
+const NEW_START: StartDraft = { step: "title", title: null, names: [], text: "" };
+
+const keepFocus = (e: MouseEvent) => e.preventDefault();
+
 function StartForm({
-  title: savedTitle,
+  value,
+  savedTitle,
   autoFocus,
+  codeLink,
+  onChange,
   onStart,
 }: {
-  title: string;
+  value: StartDraft;
+  savedTitle: string;
   autoFocus: boolean;
-  onStart: (title: string, names: string) => void;
+  codeLink: ReactNode;
+  onChange: (value: StartDraft) => void;
+  onStart: (title: string, names: string[]) => void;
 }) {
   const { t } = useI18n();
-  const [title, setTitle] = useState(savedTitle);
-  const [names, setNames] = useState("");
-  const [missing, setMissing] = useState(false);
-  const titleInput = useRef<HTMLInputElement>(null);
-  const namesInput = useRef<HTMLInputElement>(null);
-  const named = title.trim().length > 0;
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!named) {
-      setMissing(true);
-      titleInput.current?.focus();
-    } else if (parseNames(names).length === 0) {
-      namesInput.current?.focus();
-    } else {
-      onStart(title.trim(), names);
+  const toast = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const title = value.title ?? savedTitle;
+  const naming = value.step === "names";
+  const ready = naming ? value.names.length > 0 || value.text.trim().length > 0 : title.trim().length > 0;
+  const set = (patch: Partial<StartDraft>) => onChange({ ...value, title, ...patch });
+
+  const withNames = (found: string[]) => {
+    const names = [...value.names];
+    for (const name of found) {
+      if (names.some((n) => n.toLowerCase() === name.toLowerCase())) {
+        toast({ message: fmt(t.home.duplicateName, { name }) });
+      } else {
+        names.push(name);
+      }
     }
+    return names;
   };
-  const label = "text-[13px] font-semibold text-muted";
-  const field = cn(fieldClass, "h-12 font-medium");
+
+  const type = (text: string) => {
+    if (!naming) return set({ title: text });
+    const parts = text.split(/[,;&\n]/);
+    if (parts.length === 1) return set({ text });
+    set({ names: withNames(parts.slice(0, -1).flatMap(parseNames)), text: parts[parts.length - 1].trimStart() });
+  };
+
+  const toNames = () => {
+    if (title.trim()) set({ step: "names", title: title.trim() });
+    input.current?.focus();
+  };
+
+  const finish = () => {
+    const names = withNames(parseNames(value.text));
+    if (names.length === 0) return input.current?.focus();
+    onStart(title.trim(), names);
+  };
+
+  const enter = (e: FormEvent) => {
+    e.preventDefault();
+    if (!naming) return toNames();
+    if (value.text.trim()) return set({ names: withNames(parseNames(value.text)), text: "" });
+    finish();
+  };
+
+  const remove = (name: string) => {
+    set({ names: value.names.filter((n) => n !== name) });
+    input.current?.focus();
+  };
+
   return (
-    <form onSubmit={submit} className="mt-[18px] flex flex-col gap-3.5 md:mt-7 md:gap-[18px]">
-      <label className="flex flex-col gap-1.5">
-        <span className={label}>{t.home.billName}</span>
-        <input
-          ref={titleInput}
-          type="text"
-          value={title}
-          autoFocus={autoFocus && !named}
-          maxLength={60}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            setMissing(false);
-          }}
-          placeholder={t.home.billNamePlaceholder}
-          enterKeyHint="next"
-          autoCapitalize="words"
-          autoComplete="off"
-          className={field}
-        />
-        {missing ? <span className="text-[12.5px] font-semibold text-owe">{t.home.billNameMissing}</span> : null}
-      </label>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="start-names" className={label}>
-          {t.home.step1}
+    <form onSubmit={enter} className="flex flex-col gap-2.5 md:mt-7">
+      <div className="flex min-h-9 items-center justify-between gap-3">
+        <label htmlFor="start-input" className="min-w-0 text-[17px] font-extrabold tracking-[-0.01em]">
+          {naming ? t.home.step1 : t.home.titleQuestion}
         </label>
-        <div className="flex gap-2">
+        {naming ? (
+          <button
+            type="button"
+            onMouseDown={keepFocus}
+            onClick={() => {
+              set({ step: "title" });
+              input.current?.focus();
+            }}
+            aria-label={t.home.editTitle}
+            className="h-9 max-w-[45%] shrink-0 truncate text-[13.5px] font-bold text-muted"
+          >
+            ‹ {title}
+          </button>
+        ) : (
+          codeLink
+        )}
+      </div>
+      <div className="flex min-h-[52px] items-end gap-1.5 rounded-[14px] border border-border bg-card py-1.5 pr-1.5 pl-2 transition-shadow focus-within:border-green focus-within:shadow-[0_0_0_3px_var(--green-soft)]">
+        <div className="flex min-h-10 min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {naming
+            ? value.names.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex h-8 shrink-0 animate-pop items-center rounded-full bg-chip pl-3 text-[14.5px] font-semibold"
+                >
+                  {name}
+                  <button
+                    type="button"
+                    onMouseDown={keepFocus}
+                    onClick={() => remove(name)}
+                    aria-label={fmt(t.person.remove, { name })}
+                    className="inline-flex size-7 items-center justify-center text-faint"
+                  >
+                    <CloseIcon size={12} strokeWidth={3} />
+                  </button>
+                </span>
+              ))
+            : null}
           <input
-            ref={namesInput}
-            id="start-names"
+            ref={input}
+            id="start-input"
             type="text"
-            value={names}
-            autoFocus={autoFocus && named}
-            onChange={(e) => setNames(e.target.value)}
-            placeholder={t.home.namesPlaceholder}
+            value={naming ? value.text : title}
+            autoFocus={autoFocus}
+            maxLength={naming ? undefined : 60}
+            onChange={(e) => type(e.target.value)}
+            onKeyDown={(e) => {
+              if (naming && e.key === "Backspace" && !value.text && value.names.length > 0) {
+                set({ names: value.names.slice(0, -1) });
+              }
+            }}
+            placeholder={
+              naming ? (value.names.length ? t.home.addMore : t.home.namesPlaceholder) : t.home.billNamePlaceholder
+            }
+            enterKeyHint={naming ? "done" : "next"}
             autoCapitalize="words"
             autoComplete="off"
-            className={cn(field, "flex-1")}
+            className="h-[38px] min-w-[120px] flex-1 bg-transparent px-1.5 text-[16px] font-semibold text-ink outline-none placeholder:font-normal placeholder:text-faint"
           />
-          <button
-            type="submit"
-            className="h-12 shrink-0 rounded-xl bg-green px-[18px] text-[15px] font-bold text-white"
-          >
-            {t.common.add}
-          </button>
         </div>
-        <p className="m-0 text-[12.5px] text-muted">{t.home.step1Hint}</p>
+        <button
+          type="button"
+          onMouseDown={keepFocus}
+          onClick={naming ? finish : toNames}
+          aria-label={naming ? t.home.start : t.home.next}
+          className={cn(
+            "inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-white transition-colors",
+            ready ? "bg-green" : "bg-dash",
+          )}
+        >
+          <ArrowRightIcon size={18} strokeWidth={2.6} />
+        </button>
       </div>
     </form>
   );

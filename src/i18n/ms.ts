@@ -20,7 +20,10 @@ export const ms: Dictionary = {
   },
   home: {
     step1: "Siapa yang berkongsi?",
-    step1Hint: "Pisahkan nama dengan koma. Masukkan diri sendiri sekali.",
+    titleQuestion: "Apa yang anda bahagi?",
+    next: "Seterusnya",
+    start: "Mula",
+    addMore: "Tambah lagi",
     startTitle: "Bahagi bil.\nDapat resit.",
     startDesc: "Tanpa daftar. Resit dicetak sambil anda isi.",
     haveCode: "Ada kod?",
@@ -30,12 +33,10 @@ export const ms: Dictionary = {
     codeNotFound: "Tiada resit dengan kod ini. Semak dan cuba lagi.",
     codeBackNew: "Mulakan bil baru",
     codeBackBill: "Kembali ke bil saya",
-    stubHint: "Tambah orang untuk mula cetak",
     nextBill: "Tambah bil",
-    namesPlaceholder: "Najmi, Afiq, Imanul",
+    namesPlaceholder: "Nama, termasuk anda",
     billName: "Nama bil",
-    billNamePlaceholder: "Bil rumah",
-    billNameMissing: "Beri nama bil ini dahulu.",
+    billNamePlaceholder: "Bil rumah, trip Langkawi…",
     people: "Orang",
     addPerson: "+ Tambah",
     addPersonLabel: "Tambah orang",
@@ -106,6 +107,8 @@ export const ms: Dictionary = {
   receipt: {
     title: "Resit",
     share: "Kongsi resit",
+    blankTitle: "NAMA BIL",
+    blankPeople: "SIAPA BERKONGSI?",
     sharedBy: "DIKONGSI OLEH {name}",
     item: "ITEM",
     by: "DIBAYAR",
@@ -310,6 +313,7 @@ export const ms: Dictionary = {
     and: "dan",
   },
   help: {
+    demoTitle: "Bil rumah",
     demoBills: ["Elektrik", "Air", "Wifi"],
     button: "Cara menggunakan Splitin",
     title: "Cara Menggunakan Splitin",
@@ -326,7 +330,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 1: Namakan dan tambah orang",
-        desc: "Beri nama bil, kemudian taip nama semua orang, atau tampal senarai dengan koma. Nama mereka dicetak di atas resit. Ketik nama untuk tambah akaun bank atau QR.",
+        desc: "Tulis apa yang anda bahagi, ketik Seterusnya, kemudian taip nama semua orang. Koma atau Enter menjadikan setiap nama satu cip, dan kedua-duanya dicetak pada resit sambil anda taip. Ada senarai? Tampal dengan koma. Ketik nama kemudian untuk tambah akaun bank atau QR.",
         hint: "Cuba: tambah yang lain.",
       },
       {

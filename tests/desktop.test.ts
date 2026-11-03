@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   button,
   CODE,
@@ -12,6 +12,8 @@ import {
   seed,
   seedWithCode,
   sheet,
+  text,
+  tick,
   trip,
 } from "./helpers";
 
@@ -37,46 +39,56 @@ test("the question on opening greets you, then your payment can be marked", asyn
   await expect(button(page, /NAJMI PAYS HAZIQ/)).toBeVisible();
 });
 
-test("the cursor starts in Bill name, and the code replaces the form", async ({ page }) => {
+test("the cursor starts in the bill name, and the code replaces the form", async ({ page }) => {
   await seedWithCode();
   await page.goto("/");
-  await expect(page.getByLabel("Bill name")).toBeFocused();
+  await expect(page.getByLabel("What are you splitting?")).toBeFocused();
   await button(page, "Have a code?").click();
   await expect(page.getByLabel("Enter your code")).toBeFocused();
-  await expect(page.getByLabel("Bill name")).toBeHidden();
+  await expect(page.getByLabel("What are you splitting?")).toBeHidden();
   await page.getByLabel("Enter your code").fill(CODE);
   await expect(page).toHaveURL(new RegExp(`/bill/${CODE}$`));
 });
 
-test("the panel holds the name, History and the buttons, with the receipt beside it", async ({ page }) => {
+test("the side holds the name, Share, the buttons and your bills, with the receipt beside it", async ({ page }) => {
   await openAs(page, "Najmi");
-  const hi = (await button(page, "Hi Najmi").boundingBox())!;
-  const history = (await button(page, /^History/).boundingBox())!;
-  const add = (await button(page, "Add bill").boundingBox())!;
-  const share = (await button(page, "Share receipt").boundingBox())!;
-  const paper = (await page.getByText("HOTEL").first().boundingBox())!;
-  const side = (await page.locator("main").boundingBox())!;
-  expect(history.x).toBeGreaterThan(hi.x + hi.width);
-  expect(Math.abs(history.y + history.height / 2 - (hi.y + hi.height / 2))).toBeLessThan(2);
-  expect(add.y).toBeGreaterThan(hi.y);
-  expect(share.x).toBeGreaterThan(add.x + add.width);
+  const box = async (locator: Locator) => (await locator.boundingBox())!;
+  const hi = await box(button(page, "Hi Najmi"));
+  const share = await box(button(page, /^Share receipt/));
+  const add = await box(button(page, "Add bill"));
+  const history = await box(page.getByRole("button", { name: "History", exact: true }));
+  const bills = await box(tick(page, "Hotel"));
+  const paper = await box(page.getByText("HOTEL").first());
+  const side = await box(page.locator("main"));
+  expect(share.y).toBeGreaterThan(hi.y);
+  expect(add.y).toBeGreaterThan(share.y + share.height);
+  expect(Math.abs(history.y - add.y)).toBeLessThan(2);
+  expect(history.x).toBeGreaterThan(add.x);
+  expect(bills.y).toBeGreaterThan(add.y + add.height);
   expect(side.width).toBe(640);
-  expect(share.x + share.width).toBeLessThanOrEqual(side.width);
   expect(paper.x).toBeGreaterThan(side.width);
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toHaveCount(0);
 
   await button(page, "Add bill").click();
   await expect(page.getByText("Add what you paid")).toBeVisible();
   await expect(page.getByText("HOTEL").first()).toBeVisible();
 });
 
-test("Join opens in the panel and the receipt beside it changes at once", async ({ page }) => {
+test("a tick joins at once, and a bill opens beside its row with your part", async ({ page }) => {
   await seed({ ...trip, items: [hotel, { ...dinner, participants: ["h", "a"] }] });
   await openAs(page, "Najmi");
-  await button(page, "Join Dinner").click();
-  await expect(page.getByText("Which bills are you in?")).toBeVisible();
+  await tick(page, "Dinner").click();
+  await expect(text(page, "Joined Dinner. You pay RM 30.00.")).toBeVisible();
+  await expect(page.getByText("30.00 EACH").first()).toBeVisible();
+
+  await page.getByRole("button", { name: /^Dinner/ }).click();
+  const part = page.getByRole("textbox", { name: "Your amount for Dinner" });
+  await expect(part).toBeVisible();
+  await expect(page.getByText("Haziq paid RM 90.00, split between Haziq, Afiq and you.")).toBeVisible();
   await expect(sheet(page)).toHaveCount(0);
   await expect(panel(page)).toHaveCount(0);
-  await expect(page.getByText("30.00 EACH").first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(part).toHaveCount(0);
 });
 
 test("bank details open in the panel", async ({ page }) => {

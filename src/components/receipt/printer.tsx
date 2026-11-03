@@ -21,23 +21,6 @@ export function Printer({ children }: { children: ReactNode }) {
   );
 }
 
-export function PaperStub({ text }: { text: string }) {
-  return (
-    <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.10))" }}>
-      <div className="flex flex-col items-center gap-2 bg-white px-5 pt-7 pb-5 font-mono" style={{ color: INK }}>
-        <div className="text-[19px] font-bold tracking-[0.32em]" style={{ paddingLeft: "0.32em" }}>
-          SPLITIN
-        </div>
-        <div className="w-full" style={{ borderTop: `1.5px dashed ${INK}` }} />
-        <div className="py-1 text-center font-sans text-[12.5px] font-semibold" style={{ color: MUTED }}>
-          {text}
-        </div>
-      </div>
-      <Zigzag edge="bottom" />
-    </div>
-  );
-}
-
 export function ErrorSlip({ title, hint }: { title: string; hint: string }) {
   return (
     <div style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.10))" }}>

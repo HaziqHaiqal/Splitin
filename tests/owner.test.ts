@@ -1,24 +1,28 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import {
   BILL,
   button,
+  choose,
   clearPayments,
   closePhones,
   dinner,
   eventKinds,
-  fromMore,
   getDb,
   hotel,
   joinAs,
+  menuCard,
   newPhone,
   OLD,
   openAs,
   openBill,
+  openBillDetail,
+  openBills,
   openHistory,
-  openJoin,
+  openMenu,
   ownerStorage,
   panel,
   patchDoc,
+  payLine,
   paymentRow,
   paymentsOf,
   seed,
@@ -29,6 +33,7 @@ import {
   startAdding,
   submit,
   text,
+  tick,
   TOKEN,
   trip,
 } from "./helpers";
@@ -41,33 +46,56 @@ const openDraft = (doc = trip) => ({ "splitin:draft:v2": { doc, billId: null, se
 test.describe("starting a bill", () => {
   const savedDraft = (page: import("@playwright/test").Page) =>
     page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));
-  const billName = (page: import("@playwright/test").Page) => page.getByLabel("Bill name");
+  const billName = (page: import("@playwright/test").Page) => page.getByLabel("What are you splitting?");
   const names = (page: import("@playwright/test").Page) => page.getByLabel("Who's splitting?");
+  const peopleIn = async (page: import("@playwright/test").Page) =>
+    (await savedDraft(page)).doc.people.map((p: { name: string }) => p.name);
 
-  test("the bill name is empty and required", async ({ page }) => {
+  test("asks the bill name, then the names, printing both on the receipt as you type", async ({ page }) => {
     await page.goto("/");
     await expect(billName(page)).toHaveValue("");
-    await names(page).fill("Najmi, Afiq");
-    await button(page, "Add").click();
-    await expect(text(page, "Give this bill a name first.")).toBeVisible();
+    await expect(text(page, "BILL NAME")).toBeVisible();
+    await expect(text(page, "WHO'S SPLITTING?")).toBeVisible();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(billName(page)).toBeFocused();
-    expect(await savedDraft(page)).toBeNull();
 
     await billName(page).fill("House bills");
-    await expect(page.getByText("Give this bill a name first.")).toHaveCount(0);
-    await button(page, "Add").click();
-    await expect(page.getByRole("button", { name: "Edit title" })).toHaveText("House bills");
-    const draft = await savedDraft(page);
-    expect(draft.doc.title).toBe("House bills");
-    expect(draft.doc.people.map((p: { name: string }) => p.name)).toEqual(["Najmi", "Afiq"]);
-  });
-
-  test("Enter on the bill name moves to the names", async ({ page }) => {
-    await page.goto("/");
-    await billName(page).fill("Trip");
+    await expect(text(page, "HOUSE BILLS")).toBeVisible();
     await billName(page).press("Enter");
     await expect(names(page)).toBeFocused();
+    await names(page).pressSequentially("Najmi, Af");
+    await expect(button(page, "Remove Najmi")).toBeVisible();
+    await expect(text(page, "NAJMI · AF")).toBeVisible();
+    await names(page).pressSequentially("iq");
+    await names(page).press("Enter");
+    await expect(button(page, "Remove Afiq")).toBeVisible();
+    await expect(names(page)).toHaveValue("");
     expect(await savedDraft(page)).toBeNull();
+
+    await names(page).press("Enter");
+    await expect(page.getByRole("button", { name: "Edit title" })).toHaveText("House bills");
+    expect((await savedDraft(page)).doc.title).toBe("House bills");
+    expect(await peopleIn(page)).toEqual(["Najmi", "Afiq"]);
+  });
+
+  test("going back keeps the names, Backspace takes the last one off, and repeats are refused", async ({ page }) => {
+    await page.goto("/");
+    await billName(page).fill("Trip");
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await names(page).fill("Najmi, Afiq, najmi,");
+    await expect(text(page, "najmi is already in the list")).toBeVisible();
+    await names(page).press("Backspace");
+    await expect(button(page, "Remove Afiq")).toHaveCount(0);
+
+    await button(page, "Edit title").click();
+    await expect(billName(page)).toHaveValue("Trip");
+    await billName(page).fill("Langkawi");
+    await billName(page).press("Enter");
+    await expect(button(page, "Remove Najmi")).toBeVisible();
+    await names(page).fill("Imanul");
+    await button(page, "Start").click();
+    await expect(page.getByRole("button", { name: "Edit title" })).toHaveText("Langkawi");
+    expect(await peopleIn(page)).toEqual(["Najmi", "Imanul"]);
   });
 
   test("the name cannot be emptied later", async ({ browser }) => {
@@ -151,7 +179,7 @@ test.describe("saving over members' changes", () => {
 
     const member = await newPhone(browser);
     await openBill(member);
-    await submit(await joinAs(member, "Aiman"));
+    await joinAs(member, "Aiman");
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
     await openBill(member);
     await submit(await startAdding(member, "Snacks", "1000"));
@@ -213,18 +241,26 @@ test.describe("saving over members' changes", () => {
 });
 
 test.describe("owner screen", () => {
-  const tracking = async (browser: import("@playwright/test").Browser, doc = trip) => {
+  const tracking = async (browser: Browser, doc = trip) => {
     const owner = await newPhone(browser, ownerStorage(doc));
     await openBill(owner);
-    await expect(button(owner, "View receipt")).toBeVisible();
+    await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
     return owner;
   };
+  const paidLine = (page: Page, from: string) =>
+    page.getByRole("button", { name: new RegExp(`${from} PAYS HAZIQ .* PAID`) });
 
-  test("greets the owner, with no way to change the name", async ({ browser }) => {
+  test("greets the owner, with the owner's buttons in the menu", async ({ browser }) => {
     const owner = await tracking(browser);
     await expect(text(owner, "Hi Haziq")).toBeVisible();
     await expect(button(owner, "Hi Haziq")).toHaveCount(0);
     await expect(owner.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
+    await openMenu(owner);
+    const card = menuCard(owner);
+    for (const label of ["Add bill", "History", "Bank", "Rename", "Lock", "Owner link"])
+      await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: "My name" })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: /^In 1 of 1 bills/ })).toBeVisible();
   });
 
   test("a bill whose owner is not on the list has no greeting", async ({ browser }) => {
@@ -234,11 +270,19 @@ test.describe("owner screen", () => {
     await expect(owner.getByText(/^Hi /)).toHaveCount(0);
   });
 
-  test("marks paid and unpaid, naming the owner in History", async ({ browser }) => {
+  test("marks paid and unpaid from any line, naming the owner in History", async ({ browser }) => {
     const owner = await tracking(browser);
-    await button(owner, "Mark paid").first().click();
+    await expect(text(owner, "Tap any payment to mark it paid or send a reminder.")).toBeVisible();
+    await payLine(owner, "NAJMI", "HAZIQ").click();
+    const ask = sheet(owner);
+    await expect(ask.getByRole("heading", { name: "Najmi paid Haziq?" })).toBeVisible();
+    await expect(ask.getByRole("button", { name: "Remind Najmi" })).toBeVisible();
+    await ask.getByRole("button", { name: "Mark paid" }).click();
     await settled(async () => (await paymentsOf()).length, 1);
-    await button(owner, "Mark unpaid").click();
+
+    await paidLine(owner, "NAJMI").click();
+    await expect(sheet(owner).getByText(/You marked paid/)).toBeVisible();
+    await sheet(owner).getByRole("button", { name: "Mark unpaid" }).click();
     await settled(paymentsOf, []);
     await settled(async () => (await eventKinds()).sort(), ["paid", "unpaid"]);
     const list = await openHistory(owner);
@@ -248,10 +292,11 @@ test.describe("owner screen", () => {
 
   test("a payment already removed elsewhere shows no error and is not logged twice", async ({ browser }) => {
     const owner = await tracking(browser);
-    await button(owner, "Mark paid").first().click();
-    await expect(button(owner, "Mark unpaid")).toBeVisible();
+    await payLine(owner, "NAJMI", "HAZIQ").click();
+    await sheet(owner).getByRole("button", { name: "Mark paid" }).click();
+    await paidLine(owner, "NAJMI").click();
     await clearPayments();
-    await button(owner, "Mark unpaid").click();
+    await sheet(owner).getByRole("button", { name: "Mark unpaid" }).click();
     await expect(text(owner, "is unpaid again")).toBeVisible();
     await expect(owner.getByText("Something went wrong")).toHaveCount(0);
     expect(await eventKinds()).toEqual(["paid"]);
@@ -259,10 +304,9 @@ test.describe("owner screen", () => {
 
   test("records a different amount", async ({ browser }) => {
     const owner = await tracking(browser);
-    await fromMore(owner, "Record a different amount");
+    await payLine(owner, "NAJMI", "HAZIQ").click();
+    await sheet(owner).getByRole("button", { name: "Change ›" }).click();
     const form = panel(owner);
-    await form.getByRole("button", { name: "Najmi" }).first().click();
-    await form.getByRole("button", { name: "Haziq" }).nth(1).click();
     await form.locator("input[inputmode='numeric']").pressSequentially("2500");
     await submit(form);
     await settled(paymentsOf, [{ from: "n", to: "h", amountMinor: 2500 }]);
@@ -275,60 +319,105 @@ test.describe("owner screen", () => {
     await settled(async () => (await paymentsOf()).length, 1);
 
     const owner = await tracking(browser);
-    await expect(text(owner, /Afiq tapped paid/)).toBeVisible();
+    await paidLine(owner, "AFIQ").click();
+    await expect(sheet(owner).getByText(/Afiq tapped paid/)).toBeVisible();
   });
 
   test("locks and unlocks the bill", async ({ browser, page }) => {
     const owner = await tracking(browser);
-    await fromMore(owner, "Lock bill");
+    await choose(owner, "Lock");
+    await expect(text(owner, "Locked. Everyone else can only mark payments now.")).toBeVisible();
     await settled(async () => (await serverDoc()).locked, true);
     await openBill(page);
     await expect(text(page, "Haziq locked this bill")).toBeVisible();
 
-    await fromMore(owner, "Unlock bill");
+    await choose(owner, "Unlock");
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(page);
-    await expect(button(page, "Add bill")).toBeVisible();
+    await expect(button(page, "Who are you?")).toBeVisible();
+    await expect(page.getByText("Haziq locked this bill")).toHaveCount(0);
     expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
   });
 
-  test("shows a banner for members' changes only", async ({ browser, page }) => {
+  test("Rename changes the bill name and the names, with Undo", async ({ browser }) => {
     const owner = await tracking(browser);
-    await fromMore(owner, "Lock bill");
+    await choose(owner, "Rename");
+    const form = panel(owner);
+    await form.locator("input[maxlength='60']").fill("Langkawi");
+    await form.getByLabel("Name: Najmi").fill("Najmi R");
+    await submit(form);
+    await expect(text(owner, "Names saved")).toBeVisible();
+    const names = async () => {
+      const doc = await serverDoc();
+      return [doc.title, ...doc.people.map((p) => p.name)];
+    };
+    await settled(names, ["Langkawi", "Haziq", "Najmi R", "Afiq"]);
+    await expect(text(owner, "NAJMI R")).toBeVisible();
+
+    await button(owner, "Undo").click();
+    await settled(names, ["Trip", "Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("Rename refuses an empty name", async ({ browser }) => {
+    const owner = await tracking(browser);
+    await choose(owner, "Rename");
+    const form = panel(owner);
+    await form.getByLabel("Name: Afiq").fill(" ");
+    await submit(form);
+    await expect(text(owner, "Names can't be empty.")).toBeVisible();
+    expect((await serverDoc()).people.map((p) => p.name)).toEqual(["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("a dot on the menu shows members' changes only, until History is opened", async ({ browser, page }) => {
+    const owner = await tracking(browser);
+    const dot = owner.locator("[data-menu-button] > i");
+    await choose(owner, "Lock");
     await settled(async () => (await serverDoc()).locked, true);
-    await fromMore(owner, "Unlock bill");
+    await choose(owner, "Unlock");
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(owner);
-    await expect(button(owner, "View receipt")).toBeVisible();
-    await expect(owner.getByText(/since your last visit/)).toHaveCount(0);
+    await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
+    await expect(dot).toHaveCount(0);
 
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await settled(async () => (await serverDoc()).items.length, 2);
     await openBill(owner);
-    await expect(text(owner, "1 change since your last visit")).toBeVisible();
+    await expect(dot).toBeVisible();
+    await openHistory(owner);
+    await owner.keyboard.press("Escape");
+    await expect(dot).toHaveCount(0);
+    await openBill(owner);
+    await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
+    await expect(dot).toHaveCount(0);
   });
 
-  test("the paid-off page keeps History and the owner's buttons", async ({ browser }) => {
+  test("the paid-off page keeps History, and can go back to the full page", async ({ browser }) => {
     await seed(trip, { payments: [paymentRow("n", "h", 10000), paymentRow("a", "h", 10000)] });
     const owner = await newPhone(browser, ownerStorage());
     await openBill(owner);
     await expect(text(owner, "Everyone")).toBeVisible();
     await expect(text(owner, "Hi Haziq")).toBeVisible();
     await expect(button(owner, /^History/)).toBeVisible();
-    await owner.getByRole("button", { name: "More", exact: true }).click();
-    await expect(sheet(owner).getByRole("button", { name: "Copy owner link" })).toBeVisible();
-    await expect(sheet(owner).getByRole("button", { name: "Lock bill" })).toBeVisible();
-    await expect(sheet(owner).getByRole("button", { name: "Record a different amount" })).toHaveCount(0);
+    await button(owner, "Not paid after all? Change it").click();
+    await expect(text(owner, "Everyone's paid")).toBeVisible();
+    await openMenu(owner);
+    for (const label of ["Lock", "Owner link"])
+      await expect(menuCard(owner).getByRole("button", { name: label, exact: true })).toBeVisible();
   });
 });
 
 test.describe("owner link and editing", () => {
+  const changeMore = async (phone: Page) => {
+    await choose(phone, "Rename");
+    await panel(phone).getByRole("button", { name: "Remove people or change more ›" }).click();
+  };
+
   test("a new phone becomes the owner through the private link", async ({ browser }) => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=${TOKEN}`);
     await expect(text(phone, "You can edit this bill on this device now")).toBeVisible();
-    await expect(button(phone, "View receipt")).toBeVisible();
+    await expect(phone.getByText("Owner", { exact: true })).toBeVisible();
     expect(await phone.evaluate((id) => localStorage.getItem(`splitin:asked:${id}`), BILL)).toBeNull();
     expect(phone.url()).not.toContain("owner=");
   });
@@ -337,7 +426,7 @@ test.describe("owner link and editing", () => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=wrongwrongwrongwrongwrong`);
     await expect(text(phone, "Something went wrong")).toBeVisible();
-    await expect(button(phone, "Add bill")).toBeVisible();
+    await expect(button(phone, "Who are you?")).toBeVisible();
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
     expect(await phone.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
   });
@@ -346,35 +435,35 @@ test.describe("owner link and editing", () => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await openBill(owner);
-    await fromMore(owner, "Copy owner link");
-    await expect(text(owner, "Copied")).toBeVisible();
+    await choose(owner, "Owner link");
+    await expect(text(owner, "Owner link copied")).toBeVisible();
     expect(await owner.evaluate(() => navigator.clipboard.readText())).toContain(`#owner=${TOKEN}`);
   });
 
-  test("Edit bills brings the shared bill back to a phone that lost it", async ({ browser }) => {
+  test("Rename › change more brings the shared bill back to a phone that lost it", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:owner:${BILL}`]: TOKEN });
     await openBill(phone);
-    await button(phone, "Edit bills").click();
+    await changeMore(phone);
     await expect(phone).toHaveURL(/\/$/);
     await expect(text(phone, "HOTEL")).toBeVisible();
     const draft = await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!));
     expect(draft.billId).toBe(BILL);
   });
 
-  test("Edit bills warns before replacing a split not yet shared", async ({ browser }) => {
+  test("Rename › change more warns before replacing a split not yet shared", async ({ browser }) => {
     const other = { ...trip, title: "Unshared", items: [] };
     const phone = await newPhone(browser, {
       [`splitin:owner:${BILL}`]: TOKEN,
       "splitin:draft:v2": { doc: other, billId: null, seenAt: "" },
     });
     await openBill(phone);
-    await button(phone, "Edit bills").click();
+    await changeMore(phone);
     const confirm = sheet(phone);
     await expect(confirm.getByRole("heading", { name: "Replace your unshared split?" })).toBeVisible();
     await confirm.getByRole("button", { name: "Cancel" }).click();
     expect(await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!).billId)).toBeNull();
 
-    await button(phone, "Edit bills").click();
+    await changeMore(phone);
     await sheet(phone).getByRole("button", { name: "Replace it" }).click();
     await expect(text(phone, "HOTEL")).toBeVisible();
   });
@@ -466,8 +555,8 @@ test.describe("History", () => {
     await settled(async () => (await serverDoc()).items.length, 2);
     const owner = await newPhone(browser, ownerStorage());
     await openBill(owner);
-    await expect(button(owner, "View receipt")).toBeVisible();
-    await fromMore(owner, "Lock bill");
+    await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
+    await choose(owner, "Lock");
     await settled(async () => (await serverDoc()).locked, true);
     await expect.poll(async () => (await getDb()).bill_events.length).toBe(2);
 
@@ -559,7 +648,9 @@ test.describe("History", () => {
     await openBill(page);
     await submit(await startAdding(page, "Snacks", "1000", "Najmi"));
     await settled(async () => (await serverDoc()).items.length, 3);
-    await button(page, "Delete Snacks").click();
+    await openBillDetail(page, "Snacks");
+    await menuCard(page).getByRole("button", { name: "Edit bill" }).click();
+    await panel(page).getByRole("button", { name: "Delete bill · you can undo" }).click();
     await settled(async () => (await serverDoc()).items.length, 2);
 
     await button(page, "Hi Najmi").click();
@@ -569,8 +660,10 @@ test.describe("History", () => {
     await name.getByRole("button", { name: "Add", exact: true }).click();
     await settled(async () => (await serverDoc()).people.length, 4);
 
-    await submit(await openJoin(page));
+    await openBills(page);
+    await tick(page, "Hotel").click();
     await settled(async () => (await serverItem("hotel"))?.participants.length, 4);
+    await page.keyboard.press("Escape");
 
     const list = await openHistory(page);
     const row = (words: string) => list.getByRole("listitem").filter({ hasText: words });

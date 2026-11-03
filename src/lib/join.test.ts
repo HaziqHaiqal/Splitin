@@ -10,8 +10,10 @@ import {
   previewMyBills,
   previewPayment,
   summarize,
+  withItem,
   withNewPeople,
   withoutPerson,
+  withShare,
   type BillDoc,
   type Item,
   type Payment,
@@ -139,6 +141,44 @@ describe("leaving a bill", () => {
   it("refuses when it would leave the bill unpaid", () => {
     expect(leaveItem({ ...joined, participants: ["m"], overrides: {} }, "m")).toBeNull();
     expect(leaveItem({ ...joined, overrides: { h: 1000, n: 1000, a: 1000, i: 1000, m: 16160 } }, "m")).toBeNull();
+  });
+});
+
+describe("changing your part", () => {
+  it("writes your amount and leaves the rest equal for everyone else", () => {
+    const next = withShare(electricity, "n", 3000)!;
+    expect(next.overrides).toEqual({ n: 3000 });
+    expect(itemShares(next)).toEqual({ h: 5720, n: 3000, a: 5720, i: 5720 });
+  });
+
+  it("goes back to equal when no amount is written", () => {
+    const next = withShare({ ...electricity, overrides: { n: 3000, h: 1000 } }, "n", undefined)!;
+    expect(next.overrides).toEqual({ h: 1000 });
+  });
+
+  it("adds you when you are not in the bill yet, and keeps no key", () => {
+    const next = withShare(electricity, "m", undefined)!;
+    expect(next.participants).toEqual([...all, "m"]);
+    expect(next.joins).toBeUndefined();
+  });
+
+  it("refuses an amount above what is left", () => {
+    expect(withShare({ ...electricity, overrides: { h: 20000 } }, "n", 161)).toBeNull();
+  });
+});
+
+describe("withItem", () => {
+  it("swaps one bill and keeps the order and the others as they were", () => {
+    const water = { ...house.items[1], amountMinor: 20000 };
+    const next = withItem(house, water);
+    expect(next.items.map((i) => i.id)).toEqual(["1", "2", "3"]);
+    expect(next.items[1].amountMinor).toBe(20000);
+    expect(next.items[0]).toBe(house.items[0]);
+    expect(house.items[1].amountMinor).toBe(18000);
+  });
+
+  it("changes nothing when the bill is not there", () => {
+    expect(withItem(house, { ...electricity, id: "x" }).items).toEqual(house.items);
   });
 });
 

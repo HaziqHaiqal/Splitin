@@ -18,7 +18,10 @@ export const en = {
   },
   home: {
     step1: "Who's splitting?",
-    step1Hint: "Separate names with commas. Include yourself.",
+    titleQuestion: "What are you splitting?",
+    next: "Next",
+    start: "Start",
+    addMore: "Add more",
     startTitle: "Split bills.\nGet a receipt.",
     startDesc: "No sign-up. Your receipt prints as you go.",
     haveCode: "Have a code?",
@@ -28,12 +31,10 @@ export const en = {
     codeNotFound: "No receipt with that code. Check it and try again.",
     codeBackNew: "Start a new bill instead",
     codeBackBill: "Back to my bill",
-    stubHint: "Add people to start printing",
     nextBill: "Add bill",
-    namesPlaceholder: "Najmi, Afiq, Imanul",
+    namesPlaceholder: "Names, include yours",
     billName: "Bill name",
-    billNamePlaceholder: "House bills",
-    billNameMissing: "Give this bill a name first.",
+    billNamePlaceholder: "House bills, Langkawi trip…",
     people: "People",
     addPerson: "+ Add",
     addPersonLabel: "Add person",
@@ -104,6 +105,8 @@ export const en = {
   receipt: {
     title: "Receipt",
     share: "Share receipt",
+    blankTitle: "BILL NAME",
+    blankPeople: "WHO'S SPLITTING?",
     sharedBy: "SHARED BY {name}",
     item: "ITEM",
     by: "PAID BY",
@@ -308,6 +311,7 @@ export const en = {
     and: "and",
   },
   help: {
+    demoTitle: "House bills",
     demoBills: ["Electricity", "Water", "Wifi"],
     button: "How to use Splitin",
     title: "How to use Splitin",
@@ -324,7 +328,7 @@ export const en = {
       },
       {
         title: "Step 1: Name it and add people",
-        desc: "Give the bill a name, then type everyone's names, or paste a list with commas. Their names print at the top of the receipt. Tap a name to add their bank account or QR.",
+        desc: "Say what you're splitting, tap Next, then type everyone's names. A comma or Enter turns each one into a chip, and both print on the receipt as you type. Paste a list with commas if you have one. Tap a name later to add their bank account or QR.",
         hint: "Try it: add the others.",
       },
       {
