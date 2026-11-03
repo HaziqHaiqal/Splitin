@@ -1119,7 +1119,7 @@ export function BillPage({
               share.show();
             }}
           />,
-          <div key="rows" className="flex flex-col divide-y divide-line pt-1">
+          <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
             {rows.map((tile) => (
               <MenuRow key={tile.key} tile={tile} />
             ))}

@@ -13,7 +13,7 @@ export function MenuRow({ tile }: { tile: Tile }) {
     <button
       type="button"
       onClick={tile.onClick}
-      className="flex min-h-12 w-full items-center gap-3 rounded-[11px] px-2.5 py-1.5 text-left text-ink hover:bg-chip"
+      className="flex min-h-12 w-full items-center gap-3 px-2.5 py-1.5 text-left text-ink hover:bg-chip"
     >
       <span className="relative shrink-0 text-muted">
         {tile.icon}
@@ -82,6 +82,7 @@ export function MenuFab({ open, dot, onClick }: { open: boolean; dot: boolean; o
       onClick={onClick}
       className={cn(
         "fixed right-[max(16px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] z-40 grid size-[46px] place-items-center rounded-full bg-ink text-bg shadow-[0_5px_14px_var(--pop-shadow)] transition-colors",
+        open && "shadow-none",
       )}
     >
       <DotsIcon size={20} className={cn("[grid-area:1/1]", spring, open && "scale-50 rotate-90 opacity-0")} />
@@ -126,17 +127,17 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 animate-fade bg-overlay" />
       <div
         style={keyboard ? { top: keyboard.bottom - 8, bottom: "auto", transform: "translateY(-100%)" } : undefined}
-        className="fixed right-3 bottom-[max(16px,env(safe-area-inset-bottom))] z-40 w-[calc(100vw-24px)] max-w-[420px]"
+        className="fixed right-2 bottom-[calc(max(16px,env(safe-area-inset-bottom))-8px)] z-40 w-[calc(100vw-16px)] max-w-[424px]"
       >
-        <div className="origin-[calc(100%-27px)_calc(100%-23px)] animate-grow drop-shadow-[0_14px_24px_var(--pop-shadow)]">
+        <div className="origin-[calc(100%-31px)_calc(100%-31px)] animate-grow">
           <div
             ref={card}
             role="dialog"
             aria-modal="true"
             aria-label={t.page.menu}
             tabIndex={-1}
-            style={keyboard ? { maxHeight: keyboard.height - 16 } : { mask: notch, WebkitMask: notch }}
-            className="max-h-[calc(100dvh-110px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
+            style={keyboard ? { maxHeight: keyboard.height - 16 } : undefined}
+            className="max-h-[calc(100dvh-100px)] overflow-y-auto overscroll-contain rounded-[20px] rounded-br-[31px] border border-border bg-card p-2 text-ink shadow-[0_14px_34px_var(--pop-shadow)] outline-none"
           >
             {children}
           </div>
@@ -145,8 +146,6 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
     </>
   );
 }
-
-const notch = "radial-gradient(circle at calc(100% - 27px) calc(100% - 23px), transparent 29px, #000 29.5px)";
 
 export function Rise({ children, className }: { children: ReactNode[]; className?: string }) {
   return (
