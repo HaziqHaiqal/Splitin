@@ -229,16 +229,25 @@ export function joinShare(item: Item, personId: string, written?: number): numbe
   return share > 0 ? share : null;
 }
 
-export function joinItem(item: Item, personId: string, written: number | undefined, join: Join): Item | null {
+export function withShare(item: Item, personId: string, written: number | undefined): Item | null {
   if (joinShare(item, personId, written) === null) return null;
   const others = without(item.overrides, personId);
   return {
     ...item,
     participants: item.participants.includes(personId) ? item.participants : [...item.participants, personId],
     overrides: written === undefined ? others : { ...others, [personId]: written },
-    joins: { ...item.joins, [personId]: join },
   };
 }
+
+export function joinItem(item: Item, personId: string, written: number | undefined, join: Join): Item | null {
+  const next = withShare(item, personId, written);
+  return next && { ...next, joins: { ...item.joins, [personId]: join } };
+}
+
+export const withItem = (doc: BillDoc, item: Item): BillDoc => ({
+  ...doc,
+  items: doc.items.map((i) => (i.id === item.id ? item : i)),
+});
 
 export function leaveItem(item: Item, personId: string): Item | null {
   const participants = item.participants.filter((p) => p !== personId);

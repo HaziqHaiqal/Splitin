@@ -208,14 +208,31 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
-export async function choose(page: Page, option: "Add bill") {
+export const menuCard = (page: Page) => page.getByRole("dialog", { name: "Menu" });
+
+export async function openMenu(page: Page) {
   await page.addStyleTag({ content: "nextjs-portal { display: none }" });
-  await button(page, option).click();
+  const menu = page.getByRole("button", { name: "Menu", exact: true });
+  await expect(menu.or(page.getByRole("button", { name: /^Share receipt/ })).first()).toBeVisible();
+  if (await menu.isVisible()) await menu.click();
 }
 
-export async function fromMore(page: Page, option: string) {
-  await page.getByRole("button", { name: "More", exact: true }).click();
-  await sheet(page).getByRole("button", { name: option }).click();
+export async function choose(page: Page, option: string) {
+  await openMenu(page);
+  await page.getByRole("button", { name: option, exact: true }).click();
+}
+
+export async function openBills(page: Page) {
+  await openMenu(page);
+  const strip = page.getByRole("button", { name: /^In \d+ of \d+ bills/ });
+  if (await strip.isVisible()) await strip.click();
+}
+
+export const tick = (page: Page, item: string) => page.getByRole("checkbox", { name: `I'm in ${item}` });
+
+export async function openBillDetail(page: Page, item: string) {
+  await openBills(page);
+  await page.getByRole("button", { name: new RegExp(`^${item}`) }).click();
 }
 
 export async function startAdding(page: Page, name: string, digits: string, me?: string) {
@@ -230,14 +247,6 @@ export async function startAdding(page: Page, name: string, digits: string, me?:
 
 export const submit = (form: ReturnType<typeof panel>) => form.locator("button[type=submit]").click();
 
-export async function openJoin(page: Page, item = "Hotel") {
-  await page.addStyleTag({ content: "nextjs-portal { display: none }" });
-  await button(page, `Join ${item}`).click();
-  const form = panel(page);
-  await expect(form.getByText("Which bills are you in?")).toBeVisible();
-  return form;
-}
-
 export async function addMe(page: Page, name: string) {
   await button(page, "Who are you?").click();
   await addName(page, name);
@@ -246,7 +255,9 @@ export async function addMe(page: Page, name: string) {
 
 export async function joinAs(page: Page, name: string, item = "Hotel") {
   await addMe(page, name);
-  return openJoin(page, item);
+  await openBills(page);
+  await tick(page, item).click();
+  await expect(tick(page, item)).toBeChecked();
 }
 
 export const payLine = (page: Page, from: string, to: string) =>
@@ -260,7 +271,7 @@ export const paymentsOf = async (): Promise<Pick<Payment, "from" | "to" | "amoun
   }));
 
 export async function openHistory(page: Page) {
-  await button(page, /^History/).click();
+  await choose(page, "History");
   const list = sheet(page);
   await expect(list.getByRole("heading", { name: "History" })).toBeVisible();
   return list;

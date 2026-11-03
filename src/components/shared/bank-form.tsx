@@ -7,12 +7,14 @@ import { PanelForm, SubmitButton } from "./panel-form";
 
 export function BankForm({
   person,
+  own = true,
   bare,
   pending,
   onSave,
   onCancel,
 }: {
   person: Person;
+  own?: boolean;
   bare: boolean;
   pending: boolean;
   onSave: (details: { bank: string | null; accountNo: string | null; payQr: string | null }) => void;
@@ -31,7 +33,7 @@ export function BankForm({
       onCancel={onCancel}
       onSubmit={() => onSave({ bank, accountNo: account, payQr })}
     >
-      <BankFields name={person.name} own details={details} />
+      <BankFields name={person.name} own={own} details={details} />
       <SubmitButton disabled={pending || !(bank || payQr || hasPayDetails(person))}>{t.common.save}</SubmitButton>
     </PanelForm>
   );

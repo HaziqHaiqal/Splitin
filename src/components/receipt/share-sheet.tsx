@@ -1,6 +1,6 @@
 "use client";
 
-import { domToCanvas } from "modern-screenshot";
+import { createContext, destroyContext, domToCanvas } from "modern-screenshot";
 import { useEffect, useState, type RefObject } from "react";
 import { DownloadIcon, LinkIcon, MoreIcon, SendIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
@@ -13,9 +13,25 @@ import { isCode } from "@/lib/utils";
 const BACKDROP = "#0e131b";
 const MARGIN = 28;
 const SCALE = 2;
+const REDRAWS = 3;
+const SIZES = ["width", "height", "inline-size", "block-size"];
+
+function fitText(node: Node) {
+  if (node instanceof HTMLElement && node.textContent?.trim()) {
+    for (const size of SIZES) node.style.removeProperty(size);
+  }
+}
 
 async function receiptPicture(node: HTMLElement): Promise<Blob | null> {
-  const paper = await domToCanvas(node, { scale: SCALE, backgroundColor: null, style: { filter: "none" } });
+  const context = await createContext(node, {
+    scale: SCALE,
+    backgroundColor: null,
+    style: { filter: "none" },
+    onCloneEachNode: fitText,
+    onCreateForeignObjectSvg: (svg) => svg.style.setProperty("color-scheme", "only light"),
+  });
+  context.drawImageCount = REDRAWS;
+  const paper = await domToCanvas(context).finally(() => destroyContext(context));
   const pad = MARGIN * SCALE;
   const canvas = document.createElement("canvas");
   canvas.width = paper.width + pad * 2;

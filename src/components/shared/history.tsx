@@ -266,14 +266,32 @@ export function HistoryButton({
         {h.title}
         {events.length > 0 ? ` · ${events.length}` : ""}
       </button>
-      <Sheet open={open} onOpenChange={onOpenChange} title={h.title}>
-        {events.length === 0 ? (
-          <p className="m-0 text-[14px] text-muted">{h.empty}</p>
-        ) : (
-          <HistoryList doc={doc} events={events} />
-        )}
-      </Sheet>
+      <HistorySheet doc={doc} events={events} open={open} onOpenChange={onOpenChange} />
     </>
+  );
+}
+
+export function HistorySheet({
+  doc,
+  events,
+  open,
+  onOpenChange,
+}: {
+  doc: BillDoc;
+  events: BillEvent[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const h = t.history;
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} title={h.title}>
+      {events.length === 0 ? (
+        <p className="m-0 text-[14px] text-muted">{h.empty}</p>
+      ) : (
+        <HistoryList doc={doc} events={events} />
+      )}
+    </Sheet>
   );
 }
 

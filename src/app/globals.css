@@ -38,6 +38,8 @@
   --tray: #ecebe7;
   --slot: #3d3b35;
   --slot-edge: #24231f;
+  --track: #dcdbd6;
+  --pop-shadow: rgb(0 0 0 / 0.18);
 }
 
 .dark {
@@ -76,6 +78,8 @@
   --slot: #3f4d60;
   --slot-edge: #27313f;
   --stamp: #f2876a;
+  --track: #2f3b4c;
+  --pop-shadow: rgb(0 0 0 / 0.55);
 }
 
 @theme inline {
@@ -112,6 +116,7 @@
   --color-stamp: var(--stamp);
   --color-tray: var(--tray);
   --color-slot: var(--slot);
+  --color-track: var(--track);
   --font-sans: var(--font-jakarta);
   --font-mono: var(--font-plex-mono);
 }
@@ -124,6 +129,29 @@
   --animate-nudge: nudge 1.8s ease-in-out infinite;
   --animate-arrow: arrow 1.6s ease-in-out infinite;
   --animate-printed: printed 3.2s ease-out both;
+  --animate-grow: grow 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.12) both;
+  --animate-fade: fade 0.2s ease-out both;
+  --animate-drop: drop 0.14s ease-out both;
+
+  @keyframes grow {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes drop {
+    from {
+      opacity: 0;
+      transform: scale(0.97) translateY(-4px);
+    }
+  }
 
   @keyframes printed {
     0% {
@@ -191,7 +219,10 @@
   .animate-stamp,
   .animate-nudge,
   .animate-arrow,
-  .animate-printed {
+  .animate-printed,
+  .animate-grow,
+  .animate-fade,
+  .animate-drop {
     animation: none;
   }
 }
@@ -199,7 +230,7 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
-    color-scheme: light;
+    color-scheme: only light;
   }
 
   html.dark {

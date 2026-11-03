@@ -140,8 +140,7 @@ export type ReceiptProps = {
   expiresAt?: string | null;
   sharedBy?: string | null;
   onLine?: (line: PlanLine) => void;
-  onlyFrom?: string | null;
-  canUndo?: (line: PlanLine) => boolean;
+  canTap?: (line: PlanLine) => boolean;
   hint?: string;
   onHint?: () => void;
   variant?: "draft" | "full";
@@ -150,7 +149,7 @@ export type ReceiptProps = {
   changed?: readonly string[];
   freshItemId?: string | null;
   onItem?: (item: Item) => void;
-  itemWord?: (item: Item) => ReceiptWord | null;
+  highlight?: string | null;
   payToWord?: (person: Person) => ReceiptWord | null;
   bigStamp?: string;
 };
@@ -163,8 +162,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     expiresAt,
     sharedBy,
     onLine,
-    onlyFrom,
-    canUndo,
+    canTap,
     hint,
     onHint,
     variant = "full",
@@ -173,7 +171,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     changed,
     freshItemId,
     onItem,
-    itemWord,
+    highlight,
     payToWord,
     bigStamp,
   },
@@ -199,7 +197,6 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
     preview && preview.amountMinor > 0 ? itemSplitText(preview, [...active, ...newPeople], plain, splitWords) : "";
 
   const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
-    const word = kind === "ghost" ? null : itemWord?.(item);
     const body = (
       <>
         <span
@@ -210,7 +207,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
           <span className="truncate">{name(item.paidBy)}</span>
           <span style={{ textAlign: "right" }}>{item.amountMinor > 0 ? plain(item.amountMinor) : "–"}</span>
         </span>
-        {detail || word ? (
+        {detail ? (
           <span
             className="relative block"
             style={{
@@ -227,15 +224,15 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
                 <span className="whitespace-nowrap">{part}</span>
               </Fragment>
             ))}
-            {word ? <Word word={word} className="absolute -top-3.5 right-0" /> : null}
           </span>
         ) : null}
       </>
     );
     const shape = cn(
-      "-mx-1.5 block w-[calc(100%+12px)] rounded px-1.5 py-1 text-left font-mono",
+      "-mx-1.5 block w-[calc(100%+12px)] rounded px-1.5 py-1 text-left font-mono transition-colors",
       kind === "fresh" && "animate-printed",
       kind === "ghost" && "border-[1.5px] border-dashed opacity-60",
+      highlight === item.id && kind === "plain" && "bg-[#ebeae6]",
     );
     if (onItem && kind !== "ghost") {
       return (
@@ -245,7 +242,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
       );
     }
     return (
-      <span key={item.id} className={shape} style={kind === "ghost" ? { borderColor: "#c8c7c3" } : undefined}>
+      <span key={item.id} data-bill={item.id} className={shape} style={kind === "ghost" ? { borderColor: "#c8c7c3" } : undefined}>
         {body}
       </span>
     );
@@ -264,7 +261,11 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const host = typeof window === "undefined" ? "" : window.location.host;
 
   return (
-    <div ref={ref} className="relative" style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.12))" }}>
+    <div
+      ref={ref}
+      className="relative"
+      style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.12))", colorScheme: "only light" }}
+    >
       <Zigzag edge="top" />
       <div
         className="flex flex-col gap-0.5 font-mono"
@@ -371,7 +372,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
               {groups.map((group) => {
                 const branched = group.length > 1;
                 const lineFor = (l: (typeof lines)[number], i: number) => {
-                  const tappable = onLine && (!onlyFrom || l.from === onlyFrom) && (!l.paid || canUndo?.(l));
+                  const tappable = onLine && (canTap?.(l) ?? true);
                   const leader = (
                     <Leader
                       bold

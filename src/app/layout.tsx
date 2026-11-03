@@ -14,6 +14,8 @@ const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  fallback: ["ui-monospace", "monospace"],
+  adjustFontFallback: false,
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -32,6 +34,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: "#fbfbfa",
+  colorScheme: "only light",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

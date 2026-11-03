@@ -24,6 +24,7 @@ export function BillForm({
   title,
   defaultPaidBy,
   onAdd,
+  onDelete,
   onPrinted,
   onCancel,
   onPreview,
@@ -37,6 +38,7 @@ export function BillForm({
   title?: string;
   defaultPaidBy?: string;
   onAdd?: (item: Item, newPeople: Person[]) => void;
+  onDelete?: (item: Item) => void;
   onPrinted: (id: string) => void;
   onCancel?: () => void;
   onPreview: (item: PreviewItem | null) => void;
@@ -187,6 +189,12 @@ export function BillForm({
 
   const remove = () => {
     if (!item) return;
+    if (onDelete) {
+      onDelete(item);
+      onPreview(null);
+      onCancel?.();
+      return;
+    }
     const index = doc.items.findIndex((i) => i.id === item.id);
     update?.((d) => ({ ...d, items: d.items.filter((i) => i.id !== item.id) }));
     onCancel?.();

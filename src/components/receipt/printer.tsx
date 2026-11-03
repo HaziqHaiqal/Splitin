@@ -91,6 +91,7 @@ export function PrinterPage({
   phoneBelow,
   panel,
   dock,
+  fab,
   phoneSide = false,
   phoneCenter = false,
   follow,
@@ -104,6 +105,7 @@ export function PrinterPage({
   phoneCenter?: boolean;
   panel?: ReactNode;
   dock?: ReactNode;
+  fab?: ReactNode;
   phoneSide?: boolean;
   follow?: string;
   header?: ReactNode;
@@ -161,7 +163,7 @@ export function PrinterPage({
           {phoneBelow}
         </main>
       )}
-      {phoneCenter ? null : <div aria-hidden style={{ height: pinnedHeight + 24 }} />}
+      {phoneCenter ? null : <div aria-hidden style={{ height: pinnedHeight + (fab && !panel ? 76 : 24) }} />}
       {panel ? (
         <div
           ref={pinned}
@@ -186,7 +188,9 @@ export function PrinterPage({
         >
           {dock}
         </div>
-      ) : null}
+      ) : (
+        fab
+      )}
     </div>
   );
 }

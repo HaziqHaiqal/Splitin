@@ -11,19 +11,16 @@ import { saveDraft } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { OwnerGreeting } from "./greeting";
 import { HistoryButton } from "./history";
-import { OwnerActions } from "./owner-actions";
 import { ShareBill } from "./share-bill";
 import type { SharedBillData } from "./shared-bill";
 
 export function Settled({
   bill,
   summary,
-  ownerToken,
   onReview,
 }: {
   bill: SharedBillData;
   summary: BillSummary;
-  ownerToken: string | null;
   onReview: () => void;
 }) {
   const { t, date } = useI18n();
@@ -65,7 +62,6 @@ export function Settled({
       </button>
       <div className="flex flex-wrap items-center justify-center gap-x-4 md:justify-start md:self-start">
         <HistoryButton doc={bill.doc} events={bill.events} open={historyOpen} onOpenChange={setHistoryOpen} />
-        <OwnerActions bill={bill} ownerToken={ownerToken} />
       </div>
     </>
   );

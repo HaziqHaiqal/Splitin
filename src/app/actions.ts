@@ -17,6 +17,7 @@ import {
   repeatedName,
   splitItem,
   summarize,
+  withItem,
   withNewPeople,
   withoutOwnItem,
   type BillDoc,
@@ -184,6 +185,29 @@ async function writeBill(
   return null;
 }
 
+async function writeOwnerDoc(
+  id: string,
+  ownerToken: string | null,
+  input: BillDoc,
+  seenAt: string,
+): Promise<Result<{ doc: BillDoc }>> {
+  const parsed = billDocSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
+  let refused = "db";
+  const saved = await writeBill(id, (current, rights) => {
+    const merged = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
+    if (repeatedName(merged)) {
+      refused = "duplicate";
+      return null;
+    }
+    const { doc, people } = ownerDetailsWin(current, merged, rights);
+    rights.people = people;
+    return { doc, who: ownerWho(doc), events: diffDocs(current, doc) };
+  });
+  return saved ? { ok: true, data: { doc: saved } } : { ok: false, error: refused };
+}
+
 export async function saveBill(
   id: string,
   ownerToken: string | null,
@@ -191,23 +215,22 @@ export async function saveBill(
   seenAt = "",
 ): Promise<Result<{ doc: BillDoc }>> {
   return guard(async () => {
-    const parsed = billDocSchema.safeParse(input);
-    if (!parsed.success) return { ok: false, error: "invalid" };
-    if (!(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
-    let refused = "db";
-    const saved = await writeBill(id, (current, rights) => {
-      const merged = mergeMemberChanges(current, parsed.data as BillDoc, seenAt);
-      if (repeatedName(merged)) {
-        refused = "duplicate";
-        return null;
-      }
-      const { doc, people } = ownerDetailsWin(current, merged, rights);
-      rights.people = people;
-      return { doc, who: ownerWho(doc), events: diffDocs(current, doc) };
-    });
-    if (!saved) return { ok: false, error: refused };
-    after(() => broadcastChange(id));
-    return { ok: true, data: { doc: saved } };
+    const result = await writeOwnerDoc(id, ownerToken, input, seenAt);
+    if (result.ok) after(() => broadcastChange(id));
+    return result;
+  });
+}
+
+export async function saveOwnerEdit(
+  id: string,
+  ownerToken: string | null,
+  input: BillDoc,
+  seenAt: string,
+): Promise<Result<{ doc: BillDoc }>> {
+  return guard(async () => {
+    const result = await writeOwnerDoc(id, ownerToken, input, seenAt);
+    if (result.ok) changed(id);
+    return result;
   });
 }
 
@@ -288,6 +311,105 @@ export async function removeMemberItem(id: string, itemId: string, byId?: unknow
         events: [{ kind: "item_deleted", name: item.name, amountMinor: item.amountMinor }],
       };
     });
+    if (!saved) return { ok: false, error: refused };
+    changed(id);
+    return { ok: true, data: null };
+  });
+}
+
+export async function editMemberItem(
+  id: string,
+  input: Item,
+  byId?: unknown,
+  newPeople: unknown = [],
+): Promise<Result> {
+  return guard(async () => {
+    const parsed = itemSchema.safeParse(input);
+    const added = newPeopleSchema.safeParse(newPeople);
+    if (!parsed.success || !added.success) return { ok: false, error: "invalid" };
+    if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
+    const browser = await browserHash();
+    if (!browser) return { ok: false, error: "forbidden" };
+    let refused = "forbidden";
+    const saved = await writeBill(id, (current, rights) => {
+      if (current.locked) {
+        refused = "locked";
+        return null;
+      }
+      const old = current.items.find((i) => i.id === parsed.data.id);
+      if (!old?.addedAt || rights.items?.[old.id] !== browser) return null;
+      refused = "invalid";
+      const doc = withNewPeople(current, added.data, new Date().toISOString());
+      if (!doc) {
+        refused = "duplicate";
+        return null;
+      }
+      const { name, amountMinor, paidBy, participants, overrides } = parsed.data;
+      const joins = Object.fromEntries(Object.entries(old.joins ?? {}).filter(([p]) => participants.includes(p)));
+      const item: Item = {
+        id: old.id,
+        name,
+        amountMinor,
+        paidBy,
+        participants,
+        overrides,
+        addedAt: old.addedAt,
+        ...(Object.keys(joins).length > 0 ? { joins } : {}),
+      };
+      const people = new Set(doc.people.map((p) => p.id));
+      const known = people.has(item.paidBy) && item.participants.every((p) => people.has(p));
+      const fits = splitItem(item.amountMinor, item.participants, item.overrides).ok;
+      if (!known || !fits || doc.people.length > MAX_PEOPLE) return null;
+      const next = withItem(doc, item);
+      const events: EventBody[] = [
+        ...added.data.map((p): EventBody => ({ kind: "person_added", name: p.name })),
+        ...diffDocs(doc, next),
+      ];
+      if (events.length === 0) {
+        refused = "unchanged";
+        return null;
+      }
+      rights.people = { ...rights.people, ...Object.fromEntries(added.data.map((p) => [p.id, browser])) };
+      return { doc: next, who: memberWho(doc, byId), events };
+    });
+    if (refused === "unchanged") return { ok: true, data: null };
+    if (!saved) return { ok: false, error: refused };
+    changed(id);
+    return { ok: true, data: null };
+  });
+}
+
+export async function renameMe(id: string, personId: unknown, input: unknown): Promise<Result> {
+  return guard(async () => {
+    const parsed = personNameSchema.safeParse(input);
+    if (!parsed.success || typeof personId !== "string") return { ok: false, error: "invalid" };
+    if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
+    const browser = await browserHash();
+    if (!browser) return { ok: false, error: "forbidden" };
+    const name = parsed.data;
+    let refused = "forbidden";
+    const saved = await writeBill(id, (doc, rights) => {
+      if (doc.locked) {
+        refused = "locked";
+        return null;
+      }
+      const person = doc.people.find((p) => p.id === personId);
+      if (!person?.addedAt || person.id === doc.ownerId || rights.people?.[person.id] !== browser) return null;
+      if (person.name === name) {
+        refused = "unchanged";
+        return null;
+      }
+      if (doc.people.some((p) => p.id !== person.id && p.name.toLowerCase() === name.toLowerCase())) {
+        refused = "duplicate";
+        return null;
+      }
+      return {
+        doc: { ...doc, people: doc.people.map((p) => (p.id === person.id ? { ...p, name } : p)) },
+        who: memberWho(doc, person.id),
+        events: [{ kind: "person_renamed", from: person.name, to: name }],
+      };
+    });
+    if (refused === "unchanged") return { ok: true, data: null };
     if (!saved) return { ok: false, error: refused };
     changed(id);
     return { ok: true, data: null };
@@ -480,7 +602,11 @@ const paymentSchema = z.object({
 export async function addPayment(
   id: string,
   input: z.input<typeof paymentSchema>,
-  { ownerToken, different = false }: { ownerToken?: string | null; different?: boolean } = {},
+  {
+    ownerToken,
+    different = false,
+    byId,
+  }: { ownerToken?: string | null; different?: boolean; byId?: unknown } = {},
 ): Promise<Result<{ id: string }>> {
   return guard(async () => {
     const parsed = paymentSchema.safeParse(input);
@@ -516,7 +642,7 @@ export async function addPayment(
           by_role: owner ? "owner" : "member",
           browser_hash: browser,
         },
-        p_events: eventRows(owner ? ownerWho(doc) : memberWho(doc, from), [
+        p_events: eventRows(owner ? ownerWho(doc) : memberWho(doc, byId ?? from), [
           { kind: "paid", from: personName(doc, from), to: personName(doc, to), amountMinor, paymentId },
         ]),
       });

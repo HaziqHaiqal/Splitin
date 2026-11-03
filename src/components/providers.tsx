@@ -24,6 +24,7 @@ export function Providers({ locale, children }: { locale: Locale; children: Reac
       defaultTheme="light"
       storageKey="splitin-theme"
       enableSystem={false}
+      enableColorScheme={false}
       disableTransitionOnChange
     >
       <ThemeColor />

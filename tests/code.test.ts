@@ -8,6 +8,7 @@ import {
   hotel,
   markExpired,
   newPhone,
+  openMenu,
   ownerStorage,
   panel,
   patchDoc,
@@ -57,9 +58,30 @@ const catchWhatsApp = (page: Page) =>
     }) as typeof window.open;
   });
 
+async function red(page: Page, png: Buffer, x: number, y: number) {
+  return page.evaluate(
+    async ({ src, x, y }) => {
+      const image = new Image();
+      image.src = src;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d")!;
+      context.drawImage(image, 0, 0);
+      return context.getImageData(x, y, 1, 1).data[0];
+    },
+    { src: `data:image/png;base64,${png.toString("base64")}`, x, y },
+  );
+}
+
 test.describe("sharing from a bill page", () => {
   const icon = (page: Page) => button(page, "Share receipt");
   const pictureReady = (page: Page) => expect(sheet(page).locator("img")).toBeVisible();
+  const openShare = async (page: Page) => {
+    await openMenu(page);
+    await button(page, /^Share receipt/).click();
+  };
 
   test("a member can share, with numbers changed after the page opened", async ({ page }) => {
     await seed();
@@ -68,7 +90,7 @@ test.describe("sharing from a bill page", () => {
     await sheet(page).getByRole("button", { name: "Just looking" }).click();
     await patchDoc((doc) => ({ ...doc, items: [hotel, dinner] }));
 
-    await icon(page).click();
+    await openShare(page);
     await pictureReady(page);
     await expect(page.locator("[inert]").getByText("DINNER")).toBeAttached();
     const message = await sentToWhatsApp(page);
@@ -82,26 +104,53 @@ test.describe("sharing from a bill page", () => {
     await page.goto(`/bill/${BILL}`);
     await sheet(page).getByRole("button", { name: "Just looking" }).click();
     await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
-    await icon(page).click();
+    await openShare(page);
     await pictureReady(page);
     await expect(page.locator("[inert]").getByText("HOTEL")).toBeAttached();
     await expect(page.locator("[inert]").getByText("Paid? Tap to pick your name")).toHaveCount(0);
   });
 
-  test("the owner can share from the payments page and the receipt page", async ({ browser }) => {
+  test("the owner shares from the menu, and the pop-up shows the code", async ({ browser }) => {
     await seed();
     const owner = await newPhone(browser, ownerStorage());
     await owner.goto(`/bill/${BILL}`);
-    await expect(button(owner, "View receipt")).toBeVisible();
-    await icon(owner).click();
+    await openShare(owner);
     await pictureReady(owner);
     await expect(codeRow(owner)).toHaveText(`Code${BILL}Copy`);
     await owner.keyboard.press("Escape");
     await expect(sheet(owner)).toHaveCount(0);
+  });
 
-    await button(owner, "View receipt").click();
-    await icon(owner).click();
-    await pictureReady(owner);
+  test("a phone that darkens websites keeps the page light and the picture white", async ({ playwright }) => {
+    await seed();
+    const dark = await playwright.chromium.launch({
+      channel: "chrome",
+      args: ["--enable-features=WebContentsForceDark"],
+    });
+    try {
+      const page = await dark.newPage({
+        baseURL: "http://localhost:3457",
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        colorScheme: "dark",
+      });
+      await page.goto(`/bill/${BILL}`);
+      await sheet(page).getByRole("button", { name: "Just looking" }).click();
+      await page.waitForTimeout(300);
+      expect(await red(page, await page.screenshot(), 10, 10)).toBeGreaterThan(200);
+
+      await openShare(page);
+      const picture = sheet(page).locator("img");
+      await expect(picture).toBeVisible();
+      const src = await picture.evaluate(async (img: HTMLImageElement) => {
+        const bytes = new Uint8Array(await (await fetch(img.src)).arrayBuffer());
+        return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
+      });
+      expect(await red(page, Buffer.from(src, "base64"), 70, 200)).toBeGreaterThan(240);
+    } finally {
+      await dark.close();
+    }
   });
 
   test("the owner can share once everyone has paid", async ({ browser }) => {

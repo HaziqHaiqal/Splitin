@@ -129,6 +129,41 @@ export const ChevronDownIcon = (p: IconProps) => (
   </svg>
 );
 
+export const DotsIcon = ({ size = 20, ...p }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
+    <circle cx="5" cy="12" r="1.9" />
+    <circle cx="12" cy="12" r="1.9" />
+    <circle cx="19" cy="12" r="1.9" />
+  </svg>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+export const BankIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
+    <path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18M12 3l9 5H3z" />
+  </svg>
+);
+
+export const LockIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2.1, size: 21, ...p })}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+  </svg>
+);
+
+export const UnlockIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2.1, size: 21, ...p })}>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 7.5-2" />
+  </svg>
+);
+
 export const CloseIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2.4, size: 18, ...p })}>
     <path d="M6 6l12 12M18 6L6 18" />

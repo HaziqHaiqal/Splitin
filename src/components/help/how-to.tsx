@@ -657,17 +657,15 @@ function AddDemo() {
             <span className="truncate">{t.help.demoBills[1].toUpperCase()}</span>
             <span>{plain(5000)}</span>
           </div>
-          <div className="mt-1 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setAdded(false)}
-              className={cn(press, "animate-nudge font-sans text-[11px] font-bold text-[#b5413b]")}
-            >
-              {t.member.deleteMine}
-            </button>
-          </div>
         </Paper>
       </div>
+      <button
+        type="button"
+        onClick={() => setAdded(false)}
+        className={cn(press, "mx-auto mt-3 block animate-nudge text-[12px] font-bold text-owe")}
+      >
+        {t.bill.delete}
+      </button>
     </div>
   );
 }
@@ -680,50 +678,46 @@ function JoinDemo() {
     [t.help.demoBills[1], 18000, 3600],
     [t.help.demoBills[2], 9220, 1844],
   ];
-  const all = picked.every(Boolean);
   const total = bills.reduce((sum, [, , share], i) => sum + (picked[i] ? share : 0), 0);
+  const [before, after = ""] = t.page.yourShare.split("{amount}");
   return (
-    <div className={cn(mini, "flex w-full max-w-[280px] flex-col gap-1 p-3")}>
-      <div className="flex items-baseline justify-between pb-0.5">
-        <span className="text-[12px] font-extrabold text-ink">{t.join.title}</span>
+    <div className={cn(mini, "flex w-full max-w-[290px] flex-col px-3 pt-2.5 pb-1.5")}>
+      <div className="flex items-baseline justify-between gap-2 pb-1 text-[12px] font-semibold text-muted">
+        <span className="font-extrabold text-ink">{t.page.yourBills}</span>
+        <span>
+          {before}
+          <b className="text-[13px] text-ink tabular">{money(total)}</b>
+          {after}
+        </span>
       </div>
       {bills.map(([name, amount, share], i) => (
-        <button
-          key={name}
-          type="button"
-          role="checkbox"
-          aria-checked={picked[i]}
-          onClick={() => setPicked(picked.map((on, j) => (j === i ? !on : on)))}
-          className="flex items-center gap-2.5 text-left"
-        >
-          <span
-            className={cn(
-              "inline-flex size-5 shrink-0 items-center justify-center rounded-md transition-colors",
-              picked[i] ? "bg-green text-white" : "border-2 border-dash",
-            )}
-          >
-            {picked[i] ? <CheckIcon size={12} /> : null}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink">
-            {name} <span className="font-normal text-muted">· {money(amount)}</span>
+        <div key={name} className="flex items-center gap-2.5 border-t border-line py-1.5">
+          <span className="min-w-0 flex-1">
+            <b className="block truncate text-[12.5px] font-bold text-ink">{name}</b>
+            <small className="block text-[11px] font-semibold text-muted">
+              {fmt(t.page.paidBy, { name: NAMES[0], amount: money(amount) })}
+            </small>
           </span>
           <span className={cn("text-[12.5px] font-bold tabular", picked[i] ? "text-ink" : "text-faint")}>
             {money(share)}
           </span>
-        </button>
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={picked[i]}
+            aria-label={fmt(t.page.imIn, { name })}
+            onClick={() => setPicked(picked.map((on, j) => (j === i ? !on : on)))}
+            className={cn(
+              press,
+              "inline-flex size-[22px] shrink-0 items-center justify-center rounded-full transition-colors duration-200",
+              picked[i] ? "bg-green text-white" : "border-2 border-dash",
+              i === 1 && !picked[i] && "animate-nudge",
+            )}
+          >
+            {picked[i] ? <CheckIcon size={12} /> : null}
+          </button>
+        </div>
       ))}
-      <div className="mt-1 flex items-center justify-between border-t border-line pt-1.5">
-        <button
-          type="button"
-          onClick={() => setPicked(picked.map(() => !all))}
-          className={cn(press, "h-6 text-[12px] font-bold text-green-ink", !all && "animate-nudge")}
-        >
-          {all ? t.join.none : t.join.all}
-        </button>
-        <span className="text-[12px] text-muted">
-          {t.join.you} <b className="text-[14px] text-ink tabular">{money(total)}</b>
-        </span>
-      </div>
     </div>
   );
 }
