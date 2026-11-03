@@ -172,7 +172,7 @@ export function BillsHome() {
   );
 
   const start = (
-    <div className="flex flex-col md:max-w-[430px]">
+    <div className="flex flex-col md:mx-auto md:w-full md:max-w-[430px]">
       {desktop ? <HomeIntro title={t.home.startTitle} desc={t.home.startDesc} /> : null}
       <StartForm
         value={starting}

@@ -119,7 +119,9 @@ export function PrinterPage({
       <div className="min-h-dvh bg-bg text-ink">
         <div className="h-16 overflow-hidden bg-bg px-6">{header ?? <Header />}</div>
         <div className="grid grid-cols-[minmax(340px,1fr)_minmax(400px,1fr)]">
-          <main className="flex min-w-0 flex-col gap-5 px-8 pt-7 pb-16">{side}</main>
+          <main className="min-w-0 px-8 pt-7 pb-16">
+            <div className="mx-auto flex w-full max-w-[460px] flex-col gap-5">{side}</div>
+          </main>
           <aside className="sticky top-16 flex h-[calc(100dvh-4rem)] flex-col gap-6 overflow-x-hidden overflow-y-auto bg-tray px-6 pt-6 pb-10 lg:px-10">
             <Printer>{paper}</Printer>
             {below ? <div className="flex justify-center">{below}</div> : null}

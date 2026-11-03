@@ -101,6 +101,11 @@ export function MenuFab({ open, dot, onClick }: { open: boolean; dot: boolean; o
   );
 }
 
+const corner = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M0 0H72A12 12 0 0 1 60 12H41A29 29 0 0 0 12 41V60A12 12 0 0 1 0 72Z'/%3E%3C/svg%3E")`;
+const notch: CSSProperties = {
+  mask: `${corner} right bottom / 72px 72px no-repeat, linear-gradient(#000 0 0) left top / 100% calc(100% - 71px) no-repeat, linear-gradient(#000 0 0) left bottom / calc(100% - 71px) 72px no-repeat`,
+};
+
 export function MenuCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const { t } = useI18n();
   const card = useRef<HTMLDivElement>(null);
@@ -127,17 +132,17 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 animate-fade bg-overlay" />
       <div
         style={keyboard ? { top: keyboard.bottom - 8, bottom: "auto", transform: "translateY(-100%)" } : undefined}
-        className="fixed right-2 bottom-[calc(max(16px,env(safe-area-inset-bottom))-8px)] z-40 w-[calc(100vw-16px)] max-w-[424px]"
+        className="fixed right-[calc(max(16px,env(safe-area-inset-right))-8px)] bottom-[calc(max(16px,env(safe-area-inset-bottom))-8px)] z-40 w-[calc(100vw-16px)] max-w-[424px]"
       >
-        <div className="origin-[calc(100%-31px)_calc(100%-31px)] animate-grow">
+        <div className="origin-[calc(100%-31px)_calc(100%-31px)] animate-grow drop-shadow-[0_14px_34px_var(--pop-shadow)]">
           <div
             ref={card}
             role="dialog"
             aria-modal="true"
             aria-label={t.page.menu}
             tabIndex={-1}
-            style={keyboard ? { maxHeight: keyboard.height - 16 } : undefined}
-            className="max-h-[calc(100dvh-100px)] overflow-y-auto overscroll-contain rounded-[20px] rounded-br-[31px] border border-border bg-card p-2 text-ink shadow-[0_14px_34px_var(--pop-shadow)] outline-none"
+            style={keyboard ? { ...notch, maxHeight: keyboard.height - 16 } : notch}
+            className="max-h-[calc(100dvh-100px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
           >
             {children}
           </div>
