@@ -55,12 +55,14 @@ test("the panel holds the name, History and the buttons, with the receipt beside
   const add = (await button(page, "Add bill").boundingBox())!;
   const share = (await button(page, "Share receipt").boundingBox())!;
   const paper = (await page.getByText("HOTEL").first().boundingBox())!;
+  const side = (await page.locator("main").boundingBox())!;
   expect(history.x).toBeGreaterThan(hi.x + hi.width);
   expect(Math.abs(history.y + history.height / 2 - (hi.y + hi.height / 2))).toBeLessThan(2);
   expect(add.y).toBeGreaterThan(hi.y);
   expect(share.x).toBeGreaterThan(add.x + add.width);
-  expect(share.x + share.width).toBeLessThanOrEqual(420);
-  expect(paper.x).toBeGreaterThan(420);
+  expect(side.width).toBe(640);
+  expect(share.x + share.width).toBeLessThanOrEqual(side.width);
+  expect(paper.x).toBeGreaterThan(side.width);
 
   await button(page, "Add bill").click();
   await expect(page.getByText("Add what you paid")).toBeVisible();
