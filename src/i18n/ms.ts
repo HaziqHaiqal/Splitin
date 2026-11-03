@@ -381,12 +381,12 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 4: Lihat siapa bayar siapa",
-        desc: "Resit menunjukkan jumlah dan siapa bayar siapa, dengan bayaran paling sedikit. Ketik bil untuk ubah. Selepas dikongsi, butang ⋯ kemudian Kiraan menunjukkan cara ia dikira, bil demi bil.",
+        desc: "Resit menunjukkan jumlah dan siapa bayar siapa, dengan bayaran paling sedikit. Ketik bil untuk ubah. Selepas dikongsi, butang ☰ kemudian Kiraan menunjukkan cara ia dikira, bil demi bil.",
         hint: "Ketik resit untuk cetak semula.",
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, butang ⋯ di bawah sebelah kanan ada semua yang lain (pada komputer semuanya di sebelah kiri): Tukar nama, Kunci, yang menghalang orang lain mengubah bil, dan Pautan pemilik, yang membolehkan anda urus bil dari telefon baru. Ketik bil di bawah Bil anda untuk mengubahnya.",
+        desc: "Ketik Kongsi resit untuk hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, butang ☰ di bawah sebelah kanan ada semua yang lain (pada komputer semuanya di sebelah kiri): Tukar nama, Kunci, yang menghalang orang lain mengubah bil, dan Pautan pemilik, yang membolehkan anda urus bil dari telefon baru. Ketik bil di bawah Bil anda untuk mengubahnya.",
         hint: "Cuba: hantar ke WhatsApp.",
       },
       {
@@ -401,7 +401,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 8: Orang lain tambah apa yang mereka bayar",
-        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik butang ⋯, kemudian Tambah bil, dan resit tunjukkannya sebelum disimpan. Mereka hanya boleh ubah atau padam apa yang mereka tambah, pada telefon yang sama: di bawah Bil anda, ketik bil itu.",
+        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik butang ☰, kemudian Tambah bil, dan resit tunjukkannya sebelum disimpan. Mereka hanya boleh ubah atau padam apa yang mereka tambah, pada telefon yang sama: di bawah Bil anda, ketik bil itu.",
         hint: "Cuba: tambah bil, kemudian padam.",
       },
       {

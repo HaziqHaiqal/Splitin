@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { BackIcon, CloseIcon, DotsIcon } from "@/components/icons";
+import { BackIcon, CloseIcon, MenuIcon } from "@/components/icons";
 import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export function MenuFab({ open, dot, onClick }: { open: boolean; dot: boolean; o
         open && "shadow-none",
       )}
     >
-      <DotsIcon size={20} className={cn("[grid-area:1/1]", spring, open && "scale-50 rotate-90 opacity-0")} />
+      <MenuIcon size={20} className={cn("[grid-area:1/1]", spring, open && "scale-50 rotate-90 opacity-0")} />
       <CloseIcon
         size={16}
         strokeWidth={2.6}

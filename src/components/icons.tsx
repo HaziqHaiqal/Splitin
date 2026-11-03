@@ -129,11 +129,9 @@ export const ChevronDownIcon = (p: IconProps) => (
   </svg>
 );
 
-export const DotsIcon = ({ size = 20, ...p }: IconProps) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
-    <circle cx="5" cy="12" r="1.9" />
-    <circle cx="12" cy="12" r="1.9" />
-    <circle cx="19" cy="12" r="1.9" />
+export const MenuIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2.4, ...p })}>
+    <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>
 );
 

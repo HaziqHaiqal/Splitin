@@ -379,12 +379,12 @@ export const en = {
       },
       {
         title: "Step 4: See who pays who",
-        desc: "The receipt shows the total and who pays who, with as few payments as possible. Tap a bill to change it. Once it's shared, the ⋯ button, then Calculation, shows how it's worked out, bill by bill.",
+        desc: "The receipt shows the total and who pays who, with as few payments as possible. Tap a bill to change it. Once it's shared, the ☰ button, then Calculation, shows how it's worked out, bill by bill.",
         hint: "Tap the receipt to print it again.",
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, the ⋯ button at the bottom right holds everything else (on a computer it's all on the left): Rename, Lock, which stops everyone else changing the bills, and Owner link, which lets you manage the bill from a new phone. Tap a bill under Your bills to change it.",
+        desc: "Tap Share receipt to send the picture, link and code to your group. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, the ☰ button at the bottom right holds everything else (on a computer it's all on the left): Rename, Lock, which stops everyone else changing the bills, and Owner link, which lets you manage the bill from a new phone. Tap a bill under Your bills to change it.",
         hint: "Try it: send it to WhatsApp.",
       },
       {
@@ -399,7 +399,7 @@ export const en = {
       },
       {
         title: "Step 8: Others add what they paid",
-        desc: "Did someone else pay for something too? On the link they tap the ⋯ button, then Add bill, and the receipt shows it before they save. They can change or delete only what they added, on that same phone: under Your bills, tap the bill.",
+        desc: "Did someone else pay for something too? On the link they tap the ☰ button, then Add bill, and the receipt shows it before they save. They can change or delete only what they added, on that same phone: under Your bills, tap the bill.",
         hint: "Try it: add a bill, then delete it.",
       },
       {
