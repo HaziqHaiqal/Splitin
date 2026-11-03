@@ -3,7 +3,7 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import type { BillDoc } from "@/lib/bill";
+import type { BillDoc, Payment } from "@/lib/bill";
 import { avatarColor, cn } from "@/lib/utils";
 import { workings, type Change, type Debt } from "@/lib/workings";
 
@@ -204,15 +204,23 @@ function Flow({
   );
 }
 
-export function Workings({ doc, onDone }: { doc: BillDoc; onDone: () => void }) {
+export function Workings({
+  doc,
+  payments,
+  onDone,
+}: {
+  doc: BillDoc;
+  payments: readonly Payment[];
+  onDone: () => void;
+}) {
   const { t, locale, money, plain } = useI18n();
   const h = t.how;
-  const w = useMemo(() => workings(doc), [doc]);
+  const w = useMemo(() => workings(doc, payments), [doc, payments]);
   const [at, setAt] = useState(0);
 
   if (w.steps.length === 0) return <p className="m-0 px-1 text-[14px] text-muted">{h.empty}</p>;
 
-  const total = w.steps.length + 2;
+  const total = w.steps.length + (w.paid.length ? 3 : 2);
   const step = Math.min(at, total - 1);
   const name = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
   const names = (ids: string[]) =>
@@ -220,9 +228,18 @@ export function Workings({ doc, onDone }: { doc: BillDoc; onDone: () => void }) 
   const short = (minor: number) => plain(minor).replace(/\.00$/, "");
 
   const net = Object.fromEntries(w.tally.map((x) => [x.id, x.net]));
-  const seen = new Set(
-    w.steps.flatMap((s) => s.changes.flatMap((c) => (c.kind === "cancel" ? [c.ower, c.owed] : [c.from, c.to]))),
-  );
+  const seen = new Set([
+    ...w.steps.flatMap((s) => s.changes.flatMap((c) => (c.kind === "cancel" ? [c.ower, c.owed] : [c.from, c.to]))),
+    ...w.paid.flatMap((p) => [p.from, p.to]),
+  ]);
+  const verdict = (amount: number) =>
+    amount > 0
+      ? fmt(h.gets, { amount: money(amount) })
+      : amount < 0
+        ? fmt(h.pays, { amount: money(-amount) })
+        : h.square;
+  const tint = (amount: number) =>
+    cn("font-extrabold", amount > 0 ? "text-green" : amount < 0 ? "text-owe" : "text-ink");
   const ids = doc.people.map((p) => p.id).filter((id) => seen.has(id));
   const top = ids.filter((id) => (net[id] ?? 0) >= 0);
   const bottom = ids.filter((id) => (net[id] ?? 0) < 0);
@@ -310,30 +327,56 @@ export function Workings({ doc, onDone }: { doc: BillDoc; onDone: () => void }) 
         {w.tally.map((x) => {
           const [plus, minus] = x.net >= 0 ? [x.gets, x.pays] : [x.pays, x.gets];
           const sum = [plus.map(short).join(" + "), ...minus.map(short)].filter(Boolean).join(" − ");
-          const result =
-            x.net > 0
-              ? fmt(h.gets, { amount: money(x.net) })
-              : x.net < 0
-                ? fmt(h.pays, { amount: money(-x.net) })
-                : h.square;
           return [
             <span key={`${x.id}-n`} className="text-ink">
               {name(x.id)}
             </span>,
             <span key={`${x.id}-s`}>
               {plus.length + minus.length > 1 ? `${sum} = ` : ""}
-              <b className={cn("font-extrabold", x.net > 0 ? "text-green" : x.net < 0 ? "text-owe" : "text-ink")}>
-                {result}
-              </b>
+              <b className={tint(x.net)}>{verdict(x.net)}</b>
             </span>,
           ];
         })}
       </div>
     );
+  } else if (w.paid.length && step === w.steps.length + 1) {
+    title = h.paidTitle;
+    edges = w.paid.map((p) => ({ from: p.from, to: p.to, label: `${short(p.amount)} ✓`, tone: "new" }));
+    badges = w.after;
+    const moved = ids.filter((id) => w.paid.some((p) => p.from === id || p.to === id));
+    text = (
+      <>
+        {w.paid.map((p, i) => (
+          <p key={i} className="m-0">
+            {fmt(h.paidLine, { from: name(p.from), to: name(p.to), amount: money(p.amount) })}
+          </p>
+        ))}
+        <div className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-0.5 pt-1">
+          {moved.map((id) => {
+            const before = net[id] ?? 0;
+            const sign = before >= 0 ? 1 : -1;
+            const sum = [
+              short(Math.abs(before)),
+              ...w.paid.filter((p) => p.from === id).map((p) => `${sign > 0 ? "+" : "−"} ${short(p.amount)}`),
+              ...w.paid.filter((p) => p.to === id).map((p) => `${sign > 0 ? "−" : "+"} ${short(p.amount)}`),
+            ].join(" ");
+            return [
+              <span key={`${id}-n`} className="text-ink">
+                {name(id)}
+              </span>,
+              <span key={`${id}-s`}>
+                {`${sum} = `}
+                <b className={tint(w.after[id] ?? 0)}>{verdict(w.after[id] ?? 0)}</b>
+              </span>,
+            ];
+          })}
+        </div>
+      </>
+    );
   } else {
     title = h.plan;
     edges = w.plan.map((l) => ({ from: l.from, to: l.to, label: short(l.amount), tone: "ink" }));
-    badges = net;
+    badges = w.paid.length ? w.after : net;
     const count = (n: number) => (n === 1 ? h.one : fmt(h.many, { count: n }));
     const takers = [...new Set(w.plan.map((l) => l.to))];
     const lines = takers.map((id) => {
@@ -345,6 +388,7 @@ export function Workings({ doc, onDone }: { doc: BillDoc; onDone: () => void }) 
       });
     });
     if (w.plan.length === 0) lines.push(h.none);
+    else if (w.paid.length) lines.push(fmt(h.left, { payments: count(w.plan.length) }));
     else
       lines.push(
         w.debts.length > w.plan.length

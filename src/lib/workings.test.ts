@@ -65,6 +65,15 @@ describe("workings", () => {
     ]);
   });
 
+  it("counts payments already marked, like the receipt", () => {
+    const early = { id: "p1", from: "hz", to: "hf", amountMinor: 100000, byRole: "member" as const, createdAt: "" };
+    const paid = workings(doc, [early]);
+    expect(paid.paid).toEqual([{ from: "hz", to: "hf", amount: 100000 }]);
+    expect(paid.after).toMatchObject({ hf: 252500, hz: 160000 });
+    expect(paid.plan.reduce((sum, l) => sum + l.amount, 0)).toBe(412500);
+    expect(paid.plan.some((l) => l.from === "hz")).toBe(false);
+  });
+
   it("adds to a debt that already goes the same way", () => {
     const more = workings({ ...doc, items: [item("a", 300, "hf", ["hf", "hz"]), item("b", 500, "hf", ["hf", "hz"])] });
     expect(more.steps[1].changes).toEqual([

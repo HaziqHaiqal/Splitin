@@ -758,7 +758,7 @@ export function BillPage({
         return (
           <div className="flex flex-col gap-2.5">
             <PanelHead title={t.how.title} onClose={close} />
-            <Workings doc={doc} onDone={backTo ? goBack : close} />
+            <Workings doc={doc} payments={bill.payments} onDone={backTo ? goBack : close} />
           </div>
         );
     }

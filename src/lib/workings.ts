@@ -1,4 +1,4 @@
-import { itemShares, summarize, type BillDoc, type Item, type PlanLine } from "./bill";
+import { itemShares, summarize, type BillDoc, type Item, type Payment, type PlanLine } from "./bill";
 
 export type Debt = { from: string; to: string; amount: number };
 
@@ -20,7 +20,14 @@ export type ItemStep = { item: Item; shares: Record<string, number>; changes: Ch
 
 export type Tally = { id: string; gets: number[]; pays: number[]; net: number };
 
-export type Workings = { steps: ItemStep[]; debts: Debt[]; tally: Tally[]; plan: PlanLine[] };
+export type Workings = {
+  steps: ItemStep[];
+  debts: Debt[];
+  tally: Tally[];
+  paid: Debt[];
+  after: Record<string, number>;
+  plan: PlanLine[];
+};
 
 const key = (from: string, to: string) => `${from}>${to}`;
 
@@ -30,7 +37,7 @@ const list = (owed: Map<string, number>): Debt[] =>
     return { from, to, amount };
   });
 
-export function workings(doc: BillDoc): Workings {
+export function workings(doc: BillDoc, payments: readonly Payment[] = []): Workings {
   const owed = new Map<string, number>();
   const steps: ItemStep[] = [];
 
@@ -69,5 +76,7 @@ export function workings(doc: BillDoc): Workings {
     return { id, gets, pays, net: sum(gets) - sum(pays) };
   });
 
-  return { steps, debts, tally, plan: summarize(doc).remaining };
+  const summary = summarize(doc, payments);
+  const paid = summary.done.map((l) => ({ from: l.from, to: l.to, amount: l.amount }));
+  return { steps, debts, tally, paid, after: summary.balances, plan: summary.remaining };
 }
