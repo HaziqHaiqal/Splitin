@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   health:
-    uses: HaziqHaiqal/Agents/.github/workflows/orbis-health.yml@orbis-v1
+    uses: HaziqHaiqal/Agents/.github/workflows/orbis-health.yml@orbis-v2
     with:
       site: https://www.splitin.me
       paths: / /api/health
