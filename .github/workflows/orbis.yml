@@ -36,9 +36,14 @@ jobs:
     uses: HaziqHaiqal/Agents/.github/workflows/orbis.yml@orbis-v1
     with:
       site: https://www.splitin.me
+      ai: anthropic
+      model: claude-sonnet-5-5
+      node-version: "24"
       setup: pnpm install --frozen-lockfile && pnpm exec next typegen
     secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      AI_API_KEY: ${{ secrets.AI_API_KEY }}
+      AI_PLAN_TOKEN: ${{ secrets.AI_PLAN_TOKEN }}
+      ORBIS_APP_CLIENT_ID: ${{ secrets.ORBIS_APP_CLIENT_ID }}
+      ORBIS_APP_PRIVATE_KEY: ${{ secrets.ORBIS_APP_PRIVATE_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
