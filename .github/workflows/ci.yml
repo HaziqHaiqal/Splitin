@@ -46,4 +46,4 @@ jobs:
         with:
           version: 2.122.0
       - run: supabase start
-      - run: pnpm e2e
+      - run: pnpm test:e2e
