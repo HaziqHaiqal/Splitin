@@ -183,6 +183,15 @@ export const UnlockIcon = (p: IconProps) => (
   </svg>
 );
 
+export const SwapIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
+    <path d="m8 3-4 4 4 4" />
+    <path d="M4 7h16" />
+    <path d="m16 21 4-4-4-4" />
+    <path d="M20 17H4" />
+  </svg>
+);
+
 export const CloseIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2.4, size: 18, ...p })}>
     <path d="M6 6l12 12M18 6L6 18" />

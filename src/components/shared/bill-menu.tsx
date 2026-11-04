@@ -6,12 +6,24 @@ import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
-export type Tile = { key: string; icon: ReactNode; label: string; sub?: string; dot?: boolean; onClick: () => void };
+export type Tile = {
+  key: string;
+  icon: ReactNode;
+  label: string;
+  sub?: string;
+  dot?: boolean;
+  next?: boolean;
+  checked?: boolean;
+  onClick: () => void;
+};
 
 export function MenuRow({ tile }: { tile: Tile }) {
+  const toggle = tile.checked !== undefined;
   return (
     <button
       type="button"
+      role={toggle ? "switch" : undefined}
+      aria-checked={toggle ? tile.checked : undefined}
       onClick={tile.onClick}
       className="flex min-h-12 w-full items-center gap-3 px-2.5 py-1.5 text-left text-ink hover:bg-chip"
     >
@@ -28,7 +40,22 @@ export function MenuRow({ tile }: { tile: Tile }) {
         <b className="block text-[14.5px] font-semibold">{tile.label}</b>
         {tile.sub ? <small className="block truncate text-[12px] font-semibold text-muted">{tile.sub}</small> : null}
       </span>
-      {tile.sub ? (
+      {toggle ? (
+        <span
+          aria-hidden
+          className={cn(
+            "relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors",
+            tile.checked ? "bg-green" : "bg-track",
+          )}
+        >
+          <i
+            className={cn(
+              "absolute top-[3px] left-[3px] size-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-transform",
+              tile.checked && "translate-x-[18px]",
+            )}
+          />
+        </span>
+      ) : (tile.next ?? Boolean(tile.sub)) ? (
         <span aria-hidden className="text-[16px] text-faint">
           ›
         </span>
@@ -169,7 +196,9 @@ export function Rise({ children, className }: { children: ReactNode[]; className
 export function MenuHead({ title, sub, onBack }: { title: string; sub?: string; onBack?: () => void }) {
   const { t } = useI18n();
   return (
-    <div className={cn("mb-1 flex items-start gap-1 border-b border-line pt-[7px] pb-[9px]", onBack ? "pr-2.5" : "px-2.5")}>
+    <div
+      className={cn("mb-1 flex items-start gap-1 border-b border-line pt-[7px] pb-[9px]", onBack ? "pr-2.5" : "px-2.5")}
+    >
       {onBack ? (
         <button
           type="button"

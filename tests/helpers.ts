@@ -222,6 +222,28 @@ export async function choose(page: Page, option: string) {
   await page.getByRole("button", { name: option, exact: true }).click();
 }
 
+export async function openMine(page: Page) {
+  await page.addStyleTag({ content: "nextjs-portal { display: none }" });
+  await page
+    .getByRole("button", { name: /^(Hi |Owner$)/ })
+    .first()
+    .click();
+  return sheet(page);
+}
+
+export async function notMe(page: Page) {
+  await (await openMine(page)).getByRole("button", { name: /^Not .+\? Choose your name$/ }).click();
+}
+
+export const lockSwitch = (page: Page) => sheet(page).getByRole("switch", { name: /^Others can add/ });
+
+export async function openPeople(page: Page) {
+  await (await openMine(page)).getByRole("button", { name: /^Bill name and people/ }).click();
+  const form = panel(page);
+  await expect(form.getByText("Bill name and people")).toBeVisible();
+  return form;
+}
+
 export async function openBills(page: Page) {
   await openMenu(page);
   const list = page.getByRole("button", { name: /^Your bills/ });

@@ -2,13 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { publishBill } from "@/app/actions";
-import { NameChip, NotListedChip } from "@/components/name-chip";
+import { PickOrType } from "@/components/name-chip";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { repeatedName } from "@/lib/bill";
 import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
+import { newId } from "@/lib/utils";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 
 export function useShareReceipt(draft: Draft | null | undefined) {
@@ -44,12 +45,22 @@ export function useShareReceipt(draft: Draft | null | undefined) {
     else publish(draft);
   };
 
-  const pickOwner = (ownerId: string | null) => {
+  const pickOwner = (ownerId: string | null, people = draft?.doc.people ?? []) => {
     if (!draft) return;
-    const next = { ...draft, doc: { ...draft.doc, ownerId } };
+    const next = { ...draft, doc: { ...draft.doc, people, ownerId } };
     saveDraft(next);
     setAsking(false);
     publish(next);
+  };
+
+  const typeOwner = (name: string) => {
+    if (!draft) return;
+    const { people } = draft.doc;
+    const same = people.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (same) return pickOwner(same.id);
+    const id = newId(6);
+    const color = people.reduce((max, p) => Math.max(max, p.color + 1), 0) % 100;
+    pickOwner(id, [...people, { id, name, color }]);
   };
 
   const sheet = draft ? (
@@ -57,12 +68,13 @@ export function useShareReceipt(draft: Draft | null | undefined) {
       <ShareSheet open={open} onOpenChange={setOpen} billId={draft.billId} doc={draft.doc} receiptRef={receiptRef} />
       <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
         <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
-        <div className="flex flex-wrap gap-2">
-          {draft.doc.people.map((p) => (
-            <NameChip key={p.id} name={p.name} color={p.color} onClick={() => pickOwner(p.id)} />
-          ))}
-          <NotListedChip onClick={() => pickOwner(null)} />
-        </div>
+        <PickOrType
+          people={draft.doc.people}
+          button={t.share.go}
+          pending={pending}
+          onPick={pickOwner}
+          onName={typeOwner}
+        />
       </Sheet>
     </>
   ) : null;

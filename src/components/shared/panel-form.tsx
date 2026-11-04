@@ -11,7 +11,7 @@ export const fieldClass =
 
 export const PanelBack = createContext<(() => void) | null>(null);
 
-export function PanelHead({ title, onClose }: { title: string; onClose?: () => void }) {
+export function PanelHead({ title, onClose }: { title: ReactNode; onClose?: () => void }) {
   const { t } = useI18n();
   const desktop = useIsDesktop();
   const back = useContext(PanelBack);
@@ -33,7 +33,7 @@ export function PanelHead({ title, onClose }: { title: string; onClose?: () => v
             <BackIcon size={17} strokeWidth={2.4} />
           </button>
         ) : null}
-        <span className="text-[16px] font-extrabold tracking-[-0.01em]">{title}</span>
+        <span className="min-w-0 text-[16px] font-extrabold tracking-[-0.01em]">{title}</span>
       </span>
       {onClose && !back ? (
         <button

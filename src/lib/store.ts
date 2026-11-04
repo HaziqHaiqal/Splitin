@@ -88,7 +88,7 @@ const ownerKey = (billId: string) => `splitin:owner:${billId}`;
 
 export const useOwnerToken = (billId: string) => useStored(ownerKey(billId));
 export const getOwnerToken = (billId: string) => read(ownerKey(billId));
-export const setOwnerToken = (billId: string, token: string) => write(ownerKey(billId), token);
+export const setOwnerToken = (billId: string, token: string | null) => write(ownerKey(billId), token);
 
 const meKey = (billId: string) => `splitin:me:${billId}`;
 

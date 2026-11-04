@@ -5,17 +5,17 @@ import type { BillDoc } from "../src/lib/bill";
 import {
   BILL,
   button,
-  choose,
-  createBill,
   closePhones,
+  createBill,
   database,
   getDb,
   hotel,
+  lockSwitch,
   must,
-  menuCard,
   newPhone,
+  openBill,
   openBillDetail,
-  openMenu,
+  openMine,
   ownerStorage,
   panel,
   paymentRow,
@@ -23,9 +23,8 @@ import {
   seed,
   serverDoc,
   sheet,
-  submit,
   startAdding,
-  openBill,
+  submit,
   text,
   trip,
   wipe,
@@ -306,31 +305,27 @@ test.describe("the browser key", () => {
 
     await owner.evaluate(() => localStorage.clear());
     await owner.goto(`/bill/${id}`);
-    await expect(text(owner, "Hi Haziq")).toBeVisible();
-    await openMenu(owner);
-    await expect(menuCard(owner).getByRole("button", { name: "Lock", exact: true })).toBeVisible();
-    await expect(menuCard(owner).getByRole("button", { name: "Owner link" })).toHaveCount(0);
-
-    await menuCard(owner).getByRole("button", { name: "Lock", exact: true }).click();
+    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    const tools = await openMine(owner);
+    await expect(tools.getByRole("button", { name: /^Copy owner link/ })).toHaveCount(0);
+    await lockSwitch(owner).click();
     await expect.poll(async () => (await getDb()).bills.find((b) => b.id === id)?.doc.locked).toBe(true);
 
-    await choose(owner, "Rename");
-    await panel(owner).getByRole("button", { name: "Remove people or change more ›" }).click();
-    await expect(owner).toHaveURL(/\/$/);
-    await owner.evaluate(() => {
-      const draft = JSON.parse(localStorage.getItem("splitin:draft:v2")!);
-      draft.doc.title = "Renamed";
-      localStorage.setItem("splitin:draft:v2", JSON.stringify(draft));
-      window.dispatchEvent(new Event("storage"));
-    });
+    await tools.getByRole("button", { name: /^Bill name and people/ }).click();
+    const form = panel(owner);
+    await form.locator("input[maxlength='60']").fill("Renamed");
+    await form.locator("button[type=submit]").click();
     await expect.poll(async () => (await getDb()).bills.find((b) => b.id === id)?.doc.title).toBe("Renamed");
+
+    await (await openMine(owner)).getByRole("button", { name: /^Make a new owner link/ }).click();
+    await expect(text(owner, "New owner link made")).toBeVisible();
+    await expect.poll(() => owner.evaluate((bill) => localStorage.getItem(`splitin:owner:${bill}`), id)).not.toBeNull();
   });
 
   test("a phone holding the owner link can still copy it", async ({ browser }) => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.goto(`/bill/${BILL}`);
-    await expect(text(owner, "Hi Haziq")).toBeVisible();
-    await openMenu(owner);
-    await expect(menuCard(owner).getByRole("button", { name: "Owner link" })).toBeVisible();
+    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect((await openMine(owner)).getByRole("button", { name: /^Copy owner link/ })).toBeVisible();
   });
 });

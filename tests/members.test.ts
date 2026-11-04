@@ -17,6 +17,7 @@ import {
   joinAs,
   menuCard,
   newPhone,
+  notMe,
   OLD,
   openAs,
   openBill,
@@ -25,6 +26,7 @@ import {
   openFresh,
   openHistory,
   openMenu,
+  openMine,
   ownerStorage,
   panel,
   patchDoc,
@@ -130,7 +132,7 @@ test.describe("who are you", () => {
   test("leaving your name does not bring the question back", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
-    await button(phone, "Hi Najmi").click();
+    await notMe(phone);
     await sheet(phone).getByRole("button", { name: "Just looking" }).click();
     await expect(button(phone, "Paid? Tap to pick your name")).toBeVisible();
     await phone.reload();
@@ -167,14 +169,14 @@ test.describe("who are you", () => {
 
   test("the name can be changed afterwards", async ({ page }) => {
     await openAs(page, "Najmi");
-    await button(page, "Hi Najmi").click();
+    await notMe(page);
     await pickMe(page, "Afiq");
     await expect(button(page, "Hi Afiq")).toBeVisible();
   });
 
   test("tapping your name hides it from the list and can leave it", async ({ page }) => {
     await openAs(page, "Najmi");
-    await button(page, "Hi Najmi").click();
+    await notMe(page);
     const list = sheet(page);
     await expect(list.getByRole("button", { name: "Afiq" })).toBeVisible();
     await expect(list.getByRole("button", { name: "Najmi" })).toHaveCount(0);
@@ -206,7 +208,7 @@ test.describe("who are you", () => {
     await openMenu(page);
     const card = menuCard(page);
     await expect(card.getByRole("button", { name: /^Share receipt/ })).toBeVisible();
-    for (const label of ["Add bill", "History", "Bank", "Edit name"])
+    for (const label of ["Add bill", "History", "Calculation"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
     await expect(card.getByRole("button", { name: /^Your bills/ })).toContainText("In 1 of 1 · you pay RM 100.00");
     await expect(button(page, "Close menu")).toBeVisible();
@@ -283,6 +285,46 @@ test.describe("adding your own name", () => {
     await addName(page, "najmi");
     await expect(text(page, "najmi is already in the list")).toBeVisible();
     expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("the owner's name can't be typed on another phone", async ({ page }) => {
+    await openBill(page);
+    await choose(page, "Add bill");
+    await addName(page, "haziq");
+    await expect(text(page, "That's the owner's name. Open your owner link on this phone.")).toBeVisible();
+    expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("anyone on a name can fix it, even one the owner typed", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await (await openMine(page)).getByRole("button", { name: "Edit name" }).click();
+    const box = sheet(page).getByLabel("Your name");
+    await box.fill("Najmi R");
+    await sheet(page).getByRole("button", { name: "Save" }).click();
+    await expect(text(page, "Your name is now Najmi R")).toBeVisible();
+    await settled(names, ["Haziq", "Najmi R", "Afiq"]);
+    await expect(button(page, "Hi Najmi R")).toBeVisible();
+
+    await button(page, "Undo").click();
+    await settled(names, ["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("a renamed name can't take another name on the bill", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await (await openMine(page)).getByRole("button", { name: "Edit name" }).click();
+    await sheet(page).getByLabel("Your name").fill("afiq");
+    await sheet(page).getByRole("button", { name: "Save" }).click();
+    await expect(text(page, "afiq is already in the list")).toBeVisible();
+    expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("a phone whose name was removed is asked again", async ({ browser }) => {
+    const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "gone", [`splitin:asked:${BILL}`]: "1" });
+    await openFresh(phone);
+    await expect(phone.getByRole("heading", { name: "Who are you?" })).toBeVisible();
+    await expect(button(phone, /^Hi /)).toHaveCount(0);
+    await pickMe(phone, "Najmi");
+    await expect(button(phone, "Hi Najmi")).toBeVisible();
   });
 
   test("two people adding the same name at once: only one gets it", async ({ browser }) => {
@@ -818,7 +860,7 @@ test.describe("seeing a change before saving", () => {
     await expect(text(page, "RM 110.00")).toBeVisible();
     expect(await itemNames()).toEqual(["Hotel"]);
 
-    await form.getByRole("button", { name: "Cancel" }).click();
+    await form.getByRole("button", { name: "Back" }).click();
     await expect(text(page, "RM 300.00")).toBeVisible();
     expect(await itemNames()).toEqual(["Hotel"]);
   });
@@ -845,9 +887,7 @@ test.describe("seeing a change before saving", () => {
     const form = await startAdding(page, "Snacks", "3000", "Najmi");
     await expect(menu).toHaveCount(0);
     await expect(button(page, /^Share receipt/)).toHaveCount(0);
-    await form.getByRole("button", { name: "Cancel" }).click();
-    await expect(menu).toBeVisible();
-    await menu.click();
+    await form.getByRole("button", { name: "Back" }).click();
     await expect(menuCard(page).getByRole("button", { name: /^Share receipt/ })).toBeVisible();
   });
 });
@@ -1040,7 +1080,7 @@ test.describe("paying", () => {
   test("changing your name changes which payments can be tapped", async ({ page }) => {
     await openAs(page, "Najmi");
     await expect(payLine(page, "NAJMI", "HAZIQ")).toBeVisible();
-    await button(page, "Hi Najmi").click();
+    await notMe(page);
     await pickMe(page, "Afiq");
     await expect(payLine(page, "AFIQ", "HAZIQ")).toBeVisible();
     await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
@@ -1122,10 +1162,10 @@ test.describe("paying", () => {
       await expect(stamp(other)).toBeVisible();
       await expect(payLine(other, "NAJMI", "HAZIQ")).toHaveCount(0);
 
-      await button(page, "Hi Najmi").click();
+      await notMe(page);
       await pickMe(page, "Afiq");
       await expect(payLine(page, "NAJMI", "HAZIQ")).toHaveCount(0);
-      await button(page, "Hi Afiq").click();
+      await notMe(page);
       await pickMe(page, "Najmi");
       await expect(payLine(page, "NAJMI", "HAZIQ")).toBeVisible();
     });
@@ -1280,6 +1320,11 @@ test.describe("locked and limited", () => {
     await pickMe(page, "Najmi");
     await expect(text(page, "Haziq locked this bill. You can still mark payments.")).toBeVisible();
     await expect(button(page, "Add bill")).toHaveCount(0);
+
+    const mine = await openMine(page);
+    await mine.getByRole("button", { name: "Edit name" }).click();
+    await expect(sheet(page).getByLabel("Your name")).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     await payLine(page, "NAJMI", "HAZIQ").click();
     await sheet(page).getByRole("button", { name: "Mark paid" }).click();

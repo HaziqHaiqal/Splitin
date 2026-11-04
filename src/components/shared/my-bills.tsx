@@ -212,7 +212,11 @@ export function BillDetail({
             </button>
           </form>
           {own ? (
-            <MenuItem icon={<ResetIcon size={16} />} label={t.page.splitEqually} onClick={() => onPart(item, undefined)} />
+            <MenuItem
+              icon={<ResetIcon size={16} />}
+              label={t.page.splitEqually}
+              onClick={() => onPart(item, undefined)}
+            />
           ) : null}
           <MenuItem
             icon={<CloseIcon size={16} />}
@@ -241,18 +245,15 @@ export function BillDetail({
 
 export function NameBody({
   name,
-  allowed,
   pending,
   onSave,
 }: {
   name: string;
-  allowed: boolean;
   pending: boolean;
   onSave: (name: string) => void;
 }) {
   const { t } = useI18n();
   const [value, setValue] = useState(name);
-  if (!allowed) return null;
   return (
     <form
       onSubmit={(e) => {

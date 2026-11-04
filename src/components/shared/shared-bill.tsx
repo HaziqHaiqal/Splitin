@@ -6,7 +6,7 @@ import { useToast } from "@/components/toast";
 import { useI18n } from "@/i18n/client";
 import { summarize, type BillDoc, type Mine, type Payment } from "@/lib/bill";
 import type { BillEvent } from "@/lib/history";
-import { setOwnerToken, useHydrated, useOwnerToken } from "@/lib/store";
+import { getOwnerToken, setOwnerToken, useHydrated, useOwnerToken } from "@/lib/store";
 import { useBillLive } from "@/hooks/use-bill-live";
 import { BillPage } from "./bill-page";
 import { Settled } from "./settled";
@@ -36,9 +36,19 @@ export function SharedBill({ bill }: { bill: SharedBillData }) {
     window.history.replaceState(null, "", window.location.pathname);
     void checkOwnerLink(bill.id, token).then((result) => {
       if (result.ok) setOwnerToken(bill.id, token);
-      toast({ message: result.ok ? t.track.ownerRestored : t.common.generic });
+      toast({ message: result.ok ? t.track.ownerRestored : t.track.ownerLinkOld });
     });
   }, [bill.id, t, toast]);
+
+  useEffect(() => {
+    const token = getOwnerToken(bill.id);
+    if (!token || ownerLink || bill.mine.owner) return;
+    void checkOwnerLink(bill.id, token).then((result) => {
+      if (result.ok || result.error !== "forbidden") return;
+      setOwnerToken(bill.id, null);
+      toast({ message: t.track.ownerLinkOld });
+    });
+  }, [bill.id, bill.mine.owner, ownerLink, t, toast]);
 
   if (!hydrated) return <div className="min-h-dvh bg-paper-bg" />;
 

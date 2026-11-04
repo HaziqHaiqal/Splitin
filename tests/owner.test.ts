@@ -2,7 +2,6 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import {
   BILL,
   button,
-  choose,
   clearPayments,
   closePhones,
   dinner,
@@ -10,15 +9,21 @@ import {
   getDb,
   hotel,
   joinAs,
+  joinButton,
+  lockSwitch,
   menuCard,
   newPhone,
+  notMe,
   OLD,
   openAs,
   openBill,
   openBillDetail,
   openBills,
+  openFresh,
   openHistory,
   openMenu,
+  openMine,
+  openPeople,
   ownerStorage,
   panel,
   patchDoc,
@@ -34,7 +39,6 @@ import {
   startAdding,
   submit,
   text,
-  joinButton,
   TOKEN,
   trip,
   wipe,
@@ -148,16 +152,21 @@ test.describe("sharing", () => {
     await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
   });
 
-  test("the owner can say they are not on the list", async ({ browser }) => {
+  test("an owner not on the list types their name and is in no bills", async ({ browser }) => {
     const { ownerId, ...doc } = trip;
     void ownerId;
     const owner = await newPhone(browser, openDraft(doc));
     await owner.goto("/");
     await button(owner, "Share receipt").click();
-    await sheet(owner).getByRole("button", { name: "Not on the list" }).click();
+    const ask = sheet(owner);
+    await ask.getByRole("button", { name: "Not on the list" }).click();
+    await ask.getByPlaceholder("Name").fill("Zara");
+    await ask.getByRole("button", { name: "Share", exact: true }).click();
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
-    expect(published.doc.ownerId).toBeNull();
+    const zara = published.doc.people.find((p) => p.name === "Zara")!;
+    expect(published.doc.ownerId).toBe(zara.id);
+    expect(published.doc.items.some((i) => i.participants.includes(zara.id))).toBe(false);
   });
 });
 
@@ -252,17 +261,54 @@ test.describe("owner screen", () => {
   const paidLine = (page: Page, from: string) =>
     page.getByRole("button", { name: new RegExp(`${from} PAYS HAZIQ .* PAID`) });
 
-  test("greets the owner, with the owner's buttons in the menu", async ({ browser }) => {
+  test("greets the owner: owner tools under Hi Haziq, the rest in the menu", async ({ browser }) => {
     const owner = await tracking(browser);
-    await expect(text(owner, "Hi Haziq")).toBeVisible();
-    await expect(button(owner, "Hi Haziq")).toHaveCount(0);
     await expect(owner.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
     await openMenu(owner);
     const card = menuCard(owner);
-    for (const label of ["Add bill", "History", "Bank", "Rename", "Lock", "Owner link"])
+    for (const label of ["Add bill", "History", "Calculation"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: "Edit name" })).toHaveCount(0);
+    for (const label of ["Bank", "Rename", "Lock", "Owner link", "Edit name"])
+      await expect(card.getByRole("button", { name: label, exact: true })).toHaveCount(0);
     await expect(card.getByRole("button", { name: /^Your bills/ })).toBeVisible();
+    await owner.keyboard.press("Escape");
+
+    const tools = await openMine(owner);
+    for (const label of [/^Bank details/, /^Bill name and people/, /^Copy owner link/, /^Make a new owner link/])
+      await expect(tools.getByRole("button", { name: label })).toBeVisible();
+    await expect(lockSwitch(owner)).toHaveAttribute("aria-checked", "true");
+    await expect(tools.getByRole("button", { name: "Edit name" })).toHaveCount(0);
+  });
+
+  test("an owner of a bill with no owner name is asked once", async ({ browser }) => {
+    const doc = { ...trip, ownerId: null };
+    await seed(doc);
+    const owner = await newPhone(browser, ownerStorage(doc));
+    await openFresh(owner);
+    const ask = sheet(owner);
+    await expect(ask.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
+    await ask.getByRole("button", { name: "Haziq" }).click();
+    await settled(async () => (await serverDoc()).ownerId, "h");
+    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await openFresh(owner);
+    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect(owner.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
+  });
+
+  test("an owner with no owner name can type it", async ({ browser }) => {
+    const doc = { ...trip, ownerId: null };
+    await seed(doc);
+    const owner = await newPhone(browser, ownerStorage(doc));
+    await openFresh(owner);
+    const ask = sheet(owner);
+    await ask.getByRole("button", { name: "Not on the list" }).click();
+    await ask.getByPlaceholder("Name").fill("Zara");
+    await ask.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(button(owner, "Hi Zara")).toBeVisible();
+    const saved = await serverDoc();
+    const zara = saved.people.find((p) => p.name === "Zara")!;
+    expect(saved.ownerId).toBe(zara.id);
+    expect(saved.items.some((i) => i.participants.includes(zara.id))).toBe(false);
   });
 
   test("a bill whose owner is not on the list has no greeting", async ({ browser }) => {
@@ -346,13 +392,15 @@ test.describe("owner screen", () => {
 
   test("locks and unlocks the bill", async ({ browser, page }) => {
     const owner = await tracking(browser);
-    await choose(owner, "Lock");
+    await openMine(owner);
+    await lockSwitch(owner).click();
     await expect(text(owner, "Locked. Everyone else can only mark payments now.")).toBeVisible();
+    await expect(lockSwitch(owner)).toHaveAttribute("aria-checked", "false");
     await settled(async () => (await serverDoc()).locked, true);
     await openBill(page);
     await expect(text(page, "Haziq locked this bill")).toBeVisible();
 
-    await choose(owner, "Unlock");
+    await lockSwitch(owner).click();
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(page);
     await expect(button(page, "Who are you?")).toBeVisible();
@@ -360,10 +408,9 @@ test.describe("owner screen", () => {
     expect(await eventKinds()).toEqual(expect.arrayContaining(["locked", "unlocked"]));
   });
 
-  test("Rename changes the bill name and the names, with Undo", async ({ browser }) => {
+  test("Bill name and people changes the bill name and the names, with Undo", async ({ browser }) => {
     const owner = await tracking(browser);
-    await choose(owner, "Rename");
-    const form = panel(owner);
+    const form = await openPeople(owner);
     await form.locator("input[maxlength='60']").fill("Langkawi");
     await form.getByLabel("Name: Najmi").fill("Najmi R");
     await submit(form);
@@ -379,10 +426,46 @@ test.describe("owner screen", () => {
     await settled(names, ["Trip", "Haziq", "Najmi", "Afiq"]);
   });
 
-  test("Rename refuses an empty name", async ({ browser }) => {
+  test("Bill name and people adds and removes people, with Undo", async ({ browser }) => {
     const owner = await tracking(browser);
-    await choose(owner, "Rename");
-    const form = panel(owner);
+    const form = await openPeople(owner);
+    await expect(form.getByRole("button", { name: "Remove Haziq" })).toHaveCount(0);
+    await form.getByRole("button", { name: "Remove Najmi" }).click();
+    await expect(form.getByText("People · 2")).toBeVisible();
+    await form.getByRole("button", { name: "Undo" }).click();
+    await expect(form.getByText("People · 3")).toBeVisible();
+    await form.getByRole("button", { name: "Remove Najmi" }).click();
+    await form.getByRole("button", { name: "Add person" }).click();
+    await form.getByPlaceholder("Name").fill("Zara");
+    await submit(form);
+    await expect(text(owner, "Names saved")).toBeVisible();
+    const names = async () => (await serverDoc()).people.map((p) => p.name);
+    await settled(names, ["Haziq", "Afiq", "Zara"]);
+    expect((await serverItem("hotel"))?.participants).toEqual(["h", "a"]);
+
+    await button(owner, "Undo").click();
+    await settled(names, ["Haziq", "Najmi", "Afiq"]);
+    expect((await serverItem("hotel"))?.participants).toEqual(["h", "n", "a"]);
+  });
+
+  test("Bill name and people won't remove someone who paid a bill or has a payment", async ({ browser }) => {
+    const doc = { ...trip, items: [hotel, dinner] };
+    await seed(doc, { payments: [paymentRow("n", "h", 10000)] });
+    const owner = await tracking(browser, doc);
+    const form = await openPeople(owner);
+    await form.getByRole("button", { name: "Remove Afiq" }).click();
+    await expect(text(owner, "Afiq paid a bill. Change who paid first.")).toBeVisible();
+    await form.getByRole("button", { name: "Remove Najmi" }).click();
+    await expect(text(owner, "Najmi has a payment marked. Mark it unpaid first.")).toBeVisible();
+    await expect(form.getByRole("button", { name: "Undo" })).toHaveCount(0);
+  });
+
+  test("Bill name and people refuses an empty or repeated name", async ({ browser }) => {
+    const owner = await tracking(browser);
+    const form = await openPeople(owner);
+    await form.getByLabel("Name: Afiq").fill("najmi");
+    await submit(form);
+    await expect(text(owner, "najmi is already in the list")).toBeVisible();
     await form.getByLabel("Name: Afiq").fill(" ");
     await submit(form);
     await expect(text(owner, "Names can't be empty.")).toBeVisible();
@@ -392,9 +475,10 @@ test.describe("owner screen", () => {
   test("a dot on the menu shows members' changes only, until History is opened", async ({ browser, page }) => {
     const owner = await tracking(browser);
     const dot = owner.locator("[data-menu-button] > i");
-    await choose(owner, "Lock");
+    await openMine(owner);
+    await lockSwitch(owner).click();
     await settled(async () => (await serverDoc()).locked, true);
-    await choose(owner, "Unlock");
+    await lockSwitch(owner).click();
     await settled(async () => (await serverDoc()).locked, undefined);
     await openBill(owner);
     await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
@@ -422,18 +506,13 @@ test.describe("owner screen", () => {
     await expect(button(owner, /^History/)).toBeVisible();
     await button(owner, "Not paid after all? Change it").click();
     await expect(text(owner, "Everyone's paid")).toBeVisible();
-    await openMenu(owner);
-    for (const label of ["Lock", "Owner link"])
-      await expect(menuCard(owner).getByRole("button", { name: label, exact: true })).toBeVisible();
+    await openMine(owner);
+    await expect(lockSwitch(owner)).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: /^Copy owner link/ })).toBeVisible();
   });
 });
 
 test.describe("owner link and editing", () => {
-  const changeMore = async (phone: Page) => {
-    await choose(phone, "Rename");
-    await panel(phone).getByRole("button", { name: "Remove people or change more ›" }).click();
-  };
-
   test("a new phone becomes the owner through the private link", async ({ browser }) => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=${TOKEN}`);
@@ -446,7 +525,7 @@ test.describe("owner link and editing", () => {
   test("a wrong token gives nothing", async ({ browser }) => {
     const phone = await newPhone(browser);
     await phone.goto(`/bill/${BILL}#owner=wrongwrongwrongwrongwrong`);
-    await expect(text(phone, "Something went wrong")).toBeVisible();
+    await expect(text(phone, "This owner link no longer works")).toBeVisible();
     await expect(button(phone, "Who are you?")).toBeVisible();
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
     expect(await phone.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
@@ -456,37 +535,30 @@ test.describe("owner link and editing", () => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await openBill(owner);
-    await choose(owner, "Owner link");
+    await (await openMine(owner)).getByRole("button", { name: /^Copy owner link/ }).click();
     await expect(text(owner, "Owner link copied")).toBeVisible();
     expect(await owner.evaluate(() => navigator.clipboard.readText())).toContain(`#owner=${TOKEN}`);
   });
 
-  test("Rename › change more brings the shared bill back to a phone that lost it", async ({ browser }) => {
-    const phone = await newPhone(browser, { [`splitin:owner:${BILL}`]: TOKEN });
-    await openBill(phone);
-    await changeMore(phone);
-    await expect(phone).toHaveURL(/\/$/);
-    await expect(text(phone, "HOTEL")).toBeVisible();
-    const draft = await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!));
-    expect(draft.billId).toBe(BILL);
-  });
+  test("a new owner link stops the old one", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    await openBill(owner);
+    await (await openMine(owner)).getByRole("button", { name: /^Make a new owner link/ }).click();
+    await expect(text(owner, "New owner link made")).toBeVisible();
+    const stored = () => owner.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL);
+    await expect.poll(stored).not.toBe(TOKEN);
+    const fresh = await stored();
 
-  test("Rename › change more warns before replacing a split not yet shared", async ({ browser }) => {
-    const other = { ...trip, title: "Unshared", items: [] };
-    const phone = await newPhone(browser, {
-      [`splitin:owner:${BILL}`]: TOKEN,
-      "splitin:draft:v2": { doc: other, billId: null, seenAt: "" },
-    });
-    await openBill(phone);
-    await changeMore(phone);
-    const confirm = sheet(phone);
-    await expect(confirm.getByRole("heading", { name: "Replace your unshared split?" })).toBeVisible();
-    await confirm.getByRole("button", { name: "Cancel" }).click();
-    expect(await phone.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2")!).billId)).toBeNull();
+    const old = await newPhone(browser, { [`splitin:owner:${BILL}`]: TOKEN });
+    await openBill(old);
+    await expect(text(old, "This owner link no longer works")).toBeVisible();
+    await expect(old.getByText("Owner", { exact: true })).toHaveCount(0);
+    expect(await old.evaluate((id) => localStorage.getItem(`splitin:owner:${id}`), BILL)).toBeNull();
 
-    await panel(phone).getByRole("button", { name: "Remove people or change more ›" }).click();
-    await sheet(phone).getByRole("button", { name: "Replace it" }).click();
-    await expect(text(phone, "HOTEL")).toBeVisible();
+    const next = await newPhone(browser);
+    await next.goto(`/bill/${BILL}#owner=${fresh}`);
+    await expect(text(next, "You can edit this bill on this device now")).toBeVisible();
+    await expect(next.getByText("Owner", { exact: true })).toBeVisible();
   });
 });
 
@@ -577,7 +649,8 @@ test.describe("History", () => {
     const owner = await newPhone(browser, ownerStorage());
     await openBill(owner);
     await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
-    await choose(owner, "Lock");
+    await openMine(owner);
+    await lockSwitch(owner).click();
     await settled(async () => (await serverDoc()).locked, true);
     await expect.poll(async () => (await getDb()).bill_events.length).toBe(2);
 
@@ -699,7 +772,7 @@ test.describe("History", () => {
     await panel(page).getByRole("button", { name: "Delete bill · you can undo" }).click();
     await settled(async () => (await serverDoc()).items.length, 2);
 
-    await button(page, "Hi Najmi").click();
+    await notMe(page);
     await sheet(page).getByRole("button", { name: "Not on the list" }).click();
     const name = panel(page);
     await name.getByPlaceholder("Name").fill("Aiman");
