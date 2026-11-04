@@ -143,7 +143,8 @@ test.describe("sharing", () => {
     const published = db.bills.find((b) => b.id !== BILL)!;
     expect(published.doc.ownerId).toBe("n");
     await expect(owner).toHaveURL(new RegExp(`/bill/${published.id}$`));
-    await expect(button(owner, "Hi Najmi")).toBeVisible();
+    await owner.keyboard.press("Escape");
+    await expect(text(owner, "Hi Najmi")).toBeVisible();
 
     const member = await newPhone(browser);
     await member.goto(`/bill/${published.id}`);
