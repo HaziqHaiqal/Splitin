@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { publishBill } from "@/app/actions";
 import { PickOrType } from "@/components/name-chip";
 import { Sheet } from "@/components/sheet";
@@ -8,23 +9,18 @@ import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { repeatedName } from "@/lib/bill";
-import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
+import { saveDraft, setOwnerToken, setShareNext, type Draft } from "@/lib/store";
 import { newId } from "@/lib/utils";
-import { ShareSheet } from "@/components/receipt/share-sheet";
 
 export function useShareReceipt(draft: Draft | null | undefined) {
   const { t } = useI18n();
   const toast = useToast();
-  const receiptRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const router = useRouter();
   const [asking, setAsking] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [pending, start] = useTransition();
 
   const publish = (current: Draft) => {
-    if (current.billId) {
-      setOpen(true);
-      return;
-    }
     start(async () => {
       const result = await publishBill(current.doc);
       if (!result.ok) {
@@ -34,14 +30,16 @@ export function useShareReceipt(draft: Draft | null | undefined) {
         return;
       }
       setOwnerToken(result.data.id, result.data.ownerToken);
+      setLeaving(true);
       saveDraft({ ...current, billId: result.data.id });
-      setOpen(true);
+      setShareNext(result.data.id);
+      router.push(`/bill/${result.data.id}`);
     });
   };
 
   const share = () => {
-    if (!draft) return;
-    if (!draft.billId && draft.doc.ownerId === undefined) setAsking(true);
+    if (!draft || draft.billId) return;
+    if (draft.doc.ownerId === undefined) setAsking(true);
     else publish(draft);
   };
 
@@ -64,20 +62,17 @@ export function useShareReceipt(draft: Draft | null | undefined) {
   };
 
   const sheet = draft ? (
-    <>
-      <ShareSheet open={open} onOpenChange={setOpen} billId={draft.billId} doc={draft.doc} receiptRef={receiptRef} />
-      <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
-        <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
-        <PickOrType
-          people={draft.doc.people}
-          button={t.share.go}
-          pending={pending}
-          onPick={pickOwner}
-          onName={typeOwner}
-        />
-      </Sheet>
-    </>
+    <Sheet open={asking} onOpenChange={setAsking} title={t.share.whichTitle}>
+      <p className="m-0 text-[14px] text-muted">{t.share.whichDesc}</p>
+      <PickOrType
+        people={draft.doc.people}
+        button={t.share.go}
+        pending={pending}
+        onPick={pickOwner}
+        onName={typeOwner}
+      />
+    </Sheet>
   ) : null;
 
-  return { share, pending, receiptRef, sheet };
+  return { share, pending: pending || leaving, leaving, sheet };
 }

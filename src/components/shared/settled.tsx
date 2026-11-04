@@ -7,7 +7,6 @@ import { Receipt } from "@/components/receipt/receipt";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillSummary } from "@/lib/bill";
-import { saveDraft } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { OwnerGreeting } from "./greeting";
 import { HistoryButton } from "./history";
@@ -27,10 +26,7 @@ export function Settled({
   const router = useRouter();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const newSplit = () => {
-    saveDraft(null);
-    router.push("/");
-  };
+  const newSplit = () => router.push("/");
 
   const words = (
     <>

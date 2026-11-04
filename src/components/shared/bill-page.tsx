@@ -61,7 +61,7 @@ import {
   type PreviewItem,
 } from "@/lib/bill";
 import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
-import { getAsked, getDraft, getMe, saveDraft, setAsked, setMe, setOwnerToken, useMe } from "@/lib/store";
+import { getAsked, getMe, setAsked, setMe, setOwnerToken, useMe } from "@/lib/store";
 import { cn, newId } from "@/lib/utils";
 import { BankForm } from "./bank-form";
 import { IconTile, MenuCard, MenuFab, MenuHead, MenuItem, MenuRow, Rise, type Tile } from "./bill-menu";
@@ -242,9 +242,8 @@ export function BillPage({
       const next = change(base);
       setShown(next);
       const result = await saveOwnerEdit(bill.id, ownerToken, next, latestMemberChange(base));
-      if (!result.ok) return void toast({ message: errorText(result.error, repeatedName(next)) });
-      if (getDraft()?.billId === bill.id)
-        saveDraft({ doc: result.data.doc, billId: bill.id, seenAt: latestMemberChange(result.data.doc) });
+      const changedName = next.people.find((p) => base.people.find((q) => q.id === p.id)?.name !== p.name)?.name;
+      if (!result.ok) return void toast({ message: errorText(result.error, repeatedName(next) ?? changedName) });
       then?.();
       setTell(true);
       toast({ message, action: undo ? { label: t.common.undo, onClick: undo } : undefined });

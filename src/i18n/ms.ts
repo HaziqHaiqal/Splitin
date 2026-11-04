@@ -50,6 +50,8 @@ export const ms: Dictionary = {
     editTitle: "Ubah tajuk",
     clearAll: "Kosongkan semua",
     cleared: "Semua dikosongkan",
+    youShared: "Anda kongsi {title}",
+    openShared: "Buka",
   },
   person: {
     name: "Nama",
@@ -398,7 +400,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik Kongsi resit, pilih atau taip nama anda, dan hantar gambar, pautan dan kod ke group. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, ketik Hai dan nama anda di atas untuk butiran bank, Nama bil dan orang, suis yang membenarkan orang lain tambah dan ubah bil (tutup untuk kunci bil), dan pautan pemilik, yang membolehkan anda urus bil dari telefon lain. Buat pautan pemilik baru jika yang lama terlepas. Butang ☰ di bawah sebelah kanan ada Bil anda, Tambah bil, Sejarah dan Kiraan (pada komputer semuanya di sebelah kiri). Ketik bil di bawah Bil anda untuk mengubahnya.",
+        desc: "Ketik Kongsi resit dan pilih atau taip nama anda. Halaman bil dibuka, sedia untuk hantar gambar, pautan dan kod ke group, dan selepas itu anda ubah bil di situ. Halaman utama bermula semula, dengan Buka untuk kembali ke bil itu. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, ketik Hai dan nama anda di atas untuk butiran bank, Nama bil dan orang, suis yang membenarkan orang lain tambah dan ubah bil (tutup untuk kunci bil), dan pautan pemilik, yang membolehkan anda urus bil dari telefon lain. Buat pautan pemilik baru jika yang lama terlepas. Butang ☰ di bawah sebelah kanan ada Bil anda, Tambah bil, Sejarah dan Kiraan (pada komputer semuanya di sebelah kiri). Ketik bil di bawah Bil anda untuk mengubahnya.",
         hint: "Cuba: hantar ke WhatsApp.",
       },
       {

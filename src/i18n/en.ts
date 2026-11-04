@@ -48,6 +48,8 @@ export const en = {
     editTitle: "Edit title",
     clearAll: "Clear all",
     cleared: "Everything cleared",
+    youShared: "You shared {title}",
+    openShared: "Open",
   },
   person: {
     name: "Name",
@@ -396,7 +398,7 @@ export const en = {
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap Share receipt, pick your name or type it, and send the picture, link and code to your group. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, tap Hi and your name at the top for your bank details, Bill name and people, the switch that lets others add and change bills (turn it off to lock the bill), and the owner link, which lets you manage the bill from another phone. Make a new owner link if the old one got out. The ☰ button at the bottom right has Your bills, Add bill, History and Calculation (on a computer it's all on the left). Tap a bill under Your bills to change it.",
+        desc: "Tap Share receipt and pick your name or type it. The bill page opens, ready to send the picture, link and code to your group, and from then on you change the bill there. The home page starts fresh, with Open to get back to it. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, tap Hi and your name at the top for your bank details, Bill name and people, the switch that lets others add and change bills (turn it off to lock the bill), and the owner link, which lets you manage the bill from another phone. Make a new owner link if the old one got out. The ☰ button at the bottom right has Your bills, Add bill, History and Calculation (on a computer it's all on the left). Tap a bill under Your bills to change it.",
         hint: "Try it: send it to WhatsApp.",
       },
       {

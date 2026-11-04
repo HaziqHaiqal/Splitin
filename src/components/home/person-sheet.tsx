@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { personHasPayments } from "@/app/actions";
+import { useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
@@ -15,21 +14,18 @@ export function PersonSheet({
   onOpenChange,
   person,
   doc,
-  billId,
   update,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   person: Person | null;
   doc: BillDoc;
-  billId?: string | null;
   update: (fn: (doc: BillDoc) => BillDoc) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const [name, setName] = useState(person?.name ?? "");
   const details = useBankDetails(person);
-  const [pending, start] = useTransition();
 
   if (!person) return null;
   const displayName = name.trim() || person.name;
@@ -55,23 +51,14 @@ export function PersonSheet({
     onOpenChange(false);
   };
 
-  const remove = () =>
-    start(async () => {
-      if (doc.items.some((i) => i.paidBy === person.id)) {
-        toast({ message: fmt(t.person.paidABill, { name: person.name }) });
-        return;
-      }
-      if (billId) {
-        const result = await personHasPayments(billId, person.id);
-        if (!result.ok) return void toast({ message: t.common.generic });
-        if (result.data.has) {
-          toast({ message: fmt(t.person.hasPayment, { name: person.name }) });
-          return;
-        }
-      }
-      update((d) => withoutPerson(d, person.id));
-      onOpenChange(false);
-    });
+  const remove = () => {
+    if (doc.items.some((i) => i.paidBy === person.id)) {
+      toast({ message: fmt(t.person.paidABill, { name: person.name }) });
+      return;
+    }
+    update((d) => withoutPerson(d, person.id));
+    onOpenChange(false);
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={<span className="sr-only">{person.name}</span>}>
@@ -107,9 +94,8 @@ export function PersonSheet({
         </button>
         <button
           type="button"
-          disabled={pending}
           onClick={remove}
-          className="-mt-1.5 h-10 text-[15px] font-bold text-owe disabled:opacity-60"
+          className="-mt-1.5 h-10 text-[15px] font-bold text-owe"
         >
           {fmt(t.person.remove, { name: person.name })}
         </button>

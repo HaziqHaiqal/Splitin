@@ -1,19 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShareIcon } from "@/components/icons";
 import { Receipt } from "@/components/receipt/receipt";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 import { useI18n } from "@/i18n/client";
 import { ownerOf } from "@/lib/bill";
+import { getShareNext, setShareNext } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { SharedBillData } from "./shared-bill";
 
 export function useShareBill(bill: SharedBillData, bigStamp?: string) {
   const router = useRouter();
   const paper = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => typeof window !== "undefined" && getShareNext() === bill.id);
+
+  useEffect(() => {
+    if (getShareNext() === bill.id) setShareNext(null);
+  }, [bill.id]);
 
   const show = () => {
     router.refresh();

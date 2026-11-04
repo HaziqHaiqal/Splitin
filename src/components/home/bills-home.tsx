@@ -1,9 +1,18 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { useDraftSync } from "@/components/draft-sync";
-import { ArrowRightIcon, CheckIcon, CloseIcon, PencilIcon, PlusIcon, ResetIcon, ShareIcon } from "@/components/icons";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  CloseIcon,
+  PencilIcon,
+  PlusIcon,
+  ReceiptIcon,
+  ResetIcon,
+  ShareIcon,
+} from "@/components/icons";
 import { dockButton, PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
@@ -12,7 +21,15 @@ import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import type { BillDoc, PreviewItem } from "@/lib/bill";
-import { emptyDraft, saveDraft, updateDraft, useDraft } from "@/lib/store";
+import {
+  emptyDraft,
+  moveSharedDraft,
+  saveDraft,
+  updateDraft,
+  useDraft,
+  useLastShared,
+  type LastShared,
+} from "@/lib/store";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { BillForm } from "./bill-form";
 import { CodeForm, HomeIntro } from "./code-form";
@@ -23,10 +40,11 @@ type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: 
 export function BillsHome() {
   const { t, money } = useI18n();
   const toast = useToast();
-  const draft = useDraft();
-  useDraftSync(draft);
+  const stored = useDraft();
+  const lastShared = useLastShared();
   const desktop = useIsDesktop();
-  const { share, pending, receiptRef, sheet } = useShareReceipt(draft);
+  const { share, pending, leaving, sheet } = useShareReceipt(stored);
+  const moved = Boolean(stored?.billId) && !leaving;
 
   const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({
     open: false,
@@ -41,8 +59,13 @@ export function BillsHome() {
   const [entering, setEntering] = useState(false);
   const [starting, setStarting] = useState<StartDraft>(NEW_START);
 
-  if (draft === undefined) return <div className="min-h-dvh bg-bg" />;
+  useEffect(() => {
+    if (moved && stored) moveSharedDraft(stored);
+  }, [moved, stored]);
 
+  if (stored === undefined) return <div className="min-h-dvh bg-bg" />;
+
+  const draft = moved ? null : stored;
   const doc = draft?.doc ?? emptyDraft().doc;
   const update = (fn: (doc: BillDoc) => BillDoc) => updateDraft((d) => ({ ...d, doc: fn(d.doc) }));
 
@@ -150,7 +173,6 @@ export function BillsHome() {
     <Receipt doc={doc} variant="draft" people={{ key: peopleKey, fresh: peopleFresh }} preview={preview} />
   ) : (
     <Receipt
-      ref={receiptRef}
       doc={doc}
       billId={draft?.billId}
       freshItemId={freshId}
@@ -174,6 +196,7 @@ export function BillsHome() {
   const start = (
     <div className="flex flex-col md:mx-auto md:w-full md:max-w-[430px]">
       {desktop ? <HomeIntro title={t.home.startTitle} desc={t.home.startDesc} /> : null}
+      {lastShared ? <SharedLine shared={lastShared} /> : null}
       <StartForm
         value={starting}
         savedTitle={doc.title}
@@ -314,11 +337,31 @@ export function BillsHome() {
         onOpenChange={(open) => setPersonSheet((s) => ({ ...s, open }))}
         person={doc.people.find((p) => p.id === personSheet.id) ?? null}
         doc={doc}
-        billId={draft?.billId}
         update={update}
       />
       {sheet}
     </>
+  );
+}
+
+function SharedLine({ shared }: { shared: LastShared }) {
+  const { t } = useI18n();
+  const [before, after = ""] = t.home.youShared.split("{title}");
+  return (
+    <div className="mb-3.5 flex min-h-11 items-center gap-2.5 rounded-xl bg-chip py-1 pr-1 pl-3 text-[13.5px] font-semibold text-muted md:mt-7 md:mb-0">
+      <ReceiptIcon size={18} className="shrink-0" />
+      <span className="min-w-0 flex-1 truncate">
+        {before}
+        <b className="text-ink">{shared.title}</b>
+        {after}
+      </span>
+      <Link
+        href={`/bill/${shared.id}`}
+        className="flex h-9 shrink-0 items-center px-2.5 text-[14px] font-extrabold text-green-ink"
+      >
+        {t.home.openShared} ›
+      </Link>
+    </div>
   );
 }
 

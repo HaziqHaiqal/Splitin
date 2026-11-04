@@ -23,7 +23,7 @@ import {
 } from "./helpers";
 
 const NOT_FOUND = "No receipt with that code";
-const draft = { "splitin:draft:v2": { doc: trip, billId: null, seenAt: "" } };
+const draft = { "splitin:draft:v2": { doc: trip, billId: null } };
 const codeBox = (page: Page) => page.getByLabel("Enter your code");
 const codeRow = (page: Page) => sheet(page).getByRole("button", { name: /^Code / });
 
@@ -171,6 +171,7 @@ test.describe("sharing a code", () => {
     const owner = await newPhone(browser, draft);
     const code = await share(owner);
     expect(code).toMatch(/^[2-9A-HJKMNP-Z]{8}$/);
+    await expect(owner).toHaveURL(new RegExp(`/bill/${code}$`));
     await expect(codeRow(owner)).toHaveText(`Code${code}Copy`);
     await expect(text(owner, `CODE ${code}`)).toBeAttached();
   });
@@ -288,13 +289,11 @@ test.describe("entering a code", () => {
   test("older bills keep their link and show no code", async ({ browser }) => {
     const oldLink = "TestBill01";
     await seed(trip, {}, oldLink);
-    const owner = await newPhone(browser, {
-      [`splitin:owner:${oldLink}`]: TOKEN,
-      "splitin:draft:v2": { doc: trip, billId: oldLink, seenAt: "" },
-    });
+    const owner = await newPhone(browser, { [`splitin:owner:${oldLink}`]: TOKEN });
     await catchWhatsApp(owner);
-    await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await owner.goto(`/bill/${oldLink}`);
+    await openMenu(owner);
+    await button(owner, /^Share receipt/).click();
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();
     await expect(codeRow(owner)).toHaveCount(0);
     await expect(owner.getByText(`CODE ${oldLink}`)).toHaveCount(0);
@@ -344,7 +343,7 @@ test.describe("entering a code", () => {
   });
 
   test("works with a bill already on the phone, and going back keeps that bill", async ({ browser }) => {
-    const phone = await newPhone(browser, ownerStorage());
+    const phone = await newPhone(browser, draft);
     await phone.goto("/");
     await button(phone, "Have a code?").click();
     await expect(panel(phone).getByText("Enter your code")).toBeVisible();

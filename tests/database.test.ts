@@ -297,7 +297,7 @@ test.describe("the browser key", () => {
   });
 
   test("a phone that lost local storage is still the owner, without an owner link to copy", async ({ browser }) => {
-    const owner = await newPhone(browser, { "splitin:draft:v2": { doc: trip, billId: null, seenAt: "" } });
+    const owner = await newPhone(browser, { "splitin:draft:v2": { doc: trip, billId: null } });
     await owner.goto("/");
     await button(owner, "Share receipt").click();
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();

@@ -172,10 +172,7 @@ export async function newPhone(browser: Browser, storage: Record<string, unknown
   return context.newPage();
 }
 
-export const ownerStorage = (doc: BillDoc = trip, seenAt = "") => ({
-  [`splitin:owner:${BILL}`]: TOKEN,
-  "splitin:draft:v2": { doc, billId: BILL, seenAt },
-});
+export const ownerStorage = () => ({ [`splitin:owner:${BILL}`]: TOKEN });
 
 export const openFresh = (page: Page) => page.goto(`/bill/${BILL}`);
 

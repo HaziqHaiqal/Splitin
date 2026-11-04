@@ -215,19 +215,6 @@ async function writeOwnerDoc(
   return saved ? { ok: true, data: { doc: saved } } : { ok: false, error: refused };
 }
 
-export async function saveBill(
-  id: string,
-  ownerToken: string | null,
-  input: BillDoc,
-  seenAt = "",
-): Promise<Result<{ doc: BillDoc }>> {
-  return guard(async () => {
-    const result = await writeOwnerDoc(id, ownerToken, input, seenAt);
-    if (result.ok) after(() => broadcastChange(id));
-    return result;
-  });
-}
-
 export async function saveOwnerEdit(
   id: string,
   ownerToken: string | null,
@@ -238,14 +225,6 @@ export async function saveOwnerEdit(
     const result = await writeOwnerDoc(id, ownerToken, input, seenAt);
     if (result.ok) changed(id);
     return result;
-  });
-}
-
-export async function loadBillDoc(id: string): Promise<Result<{ doc: BillDoc }>> {
-  return guard(async () => {
-    const bill = await readBill(id);
-    if (!bill) return { ok: false, error: "not_found" };
-    return { ok: true, data: { doc: bill.doc } };
   });
 }
 
@@ -605,14 +584,6 @@ export async function checkOwnerLink(id: string, token: string): Promise<Result>
     return data && tokenMatches(data.owner_token_hash, token)
       ? { ok: true, data: null }
       : { ok: false, error: "forbidden" };
-  });
-}
-
-export async function personHasPayments(id: string, personId: string): Promise<Result<{ has: boolean }>> {
-  return guard(async () => {
-    const { data, error } = await db().from("payments").select("from_person, to_person").eq("bill_id", id);
-    if (error) return { ok: false, error: "db" };
-    return { ok: true, data: { has: data.some((p) => p.from_person === personId || p.to_person === personId) } };
   });
 }
 

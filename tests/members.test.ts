@@ -18,7 +18,6 @@ import {
   menuCard,
   newPhone,
   notMe,
-  OLD,
   openAs,
   openBill,
   openBillDetail,
@@ -27,6 +26,7 @@ import {
   openHistory,
   openMenu,
   openMine,
+  openPeople,
   ownerStorage,
   panel,
   patchDoc,
@@ -817,33 +817,36 @@ test.describe("secret keys", () => {
     await expect(text(stranger, "PETROL")).toBeVisible();
     const html = await stranger.content();
     const owner = await newPhone(browser, ownerStorage());
-    await owner.goto("/");
+    await openBill(owner);
     await expect(text(owner, "PETROL")).toBeVisible();
-    const draft = await owner.evaluate(() => localStorage.getItem("splitin:draft:v2")!);
-    expect(draft).toContain("Petrol");
-    for (const seen of [JSON.stringify(doc), html, draft]) {
+    await expect(owner.getByText("Owner", { exact: true })).toBeVisible();
+    const ownerHtml = await owner.content();
+    for (const seen of [JSON.stringify(doc), html, ownerHtml]) {
       for (const hash of hashes) expect(seen).not.toContain(hash);
       for (const word of ["browser_hash", "browserHash", "owner_token_hash"]) expect(seen).not.toContain(word);
     }
   });
 
-  test("an owner's saved copy cannot add keys", async ({ browser }) => {
-    const forged = {
-      ...trip,
-      people: [{ ...trip.people[0], keyHash: "forged" }, ...trip.people.slice(1)],
-      items: [{ ...hotel, addedAt: OLD, deleteHash: "forged" }],
-      secrets: { items: { hotel: "forged" } },
-    };
-    const owner = await newPhone(browser, ownerStorage(forged as typeof trip));
-    await owner.goto("/");
-    await expect(text(owner, "HOTEL")).toBeVisible();
-    await owner.evaluate(() => {
-      const draft = JSON.parse(localStorage.getItem("splitin:draft:v2")!);
-      draft.doc.title = "Renamed";
-      localStorage.setItem("splitin:draft:v2", JSON.stringify(draft));
-      window.dispatchEvent(new Event("storage"));
+  test("an owner's save cannot add keys", async ({ browser }) => {
+    const owner = await newPhone(browser, ownerStorage());
+    let forged = false;
+    await owner.route(`**/bill/${BILL}`, async (route) => {
+      const body = route.request().postData() ?? "";
+      if (route.request().method() !== "POST" || !body.includes('"title":"Renamed"')) return route.fallback();
+      forged = true;
+      await route.continue({
+        postData: body
+          .replace('"title":"Renamed"', '"title":"Renamed","secrets":{"items":{"hotel":"forged"}}')
+          .replace('"name":"Haziq"', '"name":"Haziq","keyHash":"forged"')
+          .replace('"id":"hotel"', '"id":"hotel","deleteHash":"forged"'),
+      });
     });
+    await openBill(owner);
+    const form = await openPeople(owner);
+    await form.getByLabel("Bill name").fill("Renamed");
+    await submit(form);
     await settled(async () => (await serverDoc()).title, "Renamed");
+    expect(forged).toBe(true);
     const { doc, rights } = (await getDb()).bills[0];
     expect(JSON.stringify(doc)).not.toContain("forged");
     expect(rights).toEqual({ people: {}, items: {}, joins: {}, payments: {} });
