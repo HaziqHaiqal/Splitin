@@ -245,7 +245,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
       );
     }
     return (
-      <span key={item.id} data-bill={item.id} className={shape} style={kind === "ghost" ? { borderColor: "#c8c7c3" } : undefined}>
+      <span
+        key={item.id}
+        data-bill={item.id}
+        className={shape}
+        style={kind === "ghost" ? { borderColor: "#c8c7c3" } : undefined}
+      >
         {body}
       </span>
     );

@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { Avatar } from "@/components/avatar";
 import {
   ArrowRightIcon,
@@ -172,12 +180,7 @@ export function BillsHome() {
   ) : formOpen ? (
     <Receipt doc={doc} variant="draft" people={{ key: peopleKey, fresh: peopleFresh }} preview={preview} />
   ) : (
-    <Receipt
-      doc={doc}
-      billId={draft?.billId}
-      freshItemId={freshId}
-      onItem={desktop ? undefined : openEdit}
-    />
+    <Receipt doc={doc} billId={draft?.billId} freshItemId={freshId} onItem={desktop ? undefined : openEdit} />
   );
 
   const codeLink = (className?: string) => (

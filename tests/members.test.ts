@@ -318,7 +318,9 @@ test.describe("adding your own name", () => {
     await sheet(page).getByLabel("Your name").fill("Changed");
     await sheet(page).getByRole("button", { name: "Back" }).click();
     await expect(sheet(page).getByRole("button", { name: "Edit name" })).toBeVisible();
-    await sheet(page).getByRole("button", { name: /^Not Najmi\? Choose your name$/ }).click();
+    await sheet(page)
+      .getByRole("button", { name: /^Not Najmi\? Choose your name$/ })
+      .click();
     await sheet(page).getByRole("button", { name: "Back" }).click();
     await expect(sheet(page).getByRole("button", { name: "Edit name" })).toBeVisible();
     expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);

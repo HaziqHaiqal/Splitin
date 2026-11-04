@@ -1,0 +1,28 @@
+name: Orbis health
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      rehearse:
+        description: Pretend the site is down and show what would happen, without changing anything
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  actions: write
+
+jobs:
+  health:
+    uses: HaziqHaiqal/Agents/.github/workflows/orbis-health.yml@orbis-v2
+    with:
+      site: https://www.splitin.me
+      paths: / /api/health
+    secrets:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
