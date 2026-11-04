@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
-import { choose, openBill, panel, pickMe, seed, trip } from "./helpers";
+import { choose, menuCard, openBill, panel, pickMe, seed, trip } from "./helpers";
 
 const people = Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, name: `Person number ${i}`, color: i }));
 
@@ -22,32 +22,38 @@ test("the page stays still behind the form while typing", async ({ page }) => {
     ...trip,
     people,
     ownerId: "p0",
-    items: [{ ...trip.items[0], paidBy: "p0", participants: ["p0", "p1"] }],
+    items: Array.from({ length: 8 }, (_, i) => ({
+      ...trip.items[0],
+      id: `bill${i}`,
+      name: `Bill ${i}`,
+      paidBy: "p0",
+      participants: ["p0", "p1"],
+    })),
   });
   const cdp = await page.context().newCDPSession(page);
   await openBill(page);
+  const scrollY = () => page.evaluate(() => Math.round(window.scrollY));
+  const toTop = async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(300);
+  };
   await choose(page, "Add bill");
   await pickMe(page, "Person number 1");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
   await page.waitForTimeout(1200);
-
-  const scrollY = () => page.evaluate(() => Math.round(window.scrollY));
-  const top = async () => Math.round((await form.boundingBox())!.y);
-  const toTop = async () => {
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(300);
-  };
+  const card = menuCard(page);
+  const pin = () => card.evaluate((el) => (el.parentElement!.parentElement as HTMLElement).style.bottom);
+  const top = async () => Math.round((await card.boundingBox())!.y);
   const dragBehind = async () => drag(cdp, page, [195, (await top()) - 30], [195, 80]);
 
-  await toTop();
   await dragBehind();
   expect(await scrollY(), "not typing: dragging the page still scrolls it").toBeGreaterThan(50);
   await toTop();
 
   const name = form.locator("input[maxlength='60']");
   await name.focus();
-  await expect.poll(() => form.evaluate((el) => (el as HTMLElement).style.bottom)).toBe("auto");
+  await expect.poll(pin).toBe("auto");
   const pinned = await top();
 
   await dragBehind();
@@ -70,15 +76,17 @@ test("the page stays still behind the form while typing", async ({ page }) => {
     cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height, deviceScaleFactor: 2, mobile: true });
   await shrink(200);
   await page.waitForTimeout(500);
-  expect(await form.evaluate((el) => el.scrollHeight > el.clientHeight), "short screen: form is taller").toBe(true);
-  await drag(cdp, page, [195, 170], [195, 30]);
-  expect(await form.evaluate((el) => el.scrollTop), "short screen: scrolls inside the form").toBeGreaterThan(20);
-  expect(await scrollY(), "short screen: page stays still").toBe(0);
+  expect(await card.evaluate((el) => el.scrollHeight > el.clientHeight), "short screen: form is taller").toBe(true);
+  const short = (await card.boundingBox())!;
+  const before = await scrollY();
+  await drag(cdp, page, [195, short.y + short.height - 20], [195, short.y + 20]);
+  expect(await card.evaluate((el) => el.scrollTop), "short screen: scrolls inside the form").toBeGreaterThan(20);
+  expect(await scrollY(), "short screen: page stays still").toBe(before);
   await shrink(844);
   await page.waitForTimeout(500);
 
   await name.blur();
-  await expect.poll(() => form.evaluate((el) => (el as HTMLElement).style.bottom)).not.toBe("auto");
+  await expect.poll(pin).not.toBe("auto");
   await toTop();
   await dragBehind();
   expect(await scrollY(), "after typing: the page scrolls again").toBeGreaterThan(50);
