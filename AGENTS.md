@@ -6,7 +6,7 @@ Splits shared bills for people in Malaysia (RM only, English and Bahasa Melayu).
 
 - `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm test` (unit), `pnpm build`
 - In a fresh copy, run `pnpm exec next typegen` before `pnpm typecheck`, or Next's `PageProps` types are missing.
-- `pnpm test:e2e` runs the browser tests against a local database. Run `supabase start` first (needs Docker).
+- `pnpm e2e` runs the browser tests against a local database. Run `supabase start` first (needs Docker).
 
 ## Rules for every change
 
