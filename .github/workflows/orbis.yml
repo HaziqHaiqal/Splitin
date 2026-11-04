@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   orbis:
-    uses: HaziqHaiqal/Agents/.github/workflows/orbis.yml@orbis-v3
+    uses: HaziqHaiqal/Agents/.github/workflows/orbis.yml@main
     with:
       site: https://www.splitin.me
       ai: anthropic
