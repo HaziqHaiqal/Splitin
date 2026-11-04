@@ -2,6 +2,7 @@ import type { Dictionary } from "./en";
 
 export const ms: Dictionary = {
   common: {
+    close: "Tutup",
     add: "Tambah",
     save: "Simpan",
     copy: "Salin",

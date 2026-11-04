@@ -8,6 +8,7 @@ export const en = {
     optional: "optional",
     generic: "Something went wrong. Try again.",
     settings: "Settings",
+    close: "Close",
     language: "Language",
     look: "Look",
     light: "Light",

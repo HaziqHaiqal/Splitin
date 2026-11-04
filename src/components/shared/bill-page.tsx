@@ -29,7 +29,6 @@ import {
   PlusIcon,
   ReceiptIcon,
   ResetIcon,
-  SwapIcon,
 } from "@/components/icons";
 import { NameChip, NotListedChip, PickOrType } from "@/components/name-chip";
 import { PayQr } from "@/components/pay-qr";
@@ -66,7 +65,7 @@ import { cn, newId } from "@/lib/utils";
 import { BankForm } from "./bank-form";
 import { IconTile, MenuCard, MenuFab, MenuHead, MenuItem, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
-import { HistoryList, HistorySheet, useChangesSinceVisit } from "./history";
+import { HistoryList, useChangesSinceVisit } from "./history";
 import { BillDetail, BillRows, NameBody, type BillRules } from "./my-bills";
 import { NameForm } from "./name-form";
 import { PanelBack, PanelHead } from "./panel-form";
@@ -81,18 +80,19 @@ type View =
   | { kind: "edit"; itemId: string }
   | { kind: "pay"; from: string; to: string }
   | { kind: "name"; then: () => void }
-  | { kind: "bank"; personId: string }
+  | { kind: "bank"; personId: string; back?: boolean }
   | { kind: "people" }
-  | { kind: "how" };
+  | { kind: "how" }
+  | { kind: "history" };
 
 type Ask =
-  | { kind: "who"; then: () => void; hide?: string | null; first?: boolean }
+  | { kind: "who"; then: () => void; hide?: string | null; first?: boolean; back?: boolean }
   | { kind: "confirm"; line: PlanLine }
   | { kind: "undo"; line: PlanLine }
   | { kind: "details"; personId: string }
   | { kind: "me" }
-  | { kind: "myName" }
-  | { kind: "owner" };
+  | { kind: "myName"; back?: boolean }
+  | { kind: "owner"; back?: boolean };
 
 type Menu = "root" | "bills" | "history" | `bill:${string}`;
 
@@ -125,8 +125,6 @@ export function BillPage({
   const [freshId, setFreshId] = useState<string | null>(null);
   const [newMe, setNewMe] = useState<Person | null>(null);
   const [tell, setTell] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [fromMe, setFromMe] = useState(false);
   const share = useShareBill(bill);
   const storedMe = useMe(bill.id);
   const { mine } = bill;
@@ -164,10 +162,6 @@ export function BillPage({
   const changes = useChangesSinceVisit(bill.id, bill.createdAt, bill.events, (e) =>
     owner ? e.byRole === "owner" : Boolean(me) && e.byPersonId === me,
   );
-  const showHistory = (next: boolean) => {
-    if (next) changes.clear();
-    setHistoryOpen(next);
-  };
   const [backTo, setBackTo] = useState<Menu | null>(null);
 
   const showAsk = (next: Ask) => {
@@ -526,10 +520,7 @@ export function BillPage({
     const base = bill.doc;
     const lost = base.items.find((i) => i.participants.every((p) => removed.includes(p)));
     if (lost) return toast({ message: fmt(t.page.nobodyLeft, { name: lost.name }) });
-    const close = () => {
-      setView(null);
-      setFromMe(false);
-    };
+    const close = () => setView(null);
     ownerSave(
       (d) => {
         const kept = removed.reduce(withoutPerson, d);
@@ -627,13 +618,13 @@ export function BillPage({
   const hasAccount = (p: Person) => Boolean(p.bank && p.accountNo);
   const hasDetails = (p: Person) => Boolean(p.payQr) || hasAccount(p);
 
-  const openBank = (from?: Menu) => {
+  const openBank = () => {
     setMenu(null);
     if (!me || !meRow) return;
-    if (owner) return openView({ kind: "bank", personId: me }, from);
+    if (owner) return openView({ kind: "bank", personId: me, back: true });
     if (locked) return toast({ message: lockedText });
     if (mine.people.includes(me) || detailsOpenToName(doc, meRow))
-      return openView({ kind: "bank", personId: me }, from);
+      return openView({ kind: "bank", personId: me, back: true });
     if (hasDetails(meRow)) return showAsk({ kind: "details", personId: me });
     toast({ message: t.member.detailsTaken });
   };
@@ -654,12 +645,9 @@ export function BillPage({
       label: t.history.title,
       dot: changes.count > 0,
       onClick: () => {
-        if (!desktop) {
-          changes.clear();
-          return setMenu("history");
-        }
-        setMenu(null);
-        showHistory(true);
+        changes.clear();
+        if (desktop) openView({ kind: "history" });
+        else setMenu("history");
       },
     },
   ];
@@ -669,10 +657,7 @@ export function BillPage({
   const detailsLine = (p: Person) =>
     [p.bank, p.payQr ? t.person.qrAdded : null].filter(Boolean).join(" · ") || t.member.bankSub;
 
-  const openPeople = () => {
-    setFromMe(true);
-    openView({ kind: "people" });
-  };
+  const openPeople = () => openView({ kind: "people" });
 
   const meRows: Tile[] = [];
   if (meRow)
@@ -688,23 +673,16 @@ export function BillPage({
       key: "you",
       icon: <PlusIcon size={21} />,
       label: t.page.addYourName,
-      onClick: () => showAsk({ kind: "owner" }),
+      onClick: () => showAsk({ kind: "owner", back: true }),
     });
   if (!owner && myName)
-    meRows.push(
-      {
-        key: "name",
-        icon: <PencilIcon size={21} />,
-        label: t.page.myName,
-        onClick: () => (locked ? toast({ message: lockedText }) : showAsk({ kind: "myName" })),
-      },
-      {
-        key: "who",
-        icon: <SwapIcon />,
-        label: fmt(t.member.notMe, { name: myName }),
-        onClick: () => showAsk({ kind: "who", then: () => undefined, hide: me }),
-      },
-    );
+    meRows.push({
+      key: "name",
+      icon: <PencilIcon size={21} />,
+      label: t.page.myName,
+      onClick: () => (locked ? toast({ message: lockedText }) : showAsk({ kind: "myName", back: true })),
+    });
+  const [notMeAsk, notMeLink = ""] = t.member.notMe.split("? ");
   const ownerRows: Tile[] = [
     {
       key: "people",
@@ -836,7 +814,8 @@ export function BillPage({
         );
       case "bank": {
         const person = doc.people.find((p) => p.id === view.personId);
-        return person ? (
+        if (!person) return null;
+        const form = (
           <BankForm
             person={person}
             own={person.id === me}
@@ -845,36 +824,33 @@ export function BillPage({
             onSave={(details) => saveDetails(person.id, details)}
             onCancel={close}
           />
-        ) : null;
-      }
-      case "people": {
-        const form = (
-          <PeopleForm
-            doc={doc}
-            bare={bare}
-            pending={pending}
-            blocked={cantRemove}
-            onSave={savePeople}
-            onCancel={() => {
-              close();
-              setFromMe(false);
-            }}
-          />
         );
-        return fromMe ? (
-          <PanelBack.Provider
-            value={() => {
-              close();
-              setFromMe(false);
-              showAsk({ kind: "me" });
-            }}
-          >
-            {form}
+        return view.back ? <PanelBack.Provider value={backToMe}>{form}</PanelBack.Provider> : form;
+      }
+      case "people":
+        return (
+          <PanelBack.Provider value={backToMe}>
+            <PeopleForm
+              doc={doc}
+              bare={bare}
+              pending={pending}
+              blocked={cantRemove}
+              onSave={savePeople}
+              onCancel={close}
+            />
           </PanelBack.Provider>
-        ) : (
-          form
         );
-      }
+      case "history":
+        return (
+          <div className="flex flex-col gap-2.5">
+            <PanelHead title={t.history.title} onClose={close} />
+            {bill.events.length === 0 ? (
+              <p className="m-0 text-[14px] text-muted">{t.history.empty}</p>
+            ) : (
+              <HistoryList doc={doc} events={bill.events} />
+            )}
+          </div>
+        );
       case "how":
         return (
           <div className="flex flex-col gap-2.5">
@@ -983,6 +959,14 @@ export function BillPage({
                 <span className="-mb-2 px-0.5 text-[12.5px] font-bold text-faint">{t.page.thisBill}</span>
                 <Rows tiles={ownerRows} />
               </>
+            ) : myName ? (
+              <button
+                type="button"
+                onClick={() => showAsk({ kind: "who", then: () => undefined, hide: me, back: true })}
+                className="h-11 shrink-0 text-[14px] font-semibold text-muted"
+              >
+                {fmt(notMeAsk, { name: myName })}? <span className="font-bold text-green-ink">{notMeLink}</span>
+              </button>
             ) : null}
           </>
         );
@@ -1114,9 +1098,15 @@ export function BillPage({
                 : ask
                   ? fmt(t.member.confirmTitle, { from: nameOf(ask.line.from), to: nameOf(ask.line.to) })
                   : "";
-  const askInPanel = desktop && asking && ask !== null && ask.kind !== "who";
+  const askInPanel = desktop && asking && ask !== null && (ask.kind !== "who" || Boolean(ask.back));
 
   const openMe = () => showAsk({ kind: "me" });
+  const backToMe = () => {
+    setView(null);
+    setBackTo(null);
+    openMe();
+  };
+  const askBack = ask && "back" in ask && ask.back ? openMe : undefined;
   const topLine = owner ? (
     <div className="flex min-h-9 min-w-0 items-center gap-2">
       {ownerPerson ? (
@@ -1356,7 +1346,9 @@ export function BillPage({
     body(true)
   ) : askInPanel ? (
     <div className="flex flex-col gap-2.5">
-      <PanelHead title={askTitle} onClose={() => setAsking(false)} />
+      <PanelBack.Provider value={askBack ?? null}>
+        <PanelHead title={askTitle} onClose={() => setAsking(false)} />
+      </PanelBack.Provider>
       {askBody()}
     </div>
   ) : (
@@ -1443,10 +1435,9 @@ export function BillPage({
           />
         }
       />
-      <Sheet open={asking && !askInPanel} onOpenChange={setAsking} title={askTitle}>
+      <Sheet open={asking && !askInPanel} onOpenChange={setAsking} title={askTitle} onBack={askBack}>
         {askBody()}
       </Sheet>
-      <HistorySheet doc={doc} events={bill.events} open={historyOpen} onOpenChange={showHistory} />
       {share.sheet}
     </>
   );

@@ -109,16 +109,19 @@ test.describe("who are you", () => {
     await expect(page.getByText("Paid? ")).toHaveCount(0);
   });
 
-  test("the question is just the names and one way out", async ({ page }) => {
+  test("the question is just the names, Just looking and close", async ({ page }) => {
     await openFresh(page);
     const list = sheet(page);
     await expect(list.getByRole("heading", { name: "Who are you?" })).toBeVisible();
     await expect(list.locator("p:not(.sr-only)")).toHaveCount(0);
-    await expect(list.getByRole("button")).toHaveText([/Najmi$/, /Afiq$/, "Not on the list", "Just looking"]);
+    await expect(list.getByRole("button")).toHaveText(["", /Najmi$/, /Afiq$/, "Not on the list", "Just looking"]);
+    await expect(list.getByRole("button", { name: "Close" })).toBeVisible();
     for (const row of await list.getByRole("button").all())
       expect(Math.round((await row.boundingBox())!.height)).toBeGreaterThanOrEqual(44);
     const top = (name: string) => list.getByRole("button", { name }).evaluate((el) => (el as HTMLElement).offsetTop);
     expect(await top("Afiq")).toBe(await top("Najmi"));
+    await list.getByRole("button", { name: "Close" }).click();
+    await expect(sheet(page)).toHaveCount(0);
   });
 
   test("a phone that already has a name is not asked", async ({ browser }) => {
@@ -307,6 +310,18 @@ test.describe("adding your own name", () => {
 
     await button(page, "Undo").click();
     await settled(names, ["Haziq", "Najmi", "Afiq"]);
+  });
+
+  test("Back on Your name goes back to the Hi menu without saving", async ({ page }) => {
+    await openAs(page, "Najmi");
+    await (await openMine(page)).getByRole("button", { name: "Edit name" }).click();
+    await sheet(page).getByLabel("Your name").fill("Changed");
+    await sheet(page).getByRole("button", { name: "Back" }).click();
+    await expect(sheet(page).getByRole("button", { name: "Edit name" })).toBeVisible();
+    await sheet(page).getByRole("button", { name: /^Not Najmi\? Choose your name$/ }).click();
+    await sheet(page).getByRole("button", { name: "Back" }).click();
+    await expect(sheet(page).getByRole("button", { name: "Edit name" })).toBeVisible();
+    expect(await names()).toEqual(["Haziq", "Najmi", "Afiq"]);
   });
 
   test("a renamed name can't take another name on the bill", async ({ page }) => {
@@ -588,7 +603,7 @@ test.describe("adding your own name", () => {
     await expect(ask.getByRole("button", { name: "Change ›" })).toBeVisible();
     await expect(ask.getByRole("button", { name: "Copy account no." })).toBeVisible();
     await expect(ask.getByRole("button", { name: "Save QR" })).toBeVisible();
-    await expect(ask.getByRole("button")).toHaveCount(4);
+    await expect(ask.getByRole("button")).toHaveCount(5);
     await page.touchscreen.tap(195, 20);
     await expect(sheet(page)).toHaveCount(0);
   });
@@ -613,7 +628,7 @@ test.describe("adding your own name", () => {
     await page.setViewportSize({ width: 390, height: 560 });
     const form = await owedAiman(page);
     const title = form.getByText("Bank details", { exact: true });
-    const close = form.getByRole("button", { name: "Cancel" });
+    const close = form.getByRole("button", { name: "Close" });
     const before = await title.boundingBox();
     expect((await close.boundingBox())!.y - (await form.boundingBox())!.y).toBeLessThan(20);
     await form.evaluate((el) => el.scrollTo(0, el.scrollHeight));
@@ -878,7 +893,7 @@ test.describe("seeing a change before saving", () => {
     await expect(page.getByText("60.00", { exact: true })).toBeVisible();
     expect(await paymentsOf()).toEqual([]);
 
-    await form.getByRole("button", { name: "Cancel" }).click();
+    await form.getByRole("button", { name: "Close" }).click();
     await expect(page.getByText("PAID", { exact: true })).toHaveCount(0);
     expect(await paymentsOf()).toEqual([]);
   });

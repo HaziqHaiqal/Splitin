@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ElementType, type ReactNode } from "react";
 import { Drawer } from "vaul";
+import { BackIcon, CloseIcon } from "@/components/icons";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
+import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 type SheetProps = {
@@ -11,7 +13,55 @@ type SheetProps = {
   title: ReactNode;
   children: ReactNode;
   wide?: boolean;
+  onBack?: () => void;
 };
+
+export function SheetHead({
+  title,
+  sub,
+  onBack,
+  onClose,
+  Title = "h2",
+}: {
+  title: ReactNode;
+  sub?: ReactNode;
+  onBack?: (() => void) | null;
+  onClose?: () => void;
+  Title?: ElementType;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-h-10 items-center gap-1">
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={t.page.back}
+          className="-my-2 -ml-3 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-chip"
+        >
+          <BackIcon size={19} strokeWidth={2.4} />
+        </button>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <Title className="m-0 text-[18px] leading-[1.25] font-extrabold tracking-[-0.015em] text-ink">{title}</Title>
+        {sub ? <p className="m-0 mt-0.5 text-[12.5px] leading-[1.4] font-medium text-muted">{sub}</p> : null}
+      </div>
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t.common.close}
+          title={t.common.close}
+          className="group -my-2 -mr-1.5 inline-flex size-11 shrink-0 items-center justify-center"
+        >
+          <span className="inline-flex size-9 items-center justify-center rounded-full bg-chip text-muted transition-colors group-hover:text-ink">
+            <CloseIcon size={16} />
+          </span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 export function Sheet(props: SheetProps) {
   const desktop = useIsDesktop();
@@ -42,16 +92,16 @@ export function SheetOption({
   );
 }
 
-function BottomSheet({ open, onOpenChange, title, children }: SheetProps) {
+function BottomSheet({ open, onOpenChange, title, children, onBack }: SheetProps) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange} repositionInputs={false}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-40 bg-overlay" />
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[94dvh] w-full max-w-[430px] flex-col rounded-t-[24px] border-t border-sheet-edge bg-sheet text-ink outline-none">
           <div className="mx-auto mt-2.5 h-[5px] w-10 shrink-0 rounded-[3px] bg-handle" />
-          <Drawer.Title className="shrink-0 px-5 pt-4 pb-2 text-[22px] font-extrabold tracking-[-0.02em]">
-            {title}
-          </Drawer.Title>
+          <div className="shrink-0 px-5 pt-3 pb-2">
+            <SheetHead title={title} onBack={onBack} onClose={() => onOpenChange(false)} Title={Drawer.Title} />
+          </div>
           <Drawer.Description className="sr-only">{typeof title === "string" ? title : ""}</Drawer.Description>
           <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto overscroll-contain px-5 pt-1.5 pb-[max(24px,env(safe-area-inset-bottom))]">
             {children}
@@ -62,7 +112,7 @@ function BottomSheet({ open, onOpenChange, title, children }: SheetProps) {
   );
 }
 
-function Modal({ open, onOpenChange, title, children, wide }: SheetProps) {
+function Modal({ open, onOpenChange, title, children, wide, onBack }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -90,14 +140,9 @@ function Modal({ open, onOpenChange, title, children, wide }: SheetProps) {
     >
       {open ? (
         <div className="flex max-h-[88dvh] flex-col">
-          <h2
-            className={cn(
-              "m-0 shrink-0 text-[22px] font-extrabold tracking-[-0.02em]",
-              wide ? "px-7 pt-7 pb-2" : "px-6 pt-6 pb-2",
-            )}
-          >
-            {title}
-          </h2>
+          <div className={cn("shrink-0", wide ? "px-7 pt-6 pb-2" : "px-6 pt-5 pb-2")}>
+            <SheetHead title={title} onBack={onBack} onClose={() => onOpenChange(false)} />
+          </div>
           <div
             className={cn(
               "flex min-h-0 flex-1 flex-col overflow-y-auto",

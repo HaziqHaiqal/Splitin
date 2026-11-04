@@ -119,7 +119,7 @@ export function BillRows({
               </button>
             ) : null}
             {popover && expanded ? (
-              <div className="absolute inset-x-0 top-[calc(100%-6px)] z-10 animate-drop rounded-2xl border border-border bg-card p-1.5 shadow-[0_14px_34px_var(--pop-shadow)]">
+              <div className="absolute inset-x-0 top-[calc(100%-6px)] z-10 animate-drop overflow-hidden rounded-2xl border border-border bg-card p-2 shadow-[0_14px_34px_var(--pop-shadow)]">
                 {detail?.(item)}
               </div>
             ) : null}

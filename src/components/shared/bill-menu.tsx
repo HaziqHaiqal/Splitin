@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { BackIcon, CloseIcon, MenuIcon } from "@/components/icons";
+import { CloseIcon, MenuIcon } from "@/components/icons";
+import { SheetHead } from "@/components/sheet";
 import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
+import { InMenuCard } from "./panel-form";
 
 export type Tile = {
   key: string;
@@ -171,7 +173,7 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
             style={keyboard ? { ...notch, maxHeight: keyboard.height - 16 } : notch}
             className="max-h-[calc(100dvh-100px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
           >
-            {children}
+            <InMenuCard.Provider value={true}>{children}</InMenuCard.Provider>
           </div>
         </div>
       </div>
@@ -194,25 +196,9 @@ export function Rise({ children, className }: { children: ReactNode[]; className
 }
 
 export function MenuHead({ title, sub, onBack }: { title: string; sub?: string; onBack?: () => void }) {
-  const { t } = useI18n();
   return (
-    <div
-      className={cn("mb-1 flex items-start gap-1 border-b border-line pt-[7px] pb-[9px]", onBack ? "pr-2.5" : "px-2.5")}
-    >
-      {onBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={t.page.back}
-          className="-my-2 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink hover:bg-chip"
-        >
-          <BackIcon size={17} strokeWidth={2.4} />
-        </button>
-      ) : null}
-      <span className="min-w-0 text-[12.5px] leading-[1.4] font-semibold text-muted">
-        <h2 className="m-0 text-[14px] font-extrabold text-ink">{title}</h2>
-        {sub ? <small className="mt-0.5 block text-[12px] font-medium">{sub}</small> : null}
-      </span>
+    <div className="sticky -top-2 z-10 -mx-2 -mt-2 mb-1 bg-card px-4 pt-3 pb-2">
+      <SheetHead title={title} sub={sub} onBack={onBack} />
     </div>
   );
 }
