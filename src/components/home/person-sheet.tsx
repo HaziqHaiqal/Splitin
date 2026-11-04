@@ -92,11 +92,7 @@ export function PersonSheet({
         >
           {t.common.save}
         </button>
-        <button
-          type="button"
-          onClick={remove}
-          className="-mt-1.5 h-10 text-[15px] font-bold text-owe"
-        >
+        <button type="button" onClick={remove} className="-mt-1.5 h-10 text-[15px] font-bold text-owe">
           {fmt(t.person.remove, { name: person.name })}
         </button>
       </form>
