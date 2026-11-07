@@ -10,11 +10,13 @@ const PER_PHONE = 10;
 const PER_IP = 30;
 const PER_DAY = 500;
 const MAX_BYTES = 4_000_000;
+const DAY = 86_400_000;
+const MYT = 8 * 3_600_000;
 
 const fail = (error: ScanError, status: number) => NextResponse.json({ ok: false, error }, { status });
 
 async function scansToday(column?: "browser_hash" | "ip_hash", value?: string) {
-  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const since = new Date(Math.floor((Date.now() + MYT) / DAY) * DAY - MYT).toISOString();
   let query = db().from("receipt_scans").select("id", { count: "exact", head: true }).gte("created_at", since);
   if (column && value) query = query.eq(column, value);
   const { count, error } = await query;

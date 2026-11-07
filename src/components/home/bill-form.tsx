@@ -237,11 +237,10 @@ export function BillForm({
     if (!SCAN_TYPES.includes(photo.type)) return setScan("photo");
     const body = new FormData();
     body.append("photo", photo, "receipt");
-    const reply: { ok: true; data: Scan } | { ok: false; error: ScanError } | null = await fetch("/api/scan", {
-      method: "POST",
-      body,
-    })
-      .then((response) => response.json())
+    const response = await fetch("/api/scan", { method: "POST", body }).catch(() => null);
+    if (!response) return setScan("offline");
+    const reply: { ok: true; data: Scan } | { ok: false; error: ScanError } | null = await response
+      .json()
       .catch(() => null);
     if (!reply?.ok) return setScan(reply && reply.error in t.bill.scanErrors ? reply.error : "failed");
     fill(reply.data);

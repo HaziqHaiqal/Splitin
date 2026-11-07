@@ -102,14 +102,26 @@ test("a scan that fails says why and leaves the form as it was", async ({ page }
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: false, error: "busy" });
-  await expect(form.getByRole("alert")).toHaveText("Scanning is busy right now. Try again later, or type it in.");
+  await expect(form.getByRole("alert")).toHaveText(
+    "Scanning is unavailable right now. Try again in a few minutes, or type it in.",
+  );
   await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("");
   await expect(form.getByText("Scan a receipt")).toBeVisible();
 });
 
-test("without a Gemini key, scanning says it isn't available", async ({ page }) => {
+test("without a Gemini key, scanning says it's unavailable", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page);
-  await expect(form.getByRole("alert")).toHaveText("Scanning isn't available right now. Type it in instead.");
+  await expect(form.getByRole("alert")).toHaveText(
+    "Scanning is unavailable right now. Try again in a few minutes, or type it in.",
+  );
+});
+
+test("with no internet, scanning says you're offline", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  await page.route("**/api/scan", (route) => route.abort("internetdisconnected"));
+  const form = await scanReceipt(page);
+  await expect(form.getByRole("alert")).toHaveText("You're offline. Check your internet connection and try again.");
 });

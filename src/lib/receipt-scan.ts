@@ -14,7 +14,7 @@ export type Scan = {
 
 export const SCAN_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export type ScanError = "unreadable" | "currency" | "busy" | "limit" | "off" | "photo" | "failed";
+export type ScanError = "unreadable" | "currency" | "busy" | "limit" | "off" | "photo" | "failed" | "offline";
 
 export const SCAN_PROMPT = [
   "You read photos of shop and restaurant receipts and reply with JSON only.",
