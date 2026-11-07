@@ -4,6 +4,7 @@ import Link from "next/link";
 import { forwardRef, Fragment, useId, type ReactNode } from "react";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
+import { rateText } from "@/lib/money";
 import { cn, isCode } from "@/lib/utils";
 import {
   activePeople,
@@ -199,7 +200,23 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
   const previewDetail =
     preview && preview.amountMinor > 0 ? itemSplitText(preview, [...active, ...newPeople], plain, splitWords) : "";
 
+  const chargesLine = ({ charges }: Item) => {
+    const parts = [
+      charges?.serviceBp ? fmt(r.service, { rate: rateText(charges.serviceBp) }) : "",
+      charges?.taxBp ? fmt(r.sst, { rate: rateText(charges.taxBp) }) : "",
+    ].filter(Boolean);
+    return parts.length > 0 ? fmt(r.incl, { list: parts.join(" · ") }) : "";
+  };
+  const detailStyle = {
+    color: MUTED,
+    fontSize: 11.5,
+    lineHeight: 1.45,
+    paddingLeft: 10,
+    paddingRight: BY_COL + TOTAL_COL + COL_GAP * 2,
+  };
+
   const billLine = (item: Item, detail: string, kind: "plain" | "fresh" | "ghost") => {
+    const charges = chargesLine(item);
     const body = (
       <>
         <span
@@ -210,17 +227,13 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt
           <span className="truncate">{name(item.paidBy)}</span>
           <span style={{ textAlign: "right" }}>{item.amountMinor > 0 ? plain(item.amountMinor) : "–"}</span>
         </span>
+        {charges ? (
+          <span className="block" style={detailStyle}>
+            {charges}
+          </span>
+        ) : null}
         {detail ? (
-          <span
-            className="relative block"
-            style={{
-              color: MUTED,
-              fontSize: 11.5,
-              lineHeight: 1.45,
-              paddingLeft: 10,
-              paddingRight: BY_COL + TOTAL_COL + COL_GAP * 2,
-            }}
-          >
+          <span className="relative block" style={detailStyle}>
             {detail.split(" · ").map((part, i) => (
               <Fragment key={i}>
                 {i > 0 ? " · " : ""}

@@ -61,6 +61,7 @@ const splitKey = (item: Item) =>
   JSON.stringify([
     [...item.participants].sort(),
     Object.entries(item.overrides).sort(([a], [b]) => a.localeCompare(b)),
+    item.charges ? [item.charges.subtotalMinor, item.charges.serviceBp ?? 0, item.charges.taxBp ?? 0] : null,
   ]);
 
 export function diffDocs(before: BillDoc, after: BillDoc): EventBody[] {

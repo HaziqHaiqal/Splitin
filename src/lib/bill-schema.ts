@@ -8,6 +8,9 @@ export const MAX_ITEMS = 200;
 export const MAX_PEOPLE = 50;
 
 const when = z.iso.datetime();
+const rate = z.int().min(1).max(10_000).optional();
+
+export const chargesSchema = z.object({ subtotalMinor: minor.min(1), serviceBp: rate, taxBp: rate });
 
 export const itemSchema = z.object({
   id,
@@ -16,6 +19,7 @@ export const itemSchema = z.object({
   paidBy: id,
   participants: z.array(id).min(1).max(50),
   overrides: z.record(id, minor),
+  charges: chargesSchema.optional(),
   addedAt: when.optional(),
   joins: z.record(id, z.object({ at: when })).optional(),
 });

@@ -6,13 +6,26 @@ import { PanelHead } from "@/components/shared/panel-form";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { splitItem, type BillDoc, type Item, type Person, type PreviewItem } from "@/lib/bill";
-import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
+import {
+  baseOf,
+  splitItem,
+  withCharges,
+  type BillDoc,
+  type Charges,
+  type Item,
+  type Person,
+  type PreviewItem,
+} from "@/lib/bill";
+import { addCharges, parseMoney, parseRate, rateText, toAutoPointInput, toInputValue } from "@/lib/money";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { PersonChips } from "./person-chips";
 
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 const parse = (v: string) => parseMoney(v, "MYR");
+
+type Rate = { on: boolean; text: string };
+const rateOf = (bp: number | undefined, fallback: string): Rate =>
+  bp ? { on: true, text: rateText(bp) } : { on: false, text: fallback };
 
 export function BillForm({
   item,
@@ -51,7 +64,11 @@ export function BillForm({
   const everyone = people.map((p) => p.id);
 
   const [name, setName] = useState(item?.name ?? "");
-  const [amount, setAmount] = useState(item ? toInputValue(item.amountMinor, "MYR") : "");
+  const [amount, setAmount] = useState(item ? toInputValue(baseOf(item), "MYR") : "");
+  const saved = item?.charges;
+  const [showCharges, setShowCharges] = useState(Boolean(saved));
+  const [service, setService] = useState(rateOf(saved?.serviceBp, "10"));
+  const [tax, setTax] = useState(rateOf(saved?.taxBp, "6"));
   const [paidBy, setPaidBy] = useState(
     item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
   );
@@ -69,6 +86,26 @@ export function BillForm({
     else liveOverrides[editing.id] = v;
   }
   const split = splitItem(amountMinor, included, liveOverrides);
+  const serviceBp = service.on ? parseRate(service.text) : undefined;
+  const taxBp = tax.on ? parseRate(tax.text) : undefined;
+  const ratesOk = serviceBp !== null && taxBp !== null;
+  const added = addCharges(amountMinor, { serviceBp: serviceBp ?? undefined, taxBp: taxBp ?? undefined });
+  const keepTotal =
+    item !== null &&
+    saved !== undefined &&
+    amountMinor === saved.subtotalMinor &&
+    (serviceBp ?? undefined) === saved.serviceBp &&
+    (taxBp ?? undefined) === saved.taxBp;
+  const totalMinor = keepTotal && item ? item.amountMinor : added.total;
+  const charges: Charges | undefined =
+    ratesOk && (totalMinor !== amountMinor || serviceBp || taxBp)
+      ? {
+          subtotalMinor: amountMinor,
+          ...(serviceBp ? { serviceBp } : {}),
+          ...(taxBp ? { taxBp } : {}),
+        }
+      : undefined;
+  const finalShares = split.ok ? withCharges({ amountMinor: totalMinor, charges }, split.shares, liveOverrides) : {};
   const hasOverrides = Object.keys(liveOverrides).some((id) => included.includes(id));
   const custom = hasOverrides || included.length !== everyone.length;
   const expanded = showSplit || custom;
@@ -93,9 +130,19 @@ export function BillForm({
   })();
 
   const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
-  const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy);
+  const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy) && ratesOk;
 
-  const previewKey = JSON.stringify([name, amountMinor, paidBy, included, cleanOverrides, split.ok, newPeople]);
+  const previewKey = JSON.stringify([
+    name,
+    amountMinor,
+    totalMinor,
+    charges,
+    paidBy,
+    included,
+    cleanOverrides,
+    split.ok,
+    newPeople,
+  ]);
   useEffect(() => {
     const typing = isEdit || name.trim() !== "" || amountMinor > 0;
     onPreview(
@@ -103,10 +150,11 @@ export function BillForm({
         ? {
             id: item?.id ?? "preview",
             name,
-            amountMinor,
+            amountMinor: totalMinor,
             paidBy,
             participants: included,
             overrides: split.ok ? cleanOverrides : {},
+            ...(charges && split.ok ? { charges } : {}),
             newPeople,
           }
         : null,
@@ -162,10 +210,11 @@ export function BillForm({
     const next: Item = {
       id: item?.id ?? newId(6),
       name: name.trim().slice(0, 60),
-      amountMinor,
+      amountMinor: totalMinor,
       paidBy,
       participants: included,
       overrides: cleanOverrides,
+      ...(charges ? { charges } : {}),
       ...(Object.keys(joins).length > 0 ? { joins } : {}),
     };
     if (onAdd) onAdd(next, newPeople);
@@ -184,6 +233,9 @@ export function BillForm({
       setParticipants(doc.people.map((p) => p.id));
       setNewPeople([]);
       setShowSplit(false);
+      setShowCharges(false);
+      setService(rateOf(undefined, "10"));
+      setTax(rateOf(undefined, "6"));
     }
   };
 
@@ -213,8 +265,8 @@ export function BillForm({
     });
   };
 
-  const shares = split.ok ? Object.values(split.shares) : [];
-  const evenEach = shares.length > 0 ? Math.round(amountMinor / shares.length) : 0;
+  const shares = Object.values(finalShares);
+  const evenEach = shares.length > 0 ? Math.round(totalMinor / shares.length) : 0;
   const exact = shares.length > 0 && shares.every((v) => v === shares[0]);
   const equalLine =
     amountMinor > 0 && shares.length > 0
@@ -258,6 +310,25 @@ export function BillForm({
           className={cn(field, "font-extrabold tabular")}
         />
       </div>
+
+      {showCharges ? (
+        <div className="flex flex-col">
+          <ChargeRow label={t.bill.service} rate={service} onChange={setService} added={plain(added.service)} />
+          <ChargeRow label={t.bill.sst} rate={tax} onChange={setTax} added={plain(added.tax)} />
+          <div className="flex h-9 items-center justify-between border-t border-line text-[14px] font-bold">
+            <span>{t.bill.total}</span>
+            <span className="tabular">{money(totalMinor)}</span>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowCharges(true)}
+          className="-mt-1 h-7 self-start text-[12.5px] font-bold text-green-ink"
+        >
+          {t.bill.addCharges}
+        </button>
+      )}
 
       <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
         <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
@@ -362,6 +433,7 @@ export function BillForm({
           ) : restHint ? (
             <div className="text-[12px] text-muted">{restHint}</div>
           ) : null}
+          {charges ? <div className="pt-1 text-[12px] text-muted">{t.bill.beforeCharges}</div> : null}
         </div>
       ) : (
         <div className="text-[12.5px] text-muted">
@@ -390,6 +462,53 @@ export function BillForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function ChargeRow({
+  label,
+  rate,
+  onChange,
+  added,
+}: {
+  label: string;
+  rate: Rate;
+  onChange: (rate: Rate) => void;
+  added: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex h-11 items-center gap-2.5">
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={rate.on}
+        aria-label={label}
+        onClick={() => onChange({ ...rate, on: !rate.on })}
+        className={cn(
+          "inline-flex size-[22px] shrink-0 items-center justify-center rounded-md",
+          rate.on ? "bg-green text-white" : "border-2 border-dash",
+        )}
+      >
+        {rate.on ? <CheckIcon size={13} /> : null}
+      </button>
+      <span className={cn("min-w-0 flex-1 truncate text-[14px] font-semibold", !rate.on && "text-muted")}>{label}</span>
+      <label className="flex h-[34px] w-[76px] shrink-0 items-center rounded-lg border border-border bg-card px-2.5 focus-within:border-[1.5px] focus-within:border-green">
+        <input
+          type="text"
+          inputMode="decimal"
+          maxLength={6}
+          value={rate.text}
+          aria-label={fmt(t.bill.rateOf, { name: label })}
+          onChange={(e) => onChange({ on: true, text: e.target.value.replace(/[^\d.]/g, "") })}
+          className="w-full min-w-0 bg-transparent text-right text-[16px] font-bold text-ink tabular outline-none"
+        />
+        <span className="pl-0.5 text-[14px] text-muted">%</span>
+      </label>
+      <span className="w-[64px] shrink-0 text-right text-[13px] font-semibold text-muted tabular">
+        {rate.on ? `+${added}` : "–"}
+      </span>
+    </div>
   );
 }
 

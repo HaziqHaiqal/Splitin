@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  baseShares,
   evenShare,
+  itemShares,
+  joinShare,
+  leaveItem,
+  withoutPerson,
   itemSplitText,
   latestMemberChange,
   liveRights,
@@ -365,5 +370,65 @@ describe("mineOf", () => {
 
   it("gives nothing to a browser with no key", () => {
     expect(mineOf(rights, null, null)).toEqual({ owner: false, people: [], items: [], joins: [], payments: [] });
+  });
+});
+
+describe("service charge and SST", () => {
+  const dinner: Item = {
+    id: "d",
+    name: "Dinner",
+    amountMinor: 11660,
+    paidBy: "h",
+    participants: ["h", "n", "a"],
+    overrides: { h: 4000 },
+    charges: { subtotalMinor: 10000, serviceBp: 1000, taxBp: 600 },
+  };
+
+  it("adds each person's part of the charges to what they had", () => {
+    expect(baseShares(dinner)).toEqual({ h: 4000, n: 3000, a: 3000 });
+    expect(itemShares(dinner)).toEqual({ h: 4664, n: 3498, a: 3498 });
+  });
+
+  it("keeps an equal split within a sen", () => {
+    expect(itemShares({ ...dinner, overrides: {} })).toEqual({ h: 3887, n: 3887, a: 3886 });
+  });
+
+  it("always adds up to the total on the receipt", () => {
+    const scanned: Item = { ...dinner, amountMinor: 11665, overrides: {}, charges: { subtotalMinor: 10000 } };
+    const shares = itemShares(scanned);
+    expect(Object.values(shares).reduce((s, v) => s + v, 0)).toBe(11665);
+    expect(Math.max(...Object.values(shares)) - Math.min(...Object.values(shares))).toBeLessThanOrEqual(1);
+  });
+
+  it("works out a joining person's share with charges, from a price before them", () => {
+    expect(joinShare(dinner, "i")).toBe(2332);
+    expect(joinShare(dinner, "i", 3000)).toBe(3498);
+  });
+
+  it("checks typed amounts against the price before charges", () => {
+    expect(leaveItem({ ...dinner, overrides: { h: 4000, n: 6000 } }, "a")).not.toBeNull();
+    expect(joinShare(dinner, "i", 6001)).toBeNull();
+  });
+
+  it("keeps typed amounts when someone else is taken out", () => {
+    const doc: BillDoc = { ...houseBills, items: [dinner] };
+    expect(withoutPerson(doc, "a").items[0].overrides).toEqual({ h: 4000 });
+  });
+
+  it("shows the receipt each person's amount with charges", () => {
+    const words = { each: "EACH", about: "ABOUT", others: "OTHERS", not: "NOT" };
+    const plain = (minor: number) => formatMoney(minor, "MYR");
+    expect(itemSplitText(dinner, people, plain, words)).toBe(
+      `HAZIQ ${plain(4664)} · OTHERS ${plain(3498)} EACH · NOT IMANUL`,
+    );
+  });
+
+  it("totals and who pays who use the amount with charges", () => {
+    const summary = summarize({ ...houseBills, items: [dinner] });
+    expect(summary.total).toBe(11660);
+    expect(summary.remaining).toEqual([
+      { from: "n", to: "h", amount: 3498 },
+      { from: "a", to: "h", amount: 3498 },
+    ]);
   });
 });

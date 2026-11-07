@@ -8,6 +8,7 @@ import { z } from "zod";
 import { isLocale, LOCALE_COOKIE } from "@/i18n";
 import {
   joinItem,
+  baseOf,
   joinShare,
   leaveItem,
   canSetDetails,
@@ -242,8 +243,16 @@ export async function addMemberItem(
     if (!parsed.success || !added.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
     const browser = await ensureBrowserHash();
-    const { name, amountMinor, paidBy, participants, overrides } = parsed.data;
-    const item: Item = { id: randomId(8), name, amountMinor, paidBy, participants, overrides };
+    const { name, amountMinor, paidBy, participants, overrides, charges } = parsed.data;
+    const item: Item = {
+      id: randomId(8),
+      name,
+      amountMinor,
+      paidBy,
+      participants,
+      overrides,
+      ...(charges ? { charges } : {}),
+    };
     let refused = "invalid";
     const saved = await writeBill(id, (current, rights) => {
       if (current.locked) {
@@ -258,7 +267,7 @@ export async function addMemberItem(
       }
       const people = new Set(doc.people.map((p) => p.id));
       const known = people.has(item.paidBy) && item.participants.every((p) => people.has(p));
-      const fits = splitItem(item.amountMinor, item.participants, item.overrides).ok;
+      const fits = splitItem(baseOf(item), item.participants, item.overrides).ok;
       if (!known || !fits || doc.items.length >= MAX_ITEMS || doc.people.length > MAX_PEOPLE) return null;
       rights.items = { ...rights.items, [item.id]: browser };
       rights.people = { ...rights.people, ...Object.fromEntries(added.data.map((p) => [p.id, browser])) };
@@ -330,7 +339,7 @@ export async function editMemberItem(
         refused = "duplicate";
         return null;
       }
-      const { name, amountMinor, paidBy, participants, overrides } = parsed.data;
+      const { name, amountMinor, paidBy, participants, overrides, charges } = parsed.data;
       const joins = Object.fromEntries(Object.entries(old.joins ?? {}).filter(([p]) => participants.includes(p)));
       const item: Item = {
         id: old.id,
@@ -339,12 +348,13 @@ export async function editMemberItem(
         paidBy,
         participants,
         overrides,
+        ...(charges ? { charges } : {}),
         addedAt: old.addedAt,
         ...(Object.keys(joins).length > 0 ? { joins } : {}),
       };
       const people = new Set(doc.people.map((p) => p.id));
       const known = people.has(item.paidBy) && item.participants.every((p) => people.has(p));
-      const fits = splitItem(item.amountMinor, item.participants, item.overrides).ok;
+      const fits = splitItem(baseOf(item), item.participants, item.overrides).ok;
       if (!known || !fits || doc.people.length > MAX_PEOPLE) return null;
       const next = withItem(doc, item);
       const events: EventBody[] = [

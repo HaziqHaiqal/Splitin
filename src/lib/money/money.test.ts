@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  addCharges,
   computeBalances,
   computeItemized,
   computeSplit,
   formatMoney,
   parseMoney,
+  parseRate,
+  rateText,
   simplifyDebts,
   splitByWeights,
   splitEqual,
@@ -199,5 +202,43 @@ describe("format / parse", () => {
 
   it("adds no point for zero-decimal currencies", () => {
     expect(toAutoPointInput("1500", "JPY")).toBe("1500");
+  });
+});
+
+describe("addCharges", () => {
+  it("adds the service charge, then SST on the price and the service charge", () => {
+    expect(addCharges(10000, { serviceBp: 1000, taxBp: 600 })).toEqual({ service: 1000, tax: 660, total: 11660 });
+  });
+
+  it("rounds each charge to the nearest sen", () => {
+    expect(addCharges(2640, { serviceBp: 1000, taxBp: 600 })).toEqual({ service: 264, tax: 174, total: 3078 });
+    expect(addCharges(1999, { taxBp: 800 })).toEqual({ service: 0, tax: 160, total: 2159 });
+  });
+
+  it("adds nothing without rates", () => {
+    expect(addCharges(5000, {})).toEqual({ service: 0, tax: 0, total: 5000 });
+  });
+});
+
+describe("rates", () => {
+  it("reads whole and decimal percents", () => {
+    expect(parseRate("6")).toBe(600);
+    expect(parseRate("10")).toBe(1000);
+    expect(parseRate("6.5")).toBe(650);
+    expect(parseRate(" 8.25 ")).toBe(825);
+  });
+
+  it("refuses empty, zero, too many decimals and over 100", () => {
+    expect(parseRate("")).toBeNull();
+    expect(parseRate("0")).toBeNull();
+    expect(parseRate("6.125")).toBeNull();
+    expect(parseRate("101")).toBeNull();
+    expect(parseRate("abc")).toBeNull();
+  });
+
+  it("writes them back the way they were typed", () => {
+    expect(rateText(600)).toBe("6");
+    expect(rateText(650)).toBe("6.5");
+    expect(rateText(1000)).toBe("10");
   });
 });

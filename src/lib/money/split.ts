@@ -47,6 +47,15 @@ export function splitByWeights(total: number, weights: Readonly<Record<string, n
   return out;
 }
 
+export type Rates = { serviceBp?: number; taxBp?: number };
+
+export function addCharges(subtotal: number, rates: Rates) {
+  assertInt(subtotal, "subtotal");
+  const service = Math.round((subtotal * (rates.serviceBp ?? 0)) / 10_000);
+  const tax = Math.round(((subtotal + service) * (rates.taxBp ?? 0)) / 10_000);
+  return { service, tax, total: subtotal + service + tax };
+}
+
 export type Item = {
   name: string;
   unitPriceMinor: number;

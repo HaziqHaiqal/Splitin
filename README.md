@@ -12,6 +12,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 
 - **Several bills, different payers.** For example, Afiq paid the electricity and Haziq paid the water and wifi.
 - **Equal split by default.** Change one person's amount and the rest re-splits, or leave someone out of a bill.
+- **SST and service charge.** Tick them on a bill and type prices before them. Each person pays what they had plus their part of the charges.
 - **Share to the group.** Send a receipt picture, a link and a short code through WhatsApp or the phone's share menu. Nothing is saved online until you share. Then the bill page opens, and every later change happens there.
 - **Everyone uses the link or code.** They pick their name, see who to pay, and tap their payment once they've paid. The person getting paid can mark it too.
 - **Pay by QR or bank details.** Anyone can add their account or payment QR to their name. Others can save the QR or copy the account number, then pay in their own bank app. Splitin warns them if the QR's name doesn't match, and never moves any money.

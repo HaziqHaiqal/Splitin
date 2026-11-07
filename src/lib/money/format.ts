@@ -69,6 +69,15 @@ export function toAutoPointInput(input: string, currency: string): string {
   return `${padded.slice(0, -digits)}.${padded.slice(-digits)}`;
 }
 
+export const rateText = (bp: number) => String(bp / 100);
+
+export function parseRate(input: string): number | null {
+  const match = /^(\d{1,3})(?:\.(\d{0,2}))?$/.exec(input.trim());
+  if (!match) return null;
+  const bp = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+  return bp >= 1 && bp <= 10_000 ? bp : null;
+}
+
 export function parseMoney(input: string, currency: string): number | null {
   const digits = currencyDigits(currency);
   const cleaned = input.replace(/[\s,]/g, "");
