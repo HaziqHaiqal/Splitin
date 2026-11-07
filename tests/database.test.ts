@@ -35,7 +35,16 @@ async function deleteSnacks(page: Page) {
   await panel(page).getByRole("button", { name: "Delete bill · you can undo" }).click();
 }
 
-const TABLES = ["bills", "bill_people", "bill_items", "item_shares", "payments", "bill_events", "expired_bills"];
+const TABLES = [
+  "bills",
+  "bill_people",
+  "bill_items",
+  "item_shares",
+  "payments",
+  "bill_events",
+  "expired_bills",
+  "receipt_scans",
+];
 const FUNCTIONS = ["log_events", "save_bill", "create_bill", "add_payment", "remove_payment", "delete_old_bills"];
 const NEVER = "2020-01-01T00:00:00.000Z";
 

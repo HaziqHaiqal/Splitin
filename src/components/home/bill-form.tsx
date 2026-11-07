@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon } from "@/components/icons";
+import { CameraIcon, CheckIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
@@ -17,6 +17,8 @@ import {
   type PreviewItem,
 } from "@/lib/bill";
 import { addCharges, parseMoney, parseRate, rateText, toAutoPointInput, toInputValue } from "@/lib/money";
+import { lineSplit, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from "@/lib/receipt-scan";
+import { shrinkPhoto } from "@/lib/shrink-photo";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { PersonChips } from "./person-chips";
 
@@ -26,6 +28,9 @@ const parse = (v: string) => parseMoney(v, "MYR");
 type Rate = { on: boolean; text: string };
 const rateOf = (bp: number | undefined, fallback: string): Rate =>
   bp ? { on: true, text: rateText(bp) } : { on: false, text: fallback };
+
+type Kept = { subtotalMinor: number; serviceBp?: number; taxBp?: number; totalMinor: number };
+type Line = ScanLine & { who: string[] };
 
 export function BillForm({
   item,
@@ -69,6 +74,9 @@ export function BillForm({
   const [showCharges, setShowCharges] = useState(Boolean(saved));
   const [service, setService] = useState(rateOf(saved?.serviceBp, "10"));
   const [tax, setTax] = useState(rateOf(saved?.taxBp, "6"));
+  const [kept, setKept] = useState<Kept | null>(item && saved ? { ...saved, totalMinor: item.amountMinor } : null);
+  const [lines, setLines] = useState<Line[] | null>(null);
+  const [scan, setScan] = useState<"idle" | "reading" | "done" | ScanError>("idle");
   const [paidBy, setPaidBy] = useState(
     item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
   );
@@ -91,12 +99,12 @@ export function BillForm({
   const ratesOk = serviceBp !== null && taxBp !== null;
   const added = addCharges(amountMinor, { serviceBp: serviceBp ?? undefined, taxBp: taxBp ?? undefined });
   const keepTotal =
-    item !== null &&
-    saved !== undefined &&
-    amountMinor === saved.subtotalMinor &&
-    (serviceBp ?? undefined) === saved.serviceBp &&
-    (taxBp ?? undefined) === saved.taxBp;
-  const totalMinor = keepTotal && item ? item.amountMinor : added.total;
+    kept !== null &&
+    amountMinor === kept.subtotalMinor &&
+    (serviceBp ?? undefined) === kept.serviceBp &&
+    (taxBp ?? undefined) === kept.taxBp;
+  const totalMinor = keepTotal ? kept.totalMinor : added.total;
+  const offBy = keepTotal && !isEdit ? Math.abs(added.total - kept.totalMinor) : 0;
   const charges: Charges | undefined =
     ratesOk && (totalMinor !== amountMinor || serviceBp || taxBp)
       ? {
@@ -204,6 +212,56 @@ export function BillForm({
     setParticipants((p) => [...p, ...added.map((a) => a.id)]);
   };
 
+  const fill = (result: Scan) => {
+    if (result.shop) setName(result.shop);
+    setAmount(toInputValue(result.subtotalMinor, "MYR"));
+    setShowCharges(Boolean(result.serviceBp || result.taxBp || result.totalMinor !== result.subtotalMinor));
+    setService(rateOf(result.serviceBp, "10"));
+    setTax(rateOf(result.taxBp, "6"));
+    setKept({
+      subtotalMinor: result.subtotalMinor,
+      serviceBp: result.serviceBp,
+      taxBp: result.taxBp,
+      totalMinor: result.totalMinor,
+    });
+    setLines(result.lines.length > 1 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
+    setParticipants(everyone);
+    setOverrides({});
+    setEditing(null);
+    setShowSplit(false);
+  };
+
+  const scanPhoto = async (file: File) => {
+    setScan("reading");
+    const photo = await shrinkPhoto(file);
+    if (!SCAN_TYPES.includes(photo.type)) return setScan("photo");
+    const body = new FormData();
+    body.append("photo", photo, "receipt");
+    const reply: { ok: true; data: Scan } | { ok: false; error: ScanError } | null = await fetch("/api/scan", {
+      method: "POST",
+      body,
+    })
+      .then((response) => response.json())
+      .catch(() => null);
+    if (!reply?.ok) return setScan(reply && reply.error in t.bill.scanErrors ? reply.error : "failed");
+    fill(reply.data);
+    setScan("done");
+  };
+
+  const applyLines = (next: Line[]) => {
+    setLines(next);
+    setAmount(
+      toInputValue(
+        next.reduce((sum, line) => sum + line.amountMinor, 0),
+        "MYR",
+      ),
+    );
+    const fromLines = lineSplit(next, everyone);
+    setParticipants(fromLines?.participants ?? everyone);
+    setOverrides(fromLines?.overrides ?? {});
+    setEditing(null);
+  };
+
   const save = () => {
     if (!canSave) return;
     const joins = Object.fromEntries(Object.entries(item?.joins ?? {}).filter(([id]) => included.includes(id)));
@@ -236,6 +294,9 @@ export function BillForm({
       setShowCharges(false);
       setService(rateOf(undefined, "10"));
       setTax(rateOf(undefined, "6"));
+      setKept(null);
+      setLines(null);
+      setScan("idle");
     }
   };
 
@@ -289,6 +350,44 @@ export function BillForm({
         onClose={onCancel}
       />
 
+      {!isEdit ? (
+        <div className="flex flex-col gap-1">
+          <label
+            className={cn(
+              "flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green",
+              scan === "reading" && "cursor-default opacity-60",
+            )}
+          >
+            <CameraIcon size={18} />
+            {scan === "reading" ? t.bill.scanning : scan === "done" ? t.bill.scanAgain : t.bill.scan}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={scan === "reading"}
+              className="sr-only text-[16px]"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void scanPhoto(file);
+              }}
+            />
+          </label>
+          <p
+            role={scan in t.bill.scanErrors ? "alert" : undefined}
+            className={cn(
+              "text-[11.5px] leading-snug",
+              scan in t.bill.scanErrors ? "font-semibold text-owe" : "text-faint",
+            )}
+          >
+            {scan in t.bill.scanErrors
+              ? t.bill.scanErrors[scan as ScanError]
+              : scan === "done"
+                ? t.bill.scanned
+                : t.bill.scanNote}
+          </p>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-[1.3fr_1fr] gap-2">
         <input
           type="text"
@@ -319,6 +418,11 @@ export function BillForm({
             <span>{t.bill.total}</span>
             <span className="tabular">{money(totalMinor)}</span>
           </div>
+          {offBy > 10 && kept ? (
+            <div className="text-[12px] font-semibold text-owe">
+              {fmt(t.bill.addsUp, { total: money(kept.totalMinor), sum: money(added.total) })}
+            </div>
+          ) : null}
         </div>
       ) : (
         <button
@@ -336,6 +440,62 @@ export function BillForm({
           <NewNameChip onAdd={addNames} />
         </PersonChips>
       </div>
+
+      {lines ? (
+        <div className="flex flex-col">
+          <span className="text-[12.5px] text-muted">{t.bill.whoHad}</span>
+          <span className="pb-1 text-[12px] text-faint">{t.bill.whoHadHint}</span>
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              role="group"
+              aria-label={line.name}
+              className="flex flex-col gap-1.5 border-t border-line py-2"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{line.name}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  aria-label={fmt(t.bill.amountOf, { name: line.name })}
+                  value={toInputValue(line.amountMinor, "MYR")}
+                  onChange={(e) =>
+                    applyLines(
+                      lines.map((l, j) => (j === i ? { ...l, amountMinor: parse(autoPoint(e.target.value)) ?? 0 } : l)),
+                    )
+                  }
+                  className="h-[34px] w-[92px] rounded-lg border border-border bg-card px-2.5 text-right text-[16px] font-bold text-ink tabular outline-none focus:border-[1.5px] focus:border-green"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {people.map((p) => {
+                  const had = line.who.includes(p.id);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={had}
+                      onClick={() =>
+                        applyLines(
+                          lines.map((l, j) =>
+                            j === i ? { ...l, who: had ? l.who.filter((id) => id !== p.id) : [...l.who, p.id] } : l,
+                          ),
+                        )
+                      }
+                      className={cn(
+                        "h-7 rounded-full px-2.5 text-[12.5px] font-bold",
+                        had ? "bg-green text-white" : "border border-border bg-card text-muted",
+                      )}
+                    >
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {expanded ? (
         <div className="flex flex-col">

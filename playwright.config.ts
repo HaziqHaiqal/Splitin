@@ -39,6 +39,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: local.PUBLISHABLE_KEY,
       SUPABASE_SERVICE_ROLE_KEY: local.SECRET_KEY,
       BILL_SIGNING_SECRET: "test",
+      GEMINI_API_KEY: "",
     },
   },
 });

@@ -1,6 +1,6 @@
 import "server-only";
-import { createHash, randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { createHash, createHmac, randomBytes } from "node:crypto";
+import { cookies, headers } from "next/headers";
 
 const COOKIE = "splitin-browser";
 
@@ -24,4 +24,12 @@ export async function ensureBrowserHash(): Promise<string> {
     secure: process.env.NODE_ENV === "production",
   });
   return hashToken(key);
+}
+
+export async function ipHash(): Promise<string> {
+  const key = process.env.BILL_SIGNING_SECRET;
+  if (!key) throw new Error("BILL_SIGNING_SECRET is not set");
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return createHmac("sha256", key).update(ip).digest("hex").slice(0, 32);
 }
