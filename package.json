@@ -1,6 +1,6 @@
 {
   "name": "splitin",
-  "version": "1.12.2",
+  "version": "1.12.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
-    "@vercel/functions": "^3.10.2",
     "clsx": "^2.1.1",
     "jsqr": "1.4.0",
     "modern-screenshot": "^4.7.0",
