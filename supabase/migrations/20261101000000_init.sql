@@ -105,6 +105,17 @@ create table public.expired_bills (
   expired_at timestamptz not null default now()
 );
 
+create table public.receipt_scans (
+  id bigint generated always as identity primary key,
+  browser_hash text not null,
+  ip_hash text not null,
+  created_at timestamptz not null default now()
+);
+
+create index receipt_scans_browser_hash on public.receipt_scans (browser_hash, created_at);
+create index receipt_scans_ip_hash on public.receipt_scans (ip_hash, created_at);
+create index receipt_scans_created_at on public.receipt_scans (created_at);
+
 create function public.log_events(p_id text, p_events jsonb)
 returns void
 language sql
@@ -308,6 +319,7 @@ alter table public.item_shares enable row level security;
 alter table public.payments enable row level security;
 alter table public.bill_events enable row level security;
 alter table public.expired_bills enable row level security;
+alter table public.receipt_scans enable row level security;
 
 revoke all on all tables in schema public from public, anon, authenticated;
 revoke execute on all functions in schema public from public, anon, authenticated;
@@ -315,3 +327,4 @@ grant select, insert, update, delete on all tables in schema public to service_r
 grant execute on all functions in schema public to service_role;
 
 select cron.schedule('splitin-delete-old-bills', '17 3 * * *', 'select public.delete_old_bills()');
+select cron.schedule('splitin-delete-old-scans', '27 3 * * *', $$delete from public.receipt_scans where created_at < now() - interval '2 days'$$);

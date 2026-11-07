@@ -15,6 +15,8 @@ const languages = [
     looking: "Just looking",
     pick: "Paid? Tap to pick your name",
     hi: "Hi Afiq",
+    scan: "Scan a receipt",
+    incl: "INCL. SERVICE 10% · SST 6%",
   },
   {
     locale: "ms",
@@ -29,10 +31,27 @@ const languages = [
     looking: "Tengok sahaja",
     pick: "Dah bayar? Ketik untuk pilih nama anda",
     hi: "Hai Afiq",
+    scan: "Imbas resit",
+    incl: "TERMASUK CAJ PERKHIDMATAN 10% · SST 6%",
   },
 ];
 
-for (const { locale, settings, help, next, step, swap, warning, add, title, looking, pick, hi } of languages) {
+for (const {
+  locale,
+  settings,
+  help,
+  next,
+  step,
+  swap,
+  warning,
+  add,
+  title,
+  looking,
+  pick,
+  hi,
+  scan,
+  incl,
+} of languages) {
   test(`the guide's first step prints the names on a receipt (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");
@@ -62,6 +81,18 @@ for (const { locale, settings, help, next, step, swap, warning, add, title, look
     await guide.getByRole("button", { name: looking }).click();
     await expect(guide.getByRole("button", { name: pick })).toBeVisible();
     await expect(guide.getByRole("button", { name: next, exact: true })).toBeInViewport();
+  });
+
+  test(`the guide's bills step scans a receipt (${locale})`, async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
+    await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
+    await page.getByRole("button", { name: help }).click();
+    const guide = sheet(page);
+    for (let i = 0; i < 2; i++) await guide.getByRole("button", { name: next, exact: true }).click();
+    await guide.getByRole("button", { name: scan }).click();
+    await expect(guide.getByText("RESTORAN ALI · NAJMI")).toBeVisible();
+    await expect(guide.getByText(incl)).toBeVisible();
   });
 
   test(`the guide's split step adds SST to the total (${locale})`, async ({ page, context, baseURL }) => {

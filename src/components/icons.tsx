@@ -163,6 +163,13 @@ export const ReceiptIcon = (p: IconProps) => (
   </svg>
 );
 
+export const CameraIcon = (p: IconProps) => (
+  <svg {...base({ strokeWidth: 2, size: 20, ...p })}>
+    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+);
+
 export const BankIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 21, ...p })}>
     <path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18M12 3l9 5H3z" />
