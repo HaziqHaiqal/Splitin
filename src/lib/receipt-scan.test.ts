@@ -59,6 +59,25 @@ describe("toScan", () => {
     expect(result.ok && result.scan.taxBp).toBe(600);
   });
 
+  it("leaves out SST that is already inside the prices", () => {
+    const result = toScan({
+      ...receipt,
+      serviceRate: null,
+      service: null,
+      taxRate: 6,
+      tax: 3.7,
+      subtotal: 40,
+      total: 40,
+    });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 4000, totalMinor: 4000 });
+    expect(result.ok && "taxBp" in result.scan).toBe(false);
+  });
+
+  it("keeps the rates when the total doesn't match any of them", () => {
+    const result = toScan({ ...receipt, total: 45 });
+    expect(result.ok && [result.scan.serviceBp, result.scan.taxBp, result.scan.totalMinor]).toEqual([1000, 600, 4500]);
+  });
+
   it("refuses other currencies", () => {
     expect(toScan({ ...receipt, currency: "SGD" })).toEqual({ ok: false, error: "currency" });
     expect(toScan({ ...receipt, currency: "rm" }).ok).toBe(true);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addCharges, splitEqual, type Allocation } from "./money";
+import { addCharges, splitEqual, type Allocation, type Rates } from "./money";
 
 export type ScanLine = { name: string; amountMinor: number };
 
@@ -22,7 +22,7 @@ export const SCAN_PROMPT = [
   "lines: each thing bought, with the line total (quantity times price) as printed. Leave out subtotal, service charge, tax, rounding, discount, payment and change lines.",
   "subtotal: the amount before service charge and tax, if printed.",
   "serviceRate and taxRate: the percent printed, like 10 or 6.",
-  "service and tax: the service charge and SST or tax added on top. Leave tax out when it is already included in the prices.",
+  "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
   "total: the final amount to pay, after any rounding.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
@@ -120,11 +120,16 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   const service = toMinor(r.service);
   const tax = toMinor(r.tax);
   const base = printed > 0 ? printed : linesMinor;
-  const serviceBp = rateBp(r.serviceRate, service, base);
-  const taxBp = rateBp(r.taxRate, tax, base + service);
+  const read: Rates = {
+    serviceBp: rateBp(r.serviceRate, service, base),
+    taxBp: rateBp(r.taxRate, tax, base + service),
+  };
   const subtotalMinor = linesMinor > 0 ? linesMinor : printed > 0 ? printed : toMinor(r.total);
   const total = toMinor(r.total);
-  const totalMinor = total > 0 ? total : addCharges(subtotalMinor, { serviceBp, taxBp }).total;
+  const fits = (rates: Rates) => Math.abs(addCharges(subtotalMinor, rates).total - total) <= 10;
+  const { serviceBp, taxBp } =
+    total > 0 ? ([read, { serviceBp: read.serviceBp }, { taxBp: read.taxBp }, {}].find(fits) ?? read) : read;
+  const totalMinor = total > 0 ? total : addCharges(subtotalMinor, read).total;
   if (subtotalMinor <= 0 || totalMinor <= 0 || totalMinor > MAX_MINOR || subtotalMinor > MAX_MINOR)
     return { ok: false, error: "unreadable" };
 
