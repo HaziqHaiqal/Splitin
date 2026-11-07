@@ -2,12 +2,11 @@ import "server-only";
 import { replyText, SCAN_PROMPT, SCAN_SCHEMA, toScan, type Scan, type ScanError } from "./receipt-scan";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
-const MODEL = "gemini-3.1-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
-export async function readReceipt(
-  key: string,
-  photo: Blob,
-): Promise<{ ok: true; scan: Scan } | { ok: false; error: ScanError }> {
+type Read = { ok: true; scan: Scan } | { ok: false; error: ScanError };
+
+async function ask(key: string, photo: Blob): Promise<Read> {
   const data = Buffer.from(await photo.arrayBuffer()).toString("base64");
   const response = await fetch(ENDPOINT, {
     method: "POST",
@@ -24,7 +23,7 @@ export async function readReceipt(
     }),
     signal: AbortSignal.timeout(45_000),
   });
-  if (response.status === 429) return { ok: false, error: "busy" };
+  if (response.status === 429 || response.status === 503) return { ok: false, error: "busy" };
   if (!response.ok) {
     console.error("[splitin] scan failed:", response.status, (await response.text()).slice(0, 500));
     return { ok: false, error: "failed" };
@@ -35,5 +34,14 @@ export async function readReceipt(
     return toScan(JSON.parse(text));
   } catch {
     return { ok: false, error: "unreadable" };
+  }
+}
+
+export async function readReceipt(key: string, photo: Blob): Promise<Read> {
+  try {
+    return await ask(key, photo);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") return { ok: false, error: "busy" };
+    throw error;
   }
 }
