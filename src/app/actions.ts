@@ -1,8 +1,8 @@
 "use server";
 
-import { createHmac, randomBytes, randomInt, randomUUID } from "node:crypto";
+import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import { refresh } from "next/cache";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
 import { isLocale, LOCALE_COOKIE } from "@/i18n";
@@ -36,7 +36,7 @@ import {
   payQrSchema,
   personNameSchema,
 } from "@/lib/bill-schema";
-import { browserHash, ensureBrowserHash, hashToken } from "@/lib/browser-key";
+import { browserHash, ensureBrowserHash, hashToken, ipHash } from "@/lib/browser-key";
 import { getBill, linkExpired, readBill } from "@/lib/data/bill";
 import { createdEvent, diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
 import { broadcastChange } from "@/lib/realtime-server";
@@ -95,12 +95,6 @@ async function tooManyChanges(id: string): Promise<boolean> {
   return !error && (count ?? 0) >= MEMBER_CHANGES_PER_HOUR;
 }
 
-function signingKey() {
-  const key = process.env.BILL_SIGNING_SECRET;
-  if (!key) throw new Error("BILL_SIGNING_SECRET is not set");
-  return key;
-}
-
 export async function setLocale(locale: string) {
   if (!isLocale(locale)) return;
   (await cookies()).set(LOCALE_COOKIE, locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
@@ -114,14 +108,12 @@ export async function publishBill(input: BillDoc): Promise<Result<{ id: string; 
     const doc = parsed.data as BillDoc;
     if (repeatedName(doc)) return { ok: false, error: "duplicate" };
 
-    const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-    const ipHash = createHmac("sha256", signingKey()).update(ip).digest("hex").slice(0, 32);
+    const ip = await ipHash();
     const since = new Date(Date.now() - 3_600_000).toISOString();
     const { count } = await db()
       .from("bills")
       .select("id", { count: "exact", head: true })
-      .eq("ip_hash", ipHash)
+      .eq("ip_hash", ip)
       .gte("created_at", since);
     if ((count ?? 0) >= BILLS_PER_HOUR) return { ok: false, error: "rate_limited" };
 
@@ -131,7 +123,7 @@ export async function publishBill(input: BillDoc): Promise<Result<{ id: string; 
       ...p_bill,
       owner_token_hash: hashToken(ownerToken),
       browser_hash: await ensureBrowserHash(),
-      ip_hash: ipHash,
+      ip_hash: ip,
       started_at: doc.createdAt,
     };
     for (let attempt = 0; attempt < 3; attempt++) {

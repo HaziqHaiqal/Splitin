@@ -2,7 +2,15 @@
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
-import { ArrowRightIcon, BackIcon, CheckIcon, ChevronDownIcon, PlusIcon, SendIcon } from "@/components/icons";
+import {
+  ArrowRightIcon,
+  BackIcon,
+  CameraIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  PlusIcon,
+  SendIcon,
+} from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { HistoryBubble, HistoryRun } from "@/components/shared/history";
 import { fmt } from "@/i18n";
@@ -258,10 +266,14 @@ const BILLS: [string, number][] = [
   ["HAZIQ", 9220],
 ];
 
+const SCANNED = 4665;
+
 function BillsDemo() {
   const { t, plain } = useI18n();
   const [count, setCount] = useState(1);
+  const [scanned, setScanned] = useState(false);
   const full = count === BILLS.length;
+  const r = t.receipt;
   const line = (i: number) => (
     <>
       <span className="truncate">
@@ -291,20 +303,49 @@ function BillsDemo() {
                 {line(count)}
               </div>
             ) : null}
+            {scanned ? (
+              <div className="-mx-1 animate-printed rounded px-1">
+                <div className="flex justify-between gap-2">
+                  <span className="truncate">RESTORAN ALI · NAJMI</span>
+                  <span>{plain(SCANNED)}</span>
+                </div>
+                <div className="pl-2 text-[10.5px] text-[#9b9a96]">
+                  {fmt(r.incl, { list: `${fmt(r.service, { rate: "10" })} · ${fmt(r.sst, { rate: "6" })}` })}
+                </div>
+              </div>
+            ) : null}
           </Paper>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => setCount(full ? 1 : count + 1)}
-        className={cn(
-          press,
-          "h-8 rounded-lg px-3.5 text-[12px] font-bold",
-          full ? "bg-card text-ink shadow-[0_1px_2px_rgba(28,31,29,0.08)]" : "animate-nudge bg-green text-white",
-        )}
-      >
-        {full ? t.help.replay : `${t.bill.printIt} ↵`}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setCount(full ? 1 : count + 1);
+            if (full) setScanned(false);
+          }}
+          className={cn(
+            press,
+            "h-8 rounded-lg px-3.5 text-[12px] font-bold",
+            full ? "bg-card text-ink shadow-[0_1px_2px_rgba(28,31,29,0.08)]" : "animate-nudge bg-green text-white",
+          )}
+        >
+          {full ? t.help.replay : `${t.bill.printIt} ↵`}
+        </button>
+        {!scanned ? (
+          <button
+            type="button"
+            onClick={() => setScanned(true)}
+            className={cn(
+              press,
+              "inline-flex h-8 items-center gap-1.5 rounded-lg bg-card px-3 text-[12px] font-bold text-green-ink shadow-[0_1px_2px_rgba(28,31,29,0.08)]",
+            )}
+          >
+            <CameraIcon size={15} />
+            {t.bill.scan}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
