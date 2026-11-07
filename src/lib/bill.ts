@@ -1,4 +1,4 @@
-import { simplifyDebts, splitEqual, type Allocation, type Transfer } from "@/lib/money";
+import { simplifyDebts, splitByWeights, splitEqual, type Allocation, type Transfer } from "@/lib/money";
 
 export type Person = {
   id: string;
@@ -13,6 +13,8 @@ export type Person = {
 
 export type Join = { at: string };
 
+export type Charges = { subtotalMinor: number; serviceBp?: number; taxBp?: number };
+
 export type Item = {
   id: string;
   name: string;
@@ -20,6 +22,7 @@ export type Item = {
   paidBy: string;
   participants: string[];
   overrides: Record<string, number>;
+  charges?: Charges;
   addedAt?: string;
   joins?: Record<string, Join>;
 };
@@ -82,10 +85,32 @@ export function splitItem(
   return { ok: true, shares: { ...fixed, ...splitEqual(rest, free) } };
 }
 
-export function itemShares(item: Item): Allocation {
-  const result = splitItem(item.amountMinor, item.participants, item.overrides);
+export const baseOf = (item: Pick<Item, "amountMinor" | "charges">) => item.charges?.subtotalMinor ?? item.amountMinor;
+
+export function withCharges(
+  item: Pick<Item, "amountMinor" | "charges">,
+  shares: Allocation,
+  overrides: Readonly<Record<string, number>>,
+): Allocation {
+  if (baseOf(item) === item.amountMinor || !Object.values(shares).some((v) => v > 0)) return shares;
+  const scaled = splitByWeights(item.amountMinor, shares);
+  const free = Object.keys(shares).filter((id) => overrides[id] === undefined);
+  if (free.length < 2) return scaled;
+  return {
+    ...scaled,
+    ...splitEqual(
+      free.reduce((sum, id) => sum + scaled[id], 0),
+      free,
+    ),
+  };
+}
+
+export function baseShares(item: Item): Allocation {
+  const result = splitItem(baseOf(item), item.participants, item.overrides);
   return result.ok ? result.shares : {};
 }
+
+export const itemShares = (item: Item): Allocation => withCharges(item, baseShares(item), item.overrides);
 
 export function ownerOf(doc: BillDoc): Person | undefined {
   return doc.ownerId === undefined ? doc.people[0] : doc.people.find((p) => p.id === doc.ownerId);
@@ -133,11 +158,11 @@ function mergeJoins(server: Item | undefined, local: Item, seenAt: string, peopl
     joins[id] = join;
     if (!participants.includes(id)) participants = [...participants, id];
     const written = server.overrides[id];
-    if (written === undefined || !splitItem(local.amountMinor, participants, { ...overrides, [id]: written }).ok)
+    if (written === undefined || !splitItem(baseOf(local), participants, { ...overrides, [id]: written }).ok)
       delete overrides[id];
     else overrides[id] = written;
   }
-  if (!splitItem(local.amountMinor, participants, overrides).ok) return local;
+  if (!splitItem(baseOf(local), participants, overrides).ok) return local;
   return withJoins({ ...local, participants, overrides }, joins);
 }
 
@@ -205,7 +230,7 @@ export function withoutPerson(doc: BillDoc, id: string): BillDoc {
     .map((item) => {
       const overrides = without(item.overrides, id);
       const participants = item.participants.filter((p) => p !== id);
-      const fits = splitItem(item.amountMinor, participants, overrides).ok;
+      const fits = splitItem(baseOf(item), participants, overrides).ok;
       return withJoins({ ...item, participants, overrides: fits ? overrides : {} }, without(item.joins ?? {}, id));
     })
     .filter((item) => item.participants.length > 0);
@@ -220,12 +245,9 @@ export function withoutPerson(doc: BillDoc, id: string): BillDoc {
 export function joinShare(item: Item, personId: string, written?: number): number | null {
   const participants = item.participants.includes(personId) ? item.participants : [...item.participants, personId];
   const others = without(item.overrides, personId);
-  const split = splitItem(
-    item.amountMinor,
-    participants,
-    written === undefined ? others : { ...others, [personId]: written },
-  );
-  const share = split.ok ? (split.shares[personId] ?? 0) : 0;
+  const overrides = written === undefined ? others : { ...others, [personId]: written };
+  const split = splitItem(baseOf(item), participants, overrides);
+  const share = split.ok ? (withCharges(item, split.shares, overrides)[personId] ?? 0) : 0;
   return share > 0 ? share : null;
 }
 
@@ -252,7 +274,7 @@ export const withItem = (doc: BillDoc, item: Item): BillDoc => ({
 export function leaveItem(item: Item, personId: string): Item | null {
   const participants = item.participants.filter((p) => p !== personId);
   const overrides = without(item.overrides, personId);
-  if (participants.length === 0 || !splitItem(item.amountMinor, participants, overrides).ok) return null;
+  if (participants.length === 0 || !splitItem(baseOf(item), participants, overrides).ok) return null;
   return withJoins({ ...item, participants, overrides }, without(item.joins ?? {}, personId));
 }
 

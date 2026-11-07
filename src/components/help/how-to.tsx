@@ -8,6 +8,7 @@ import { HistoryBubble, HistoryRun } from "@/components/shared/history";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { splitItem } from "@/lib/bill";
+import { addCharges } from "@/lib/money";
 import { drawQrCard, loadQrCard, qrCardSize } from "@/lib/qr-card";
 import { cn } from "@/lib/utils";
 
@@ -310,11 +311,13 @@ function BillsDemo() {
 
 const SPLIT_TOTAL = 12000;
 const SPLIT_FIXED = 5000;
+const SPLIT_SST = addCharges(SPLIT_TOTAL, { taxBp: 600 });
 
 function SplitDemo() {
-  const { money, plain } = useI18n();
+  const { t, money, plain } = useI18n();
   const [on, setOn] = useState(NAMES.slice(0, 3));
   const [fixed, setFixed] = useState<string | null>(NAMES[0]);
+  const [sst, setSst] = useState(false);
 
   const pinned = fixed !== null && on.length > 1 && on.includes(fixed) ? fixed : null;
   const split = splitItem(SPLIT_TOTAL, on, pinned ? { [pinned]: SPLIT_FIXED } : {});
@@ -333,7 +336,7 @@ function SplitDemo() {
     <div className={cn(mini, "flex w-full max-w-[280px] flex-col gap-1.5 p-3")}>
       <div className="flex items-baseline justify-between pb-0.5 text-[12px] font-bold text-muted">
         <span>Wifi</span>
-        <span className="text-ink tabular">{money(SPLIT_TOTAL)}</span>
+        <span className="text-ink tabular">{money(sst ? SPLIT_SST.total : SPLIT_TOTAL)}</span>
       </div>
       {NAMES.map((name) => {
         const included = on.includes(name);
@@ -373,6 +376,26 @@ function SplitDemo() {
           </div>
         );
       })}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={sst}
+        onClick={() => setSst(!sst)}
+        className="flex items-center gap-2.5 border-t border-line pt-1.5 text-left"
+      >
+        <span
+          className={cn(
+            "inline-flex size-5 items-center justify-center rounded-md transition-colors",
+            sst ? "bg-green text-white" : "border-2 border-dash",
+          )}
+        >
+          {sst ? <CheckIcon size={12} /> : null}
+        </span>
+        <span className={cn("flex-1 text-[13px] font-semibold", sst ? "text-ink" : "text-muted")}>{t.bill.sst} 6%</span>
+        <span className="min-w-[68px] px-2 text-right text-[13px] font-bold text-muted tabular">
+          {sst ? `+${plain(SPLIT_SST.tax)}` : "–"}
+        </span>
+      </button>
     </div>
   );
 }

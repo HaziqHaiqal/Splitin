@@ -64,6 +64,19 @@ for (const { locale, settings, help, next, step, swap, warning, add, title, look
     await expect(guide.getByRole("button", { name: next, exact: true })).toBeInViewport();
   });
 
+  test(`the guide's split step adds SST to the total (${locale})`, async ({ page, context, baseURL }) => {
+    await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
+    await page.goto("/");
+    await page.getByRole("button", { name: settings }).click();
+    await page.getByRole("button", { name: help }).click();
+    const guide = sheet(page);
+    for (let i = 0; i < 3; i++) await guide.getByRole("button", { name: next, exact: true }).click();
+    await expect(guide.getByText("RM 120.00")).toBeVisible();
+    await guide.getByRole("checkbox", { name: "SST 6%" }).click();
+    await expect(guide.getByText("RM 127.20")).toBeVisible();
+    await expect(guide.getByText("+7.20")).toBeVisible();
+  });
+
   test(`the guide teaches paying by QR (${locale})`, async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: "splitin-locale", value: locale, url: baseURL! }]);
     await page.goto("/");

@@ -2,7 +2,7 @@ import { liveRights, type BillDoc, type BillRights, type Payment } from "./bill"
 import type { BillEvent, EventBody, Who } from "./history";
 
 const SHARE_COLUMNS = "person_id, position, amount_override, browser_hash, joined_at";
-const ITEM_COLUMNS = `id, position, name, amount_minor, paid_by, browser_hash, added_at, item_shares(${SHARE_COLUMNS})`;
+const ITEM_COLUMNS = `id, position, name, amount_minor, subtotal_minor, service_bp, tax_bp, paid_by, browser_hash, added_at, item_shares(${SHARE_COLUMNS})`;
 const PERSON_COLUMNS = "id, position, name, color, bank, account_no, pay_qr, browser_hash, added_at, details_at";
 const PAYMENT_COLUMNS = "id, from_person, to_person, amount_minor, by_role, browser_hash, created_at";
 const EVENT_COLUMNS = "id, kind, by_role, by_person_id, by_name, data, created_at";
@@ -23,6 +23,9 @@ export type ItemRow = {
   position: number;
   name: string;
   amount_minor: number;
+  subtotal_minor: number | null;
+  service_bp: number | null;
+  tax_bp: number | null;
   paid_by: string;
   browser_hash: string | null;
   added_at: string | null;
@@ -106,6 +109,14 @@ export function docFromRow(row: BillRow): BillDoc {
         id: i.id,
         name: i.name,
         amountMinor: Number(i.amount_minor),
+        charges:
+          i.subtotal_minor === null
+            ? undefined
+            : {
+                subtotalMinor: Number(i.subtotal_minor),
+                serviceBp: i.service_bp ?? undefined,
+                taxBp: i.tax_bp ?? undefined,
+              },
         paidBy: i.paid_by,
         participants: i.item_shares.map((s) => s.person_id),
         overrides: Object.fromEntries(
@@ -182,6 +193,9 @@ export function saveArgs(doc: BillDoc, rights: BillRights) {
       position,
       name: i.name,
       amount_minor: i.amountMinor,
+      subtotal_minor: i.charges?.subtotalMinor ?? null,
+      service_bp: i.charges?.serviceBp ?? null,
+      tax_bp: i.charges?.taxBp ?? null,
       paid_by: i.paidBy,
       browser_hash: live.items?.[i.id] ?? null,
       added_at: i.addedAt ?? null,

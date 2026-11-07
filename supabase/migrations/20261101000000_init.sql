@@ -46,6 +46,9 @@ create table public.bill_items (
   position integer not null,
   name text not null check (char_length(name) between 1 and 60),
   amount_minor bigint not null check (amount_minor between 1 and 10000000000),
+  subtotal_minor bigint check (subtotal_minor between 1 and 10000000000),
+  service_bp integer check (service_bp between 1 and 10000),
+  tax_bp integer check (tax_bp between 1 and 10000),
   paid_by text not null,
   browser_hash text,
   added_at timestamptz,
@@ -173,15 +176,22 @@ begin
       added_at = excluded.added_at,
       details_at = excluded.details_at;
 
-  insert into public.bill_items (bill_id, id, position, name, amount_minor, paid_by, browser_hash, added_at)
-  select p_id, x.id, x.position, x.name, x.amount_minor, x.paid_by, x.browser_hash, x.added_at
+  insert into public.bill_items (
+    bill_id, id, position, name, amount_minor, subtotal_minor, service_bp, tax_bp, paid_by, browser_hash, added_at
+  )
+  select p_id, x.id, x.position, x.name, x.amount_minor, x.subtotal_minor, x.service_bp, x.tax_bp, x.paid_by,
+         x.browser_hash, x.added_at
   from jsonb_to_recordset(p_items) as x(
-    id text, position integer, name text, amount_minor bigint, paid_by text, browser_hash text, added_at timestamptz
+    id text, position integer, name text, amount_minor bigint, subtotal_minor bigint, service_bp integer,
+    tax_bp integer, paid_by text, browser_hash text, added_at timestamptz
   )
   on conflict (bill_id, id) do update
   set position = excluded.position,
       name = excluded.name,
       amount_minor = excluded.amount_minor,
+      subtotal_minor = excluded.subtotal_minor,
+      service_bp = excluded.service_bp,
+      tax_bp = excluded.tax_bp,
       paid_by = excluded.paid_by,
       browser_hash = excluded.browser_hash,
       added_at = excluded.added_at;

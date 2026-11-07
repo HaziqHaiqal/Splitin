@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { CloseIcon, PencilIcon, ResetIcon } from "@/components/icons";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { itemShares, joinShare, type BillDoc, type Item } from "@/lib/bill";
+import { baseOf, baseShares, itemShares, joinShare, type BillDoc, type Item } from "@/lib/bill";
 import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { MenuHead, MenuItem } from "./bill-menu";
@@ -157,8 +157,12 @@ export function BillDetail({
 }) {
   const { t, money, locale } = useI18n();
   const share = me ? itemShares(item)[me] : undefined;
+  const charged = baseOf(item) !== item.amountMinor;
+  const typed = me ? (charged ? baseShares(item)[me] : share) : undefined;
   const on = share !== undefined;
-  const [value, setValue] = useState(on ? toInputValue(share, "MYR") : "");
+  const [value, setValue] = useState(on && typed !== undefined ? toInputValue(typed, "MYR") : "");
+  const written = parseMoney(value, "MYR");
+  const withExtras = charged && me && written ? joinShare(item, me, written) : null;
   const input = useRef<HTMLInputElement>(null);
   const part = on && rules.canPart(item);
   const edit = rules.canEdit(item);
@@ -178,9 +182,8 @@ export function BillDetail({
 
   const save = (e: FormEvent) => {
     e.preventDefault();
-    const written = parseMoney(value, "MYR");
     if (written === null || written <= 0) return input.current?.focus();
-    onPart(item, written === share && !own ? undefined : written);
+    onPart(item, written === typed && !own ? undefined : written);
   };
 
   return (
@@ -211,6 +214,11 @@ export function BillDetail({
               {t.common.save}
             </button>
           </form>
+          {charged ? (
+            <p className="m-0 px-2.5 pb-1 text-[12px] leading-[1.45] text-muted">
+              {withExtras === null ? t.page.beforeCharges : fmt(t.page.withCharges, { amount: money(withExtras) })}
+            </p>
+          ) : null}
           {own ? (
             <MenuItem
               icon={<ResetIcon size={16} />}

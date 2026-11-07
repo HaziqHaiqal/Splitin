@@ -3,7 +3,7 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import type { BillDoc, Payment } from "@/lib/bill";
+import { baseOf, type BillDoc, type Payment } from "@/lib/bill";
 import { avatarColor, cn } from "@/lib/utils";
 import { workings, type Change, type Debt } from "@/lib/workings";
 
@@ -281,6 +281,21 @@ export function Workings({
     const low = Math.min(...values);
     const extra = values.reduce((sum, v) => sum + v, 0) - low * values.length;
     const lines: string[] = [];
+    const charged = s.item.amountMinor - baseOf(s.item);
+    if (charged !== 0) {
+      const kinds = [s.item.charges?.serviceBp ? h.service : "", s.item.charges?.taxBp ? h.sst : ""].filter(Boolean);
+      lines.push(
+        charged < 0
+          ? fmt(h.chargesOff, { amount: money(-charged) })
+          : fmt(h.charges, {
+              amount: money(charged),
+              list:
+                kinds.length > 0
+                  ? new Intl.ListFormat(intlLocale(locale), { type: "conjunction" }).format(kinds)
+                  : h.extras,
+            }),
+      );
+    }
     if (Math.max(...values) - low <= 1) {
       lines.push(fmt(h.each, { count: values.length, amount: money(low) }));
       if (extra > 0)

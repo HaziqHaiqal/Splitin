@@ -51,6 +51,12 @@ describe("bill rows", () => {
     expect(docFromRow(rowOf(doc))).toEqual({ ...doc, locked: undefined });
   });
 
+  it("gives back the price before charges and the rates", () => {
+    const charged = { ...doc, items: [{ ...doc.items[0], charges: { subtotalMinor: 900, taxBp: 600 } }] };
+    expect(docFromRow(rowOf(charged)).items[0].charges).toEqual({ subtotalMinor: 900, taxBp: 600 });
+    expect(docFromRow(rowOf(doc)).items[0].charges).toBeUndefined();
+  });
+
   it("keeps the order of people on an item, so the extra sen stays with the same person", () => {
     expect(docFromRow(rowOf(doc)).items[0].participants).toEqual(["n", "h"]);
   });
