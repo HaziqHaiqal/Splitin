@@ -20,16 +20,26 @@ export function useKeyboardViewport(container: RefObject<HTMLElement | null>) {
       const typing = active instanceof HTMLInputElement && Boolean(container.current?.contains(active));
       setViewport(typing && vv.scale === 1 ? { bottom: vv.offsetTop + vv.height, height: vv.height } : null);
     };
-    const settle = () => requestAnimationFrame(update);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const settle = () => {
+      clearTimeout(timer);
+      timer = setTimeout(update, 150);
+    };
+    const focusIn = (e: FocusEvent) => {
+      if (!(e.target instanceof HTMLInputElement)) return settle();
+      clearTimeout(timer);
+      update();
+    };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
-    document.addEventListener("focusin", update);
+    document.addEventListener("focusin", focusIn);
     document.addEventListener("focusout", settle);
     return () => {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
-      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusin", focusIn);
       document.removeEventListener("focusout", settle);
+      clearTimeout(timer);
     };
   }, [container]);
 
