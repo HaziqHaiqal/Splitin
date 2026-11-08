@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addCharges, splitEqual, type Allocation, type Rates } from "./money";
+import { addCharges, splitByWeights, type Allocation, type Rates } from "./money";
 
 export type ScanLine = { name: string; amountMinor: number };
 
@@ -154,15 +154,21 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
 
 export function lineSplit(
   lines: readonly (ScanLine & { who: readonly string[] })[],
-  everyone: readonly string[],
-): { participants: string[]; overrides: Allocation } | null {
-  if (!lines.some((line) => line.who.length > 0) || everyone.length === 0) return null;
-  const totals: Allocation = {};
-  for (const line of lines) {
-    if (line.amountMinor <= 0) continue;
-    for (const [id, part] of Object.entries(splitEqual(line.amountMinor, line.who.length > 0 ? line.who : everyone)))
-      totals[id] = (totals[id] ?? 0) + part;
-  }
-  const participants = everyone.filter((id) => (totals[id] ?? 0) > 0);
-  return { participants, overrides: Object.fromEntries(participants.map((id) => [id, totals[id]])) };
+  sharers: readonly string[],
+  everyone: readonly string[] = sharers,
+): { participants: string[]; overrides: Allocation } {
+  const groups = lines
+    .filter((line) => line.amountMinor > 0)
+    .map((line) => ({ amount: line.amountMinor, owners: line.who.length > 0 ? line.who : sharers }));
+  const total = groups.reduce((sum, group) => sum + group.amount, 0);
+  if (!lines.some((line) => line.who.length > 0) || sharers.length === 0 || total <= 0)
+    return { participants: [...sharers], overrides: {} };
+  const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+  const unit = groups.reduce((lcm, group) => (lcm / gcd(lcm, group.owners.length)) * group.owners.length, 1);
+  const weights: Allocation = Object.fromEntries(everyone.map((id) => [id, 0]));
+  for (const group of groups)
+    for (const id of group.owners) weights[id] = (weights[id] ?? 0) + group.amount * (unit / group.owners.length);
+  const shares = splitByWeights(total, weights);
+  const participants = Object.keys(weights).filter((id) => (shares[id] ?? 0) > 0);
+  return { participants, overrides: Object.fromEntries(participants.map((id) => [id, shares[id]])) };
 }

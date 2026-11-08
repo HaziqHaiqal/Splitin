@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   choose,
   closePhones,
@@ -47,6 +47,12 @@ async function scanReceipt(page: Page, reply?: unknown) {
   return form;
 }
 
+async function tapWho(form: Locator, line: string, name: string) {
+  const row = form.getByRole("button", { name: line });
+  if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  await form.getByRole("group", { name: line }).getByRole("button", { name, exact: true }).click();
+}
+
 const added = async () => {
   const item = (await serverDoc()).items.find((i) => i.name === "Restoran Ali");
   return item && { amountMinor: item.amountMinor, charges: item.charges, overrides: item.overrides };
@@ -64,7 +70,9 @@ test("a scanned receipt fills in the bill and keeps its exact total", async ({ p
   await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("40.00");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).not.toBeEditable();
-  await expect(form.getByText("Split equally · RM 15.55 each")).toBeVisible();
+  for (const name of ["Haziq", "Najmi", "Afiq"]) await expect(form.getByText(`${name} 15.55`)).toBeVisible();
+  await expect(form.getByText("Split equally", { exact: false })).toHaveCount(0);
+  await expect(form.getByText("Service charge and SST are split by what each person had.")).toBeVisible();
   await expect(form.getByRole("checkbox", { name: "Service charge" })).toBeChecked();
   await expect(form.getByRole("checkbox", { name: "SST" })).toBeChecked();
   await expect(form.getByText("RM 46.65", { exact: true })).toBeVisible();
@@ -82,8 +90,8 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await form.getByRole("group", { name: "2 × Nasi lemak" }).getByRole("button", { name: "Haziq" }).click();
-  await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
+  await tapWho(form, "2 × Nasi lemak", "Haziq");
+  await tapWho(form, "Teh ais", "Najmi");
   await expect(form.getByText("Haziq 31.89")).toBeVisible();
   await expect(form.getByText("Najmi 10.88")).toBeVisible();
   await expect(form.getByText("Afiq 3.88")).toBeVisible();
@@ -96,10 +104,46 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   });
 });
 
+test("tapping an item opens who had it; two people halve it, and Everyone puts it back", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const form = await scanReceipt(page, { ok: true, data: scanned });
+  await expect(form.getByRole("group", { name: "Teh ais" })).toHaveCount(0);
+  await tapWho(form, "Teh ais", "Haziq");
+  await tapWho(form, "Teh ais", "Najmi");
+  await form.getByRole("button", { name: "Roti canai" }).click();
+  await expect(form.getByRole("group", { name: "Teh ais" })).toHaveCount(0);
+  await expect(form.getByRole("button", { name: /^Teh ais Haziq and Najmi 6\.00 3\.00 each/ })).toBeVisible();
+  await tapWho(form, "Teh ais", "Everyone");
+  await expect(form.getByRole("button", { name: /^Teh ais Everyone/ })).toBeVisible();
+  for (const name of ["Haziq", "Najmi", "Afiq"]) await expect(form.getByText(`${name} 15.55`)).toBeVisible();
+});
+
+test("what nobody tapped can be shared by fewer people", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const form = await scanReceipt(page, { ok: true, data: scanned });
+  await form.getByRole("button", { name: "Change" }).click();
+  await form
+    .getByRole("group", { name: "Who shares what nobody tapped" })
+    .getByRole("button", { name: "Afiq" })
+    .click();
+  await expect(form.getByText("Anything not tapped is shared by Haziq and Najmi.")).toBeVisible();
+  await expect(form.getByText("Afiq 0.00")).toBeVisible();
+  await tapWho(form, "Roti canai", "Afiq");
+  await expect(form.getByText("Afiq 11.66")).toBeVisible();
+  await submit(form);
+  await settled(
+    async () => (await serverDoc()).items.find((i) => i.name === "Restoran Ali")?.participants,
+    ["h", "n", "a"],
+  );
+});
+
 test("fixing a price on a line changes the amount and the total", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
+  await form.getByRole("button", { name: "Teh ais" }).click();
   const line = form.getByRole("textbox", { name: "Teh ais's amount" });
   await line.fill("");
   await line.pressSequentially("700");
@@ -149,19 +193,16 @@ test("removing the receipt clears what it filled in, and Undo brings it back", a
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
+  await tapWho(form, "Teh ais", "Najmi");
   await form.getByRole("button", { name: "Remove the receipt" }).click();
   await expect(form.getByText("Scan a receipt")).toBeVisible();
   await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("");
-  await expect(form.getByText("Who had what? (optional)")).toHaveCount(0);
+  await expect(form.getByText("Who had what?")).toHaveCount(0);
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(form.getByText("Receipt attached")).toBeVisible();
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("40.00");
-  await expect(form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(form.getByRole("button", { name: /^Teh ais Najmi/ })).toBeVisible();
 });
 
 test("a receipt with SST already in its prices says so and adds nothing", async ({ page }) => {
@@ -180,9 +221,9 @@ test("on the home page, each person's part from the receipt is what prints", asy
   await page.goto("/");
   const form = panel(page);
   await form.getByLabel("Scan a receipt").setInputFiles(photo);
-  await form.getByRole("group", { name: "2 × Nasi lemak" }).getByRole("button", { name: "Haziq" }).click();
-  await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
-  await form.getByRole("group", { name: "Roti canai" }).getByRole("button", { name: "Afiq" }).click();
+  await tapWho(form, "2 × Nasi lemak", "Haziq");
+  await tapWho(form, "Teh ais", "Najmi");
+  await tapWho(form, "Roti canai", "Afiq");
   await form.getByRole("button", { name: "See the receipt photo" }).click();
   await expect(page.getByRole("dialog").getByRole("img", { name: "Receipt" })).toBeVisible();
   await page.keyboard.press("Escape");

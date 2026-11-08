@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Avatar } from "@/components/avatar";
 import { CameraIcon, CheckIcon, CloseIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
 import { Sheet } from "@/components/sheet";
@@ -20,7 +21,7 @@ import {
 import { addCharges, parseMoney, parseRate, rateText, toAutoPointInput, toInputValue } from "@/lib/money";
 import { lineSplit, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from "@/lib/receipt-scan";
 import { shrinkPhoto } from "@/lib/shrink-photo";
-import { cn, newId, parseNames } from "@/lib/utils";
+import { avatarColor, cn, newId, parseNames } from "@/lib/utils";
 import { PersonChips } from "./person-chips";
 
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
@@ -92,6 +93,10 @@ export function BillForm({
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
   const [showSplit, setShowSplit] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const [sharers, setSharers] = useState<string[] | null>(null);
+  const [pickSharers, setPickSharers] = useState(false);
+  const sharing = sharers ? everyone.filter((id) => sharers.includes(id)) : everyone;
 
   const amountMinor = parse(amount) ?? 0;
   const included = everyone.filter((id) => participants.includes(id));
@@ -227,7 +232,10 @@ export function BillForm({
       added.push({ id: newId(6), name: person, color: color++ % 100 });
     }
     setNewPeople((p) => [...p, ...added]);
-    setParticipants((p) => [...p, ...added.map((a) => a.id)]);
+    if (!lines) return setParticipants((p) => [...p, ...added.map((a) => a.id)]);
+    const nextSharers = sharers && [...sharers, ...added.map((a) => a.id)];
+    setSharers(nextSharers);
+    applyLines(lines, nextSharers, [...everyone, ...added.map((a) => a.id)]);
   };
 
   const fill = (result: Scan, photo: string | null) => {
@@ -244,6 +252,9 @@ export function BillForm({
     });
     setLines(result.lines.length > 1 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
     setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, photo });
+    setOpen(null);
+    setSharers(null);
+    setPickSharers(false);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -273,7 +284,7 @@ export function BillForm({
   };
 
   const removeReceipt = () => {
-    const before = { name, amount, showCharges, service, tax, kept, lines, receipt, participants, overrides };
+    const before = { name, amount, showCharges, service, tax, kept, lines, receipt, participants, overrides, sharers };
     if (receipt?.shop && name === receipt.shop) setName("");
     setAmount("");
     setShowCharges(false);
@@ -282,6 +293,9 @@ export function BillForm({
     setKept(null);
     setLines(null);
     setReceipt(null);
+    setOpen(null);
+    setSharers(null);
+    setPickSharers(false);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -300,12 +314,13 @@ export function BillForm({
           setReceipt(before.receipt);
           setParticipants(before.participants);
           setOverrides(before.overrides);
+          setSharers(before.sharers);
         },
       },
     });
   };
 
-  const applyLines = (next: Line[]) => {
+  const applyLines = (next: Line[], only = sharers, all = everyone) => {
     setLines(next);
     setAmount(
       toInputValue(
@@ -313,10 +328,28 @@ export function BillForm({
         "MYR",
       ),
     );
-    const fromLines = lineSplit(next, everyone);
-    setParticipants(fromLines?.participants ?? everyone);
-    setOverrides(fromLines?.overrides ?? {});
+    const fromLines = lineSplit(next, only ? all.filter((id) => only.includes(id)) : all, all);
+    setParticipants(fromLines.participants);
+    setOverrides(fromLines.overrides);
     setEditing(null);
+  };
+
+  const setWho = (i: number, id: string | null) => {
+    if (!lines) return;
+    const who = lines[i].who;
+    const next = id === null ? [] : who.includes(id) ? who.filter((x) => x !== id) : [...who, id];
+    applyLines(lines.map((l, j) => (j === i ? { ...l, who: everyone.filter((x) => next.includes(x)) } : l)));
+  };
+
+  const toggleSharer = (id: string) => {
+    if (!lines) return;
+    const next = sharing.includes(id)
+      ? sharing.filter((x) => x !== id)
+      : everyone.filter((x) => x === id || sharing.includes(x));
+    if (next.length === 0) return;
+    const value = next.length === everyone.length ? null : next;
+    setSharers(value);
+    applyLines(lines, value);
   };
 
   const save = () => {
@@ -354,6 +387,9 @@ export function BillForm({
       setKept(null);
       setLines(null);
       setReceipt(null);
+      setOpen(null);
+      setSharers(null);
+      setPickSharers(false);
       setScan("idle");
     }
   };
@@ -395,12 +431,12 @@ export function BillForm({
         : problem
           ? t.bill.empty
           : null;
-  const anyoneTapped = lines?.some((line) => line.who.length > 0) ?? false;
   const equalLine =
     amountMinor > 0 && shares.length > 0
       ? fmt(exact ? t.bill.splitEachLine : t.bill.splitAboutLine, { amount: money(evenEach) })
       : t.bill.splitEveryone;
 
+  const chip = "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full pr-3 pl-1 text-[13px] font-bold";
   const field =
     "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
 
@@ -575,74 +611,180 @@ export function BillForm({
         {lines ? (
           <div className="flex flex-col">
             <span className="text-[12.5px] text-muted">{t.bill.whoHad}</span>
-            <span className="pb-1 text-[12px] text-faint">{t.bill.whoHadHint}</span>
-            {lines.map((line, i) => (
-              <div
-                key={i}
-                role="group"
-                aria-label={line.name}
-                className="flex animate-rise flex-col gap-1.5 border-t border-line py-2"
-                style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{line.name}</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    aria-label={fmt(t.bill.amountOf, { name: line.name })}
-                    value={toInputValue(line.amountMinor, "MYR")}
-                    onChange={(e) =>
-                      applyLines(
-                        lines.map((l, j) =>
-                          j === i ? { ...l, amountMinor: parse(autoPoint(e.target.value)) ?? 0 } : l,
-                        ),
-                      )
-                    }
-                    className="h-[34px] w-[92px] rounded-lg border border-border bg-card px-2.5 text-right text-[16px] font-bold text-ink tabular outline-none focus:border-[1.5px] focus:border-green"
-                  />
+            <span className="pb-1.5 text-[12px] text-faint">{t.bill.whoHadHint}</span>
+            {lines.map((line, i) => {
+              const isOpen = open === i;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex animate-rise flex-col border-t border-line",
+                    isOpen && "-mx-2 rounded-xl border-transparent bg-chip px-2",
+                  )}
+                  style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
+                >
+                  <div className="flex min-h-12 items-center gap-2.5">
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      onClick={() => setOpen(isOpen ? null : i)}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 self-stretch text-left"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{line.name}</span>
+                      {line.who.length === 0 ? (
+                        <span className="shrink-0 text-[12px] font-semibold text-faint">{t.bill.everyone}</span>
+                      ) : (
+                        <span className="flex shrink-0">
+                          {line.who.map((id, k) => {
+                            const p = people.find((x) => x.id === id);
+                            return p ? (
+                              <Avatar
+                                key={id}
+                                name={p.name}
+                                color={p.color}
+                                size={24}
+                                className={cn("ring-2", isOpen ? "ring-chip" : "ring-card", k > 0 && "-ml-1.5")}
+                              />
+                            ) : null;
+                          })}
+                          <span className="sr-only">{list(line.who)}</span>
+                        </span>
+                      )}
+                      {isOpen ? null : (
+                        <span className="shrink-0 text-right text-[14px] leading-tight font-bold tabular">
+                          {plain(line.amountMinor)}
+                          {line.who.length > 1 ? (
+                            <span className="block text-[11px] font-semibold text-faint">
+                              {fmt(t.bill.lineEach, { amount: plain(Math.round(line.amountMinor / line.who.length)) })}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
+                    </button>
+                    {isOpen ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label={fmt(t.bill.amountOf, { name: line.name })}
+                        value={toInputValue(line.amountMinor, "MYR")}
+                        onChange={(e) =>
+                          applyLines(
+                            lines.map((l, j) =>
+                              j === i ? { ...l, amountMinor: parse(autoPoint(e.target.value)) ?? 0 } : l,
+                            ),
+                          )
+                        }
+                        className="h-[34px] w-[92px] shrink-0 rounded-lg border border-border bg-card px-2.5 text-right text-[16px] font-bold text-ink tabular outline-none focus:border-[1.5px] focus:border-green"
+                      />
+                    ) : null}
+                  </div>
+                  {isOpen ? (
+                    <div role="group" aria-label={line.name} className="flex animate-rise flex-wrap gap-1.5 pb-2.5">
+                      <button
+                        type="button"
+                        aria-pressed={line.who.length === 0}
+                        onClick={() => setWho(i, null)}
+                        className={cn(
+                          chip,
+                          "pl-2.5",
+                          line.who.length === 0 ? "bg-green text-white" : "bg-card text-ink",
+                        )}
+                      >
+                        <span aria-hidden className="flex">
+                          {sharing.map((id, k) => (
+                            <i
+                              key={id}
+                              className={cn(
+                                "size-3.5 rounded-full ring-2",
+                                line.who.length === 0 ? "ring-green" : "ring-card",
+                                k > 0 && "-ml-1",
+                              )}
+                              style={{ background: avatarColor(people.find((x) => x.id === id)?.color ?? 0).bg }}
+                            />
+                          ))}
+                        </span>
+                        {t.bill.everyone}
+                      </button>
+                      {people.map((p) => {
+                        const had = line.who.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            aria-pressed={had}
+                            onClick={() => setWho(i, p.id)}
+                            className={cn(chip, had ? "bg-green text-white" : "bg-card text-ink")}
+                          >
+                            <Avatar name={p.name} color={p.color} size={26} />
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
+              );
+            })}
+            {charges && (serviceBp || taxBp) ? (
+              <div className="border-t border-line pt-2 text-[12px] text-faint">
+                {serviceBp && taxBp
+                  ? t.bill.chargesFollow
+                  : fmt(t.bill.chargeFollows, { name: serviceBp ? t.bill.service : t.bill.sst })}
+              </div>
+            ) : null}
+            <div className="mt-2 flex flex-col gap-1.5 border-t border-line pt-2.5">
+              <span className="text-[12.5px] text-muted">{t.bill.eachPays}</span>
+              {problemText ? (
+                <div className="text-[12.5px] font-semibold text-owe">{problemText}</div>
+              ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {people.map((p) => {
-                    const had = line.who.includes(p.id);
+                    const share = finalShares[p.id] ?? 0;
+                    return (
+                      <span key={p.id} className={cn(chip, "bg-chip")}>
+                        <Avatar name={p.name} color={p.color} size={26} />
+                        <span className="whitespace-nowrap">
+                          {p.name}{" "}
+                          <b className={cn("tabular", share > 0 ? "font-extrabold" : "font-bold text-faint")}>
+                            {plain(share)}
+                          </b>
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="pt-1 text-[12.5px] leading-relaxed text-muted">
+                {sharing.length === everyone.length ? t.bill.restAll : fmt(t.bill.restSome, { names: list(sharing) })}{" "}
+                <button
+                  type="button"
+                  aria-expanded={pickSharers}
+                  onClick={() => setPickSharers(!pickSharers)}
+                  className="font-bold text-green-ink"
+                >
+                  {pickSharers ? t.bill.done : t.bill.change}
+                </button>
+              </div>
+              {pickSharers ? (
+                <div role="group" aria-label={t.bill.whoShares} className="flex animate-rise flex-wrap gap-1.5">
+                  {people.map((p) => {
+                    const on = sharing.includes(p.id);
                     return (
                       <button
                         key={p.id}
                         type="button"
-                        aria-pressed={had}
-                        onClick={() =>
-                          applyLines(
-                            lines.map((l, j) =>
-                              j === i ? { ...l, who: had ? l.who.filter((id) => id !== p.id) : [...l.who, p.id] } : l,
-                            ),
-                          )
-                        }
-                        className={cn(
-                          "h-7 rounded-full px-2.5 text-[12.5px] font-bold",
-                          had ? "bg-green text-white" : "border border-border bg-card text-muted",
-                        )}
+                        aria-pressed={on}
+                        disabled={on && sharing.length === 1}
+                        onClick={() => toggleSharer(p.id)}
+                        className={cn(chip, on ? "bg-green text-white" : "bg-chip text-ink")}
                       >
+                        <Avatar name={p.name} color={p.color} size={26} />
                         {p.name}
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            ))}
-            <div className="flex flex-col gap-0.5 border-t border-line pt-2.5">
-              <span className="text-[12.5px] text-muted">{t.bill.eachPart}</span>
-              {problemText ? (
-                <div className="text-[12.5px] font-semibold text-owe">{problemText}</div>
-              ) : anyoneTapped ? (
-                <div className="flex flex-wrap gap-x-3.5 gap-y-0.5 text-[14px] font-semibold">
-                  {included.map((id) => (
-                    <span key={id} className="whitespace-nowrap">
-                      {nameOf(id)} <b className="font-extrabold tabular">{plain(finalShares[id] ?? 0)}</b>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-[14px] font-semibold">{equalLine}</div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : expanded ? (
