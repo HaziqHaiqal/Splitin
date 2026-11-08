@@ -15,6 +15,7 @@ import {
   ArrowRightIcon,
   CheckIcon,
   CloseIcon,
+  LinkIcon,
   PencilIcon,
   PlusIcon,
   ReceiptIcon,
@@ -285,6 +286,15 @@ export function BillsHome() {
       },
     },
     {
+      key: "code",
+      icon: <LinkIcon size={20} />,
+      label: t.home.haveCode,
+      onClick: () => {
+        setMenuOpen(false);
+        setEntering(true);
+      },
+    },
+    {
       key: "clear",
       icon: <ResetIcon size={20} />,
       label: t.home.clearAll,
@@ -325,7 +335,9 @@ export function BillsHome() {
           ) : undefined
         }
         phoneBelow={
-          hasPeople && !formOpen && !entering ? <div className="flex justify-center">{codeLink()}</div> : undefined
+          hasPeople && !hasBills && !formOpen && !entering ? (
+            <div className="flex justify-center">{codeLink()}</div>
+          ) : undefined
         }
         panel={
           !hasPeople ? (

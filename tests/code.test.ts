@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  choose,
   BILL,
   button,
   CODE,
@@ -346,14 +347,15 @@ test.describe("entering a code", () => {
   test("works with a bill already on the phone, and going back keeps that bill", async ({ browser }) => {
     const phone = await newPhone(browser, draft);
     await phone.goto("/");
-    await button(phone, "Have a code?").click();
-    await expect(panel(phone).getByText("Enter your code")).toBeVisible();
+    await expect(button(phone, "Menu")).toBeVisible();
     await expect(button(phone, "Have a code?")).toHaveCount(0);
+    await choose(phone, "Have a code?");
+    await expect(panel(phone).getByText("Enter your code")).toBeVisible();
     await expect(button(phone, "Menu")).toHaveCount(0);
 
     await button(phone, "Back to my bill").click();
     await expect(button(phone, "Menu")).toBeVisible();
-    await expect(button(phone, "Have a code?")).toBeVisible();
+    await expect(button(phone, "Have a code?")).toHaveCount(0);
     await expect(text(phone, "HOTEL")).toBeVisible();
   });
 
