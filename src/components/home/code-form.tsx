@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type ChangeEvent, type FormEvent, type SyntheticEvent } from "react";
 import { findBill } from "@/app/actions";
+import { PanelBack, PanelHead } from "@/components/shared/panel-form";
 import { useI18n } from "@/i18n/client";
 import { cn, CODE_LENGTH, codeFromInput } from "@/lib/utils";
 
@@ -17,7 +18,7 @@ export function HomeIntro({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-export function CodeForm({ backLabel, onBack }: { backLabel: string; onBack: () => void }) {
+export function CodeForm({ backLabel, onBack }: { backLabel?: string; onBack: () => void }) {
   const { t } = useI18n();
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -53,7 +54,14 @@ export function CodeForm({ backLabel, onBack }: { backLabel: string; onBack: () 
 
   return (
     <div className="flex flex-col md:max-w-[430px]">
-      <HomeIntro title={t.home.codeTitle} desc={t.home.codeDesc} />
+      {backLabel ? (
+        <HomeIntro title={t.home.codeTitle} desc={t.home.codeDesc} />
+      ) : (
+        <PanelBack.Provider value={onBack}>
+          <PanelHead title={t.home.codeTitle} />
+          <p className="m-0 mt-1 text-[14px] leading-[1.5] text-muted">{t.home.codeDesc}</p>
+        </PanelBack.Provider>
+      )}
       <form onSubmit={submit} className="group relative mt-[18px] flex gap-[5px] md:mt-7 md:gap-2">
         {Array.from({ length: CODE_LENGTH }, (_, i) => (
           <span
@@ -92,9 +100,11 @@ export function CodeForm({ backLabel, onBack }: { backLabel: string; onBack: () 
       >
         {pending ? t.home.codeOpening : error}
       </p>
-      <button type="button" onClick={onBack} className="mt-1 h-9 self-start text-[13.5px] font-bold text-green-ink">
-        {backLabel}
-      </button>
+      {backLabel ? (
+        <button type="button" onClick={onBack} className="mt-1 h-9 self-start text-[13.5px] font-bold text-green-ink">
+          {backLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

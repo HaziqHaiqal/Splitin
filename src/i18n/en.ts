@@ -34,7 +34,6 @@ export const en = {
     codeOpening: "Opening…",
     codeNotFound: "No receipt with that code. Check it and try again.",
     codeBackNew: "Start a new bill instead",
-    codeBackBill: "Back to my bill",
     nextBill: "Add bill",
     namesPlaceholder: "Names, include yours",
     billName: "Bill name",
