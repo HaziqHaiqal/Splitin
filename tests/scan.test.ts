@@ -1,5 +1,18 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, closePhones, openBill, panel, pickMe, seed, serverDoc, settled, submit, text } from "./helpers";
+import {
+  choose,
+  closePhones,
+  newPhone,
+  openBill,
+  panel,
+  pickMe,
+  seed,
+  serverDoc,
+  settled,
+  submit,
+  text,
+  trip,
+} from "./helpers";
 import type { Scan } from "../src/lib/receipt-scan";
 
 const scanned: Scan = {
@@ -45,12 +58,16 @@ test("a scanned receipt fills in the bill and keeps its exact total", async ({ p
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await expect(form.getByText("Filled in from the receipt.", { exact: false })).toBeVisible();
+  await expect(form.getByText("Receipt attached")).toBeVisible();
+  await expect(form.getByText("3 items · RM 46.65")).toBeVisible();
+  await expect(form.getByText("Scan a receipt")).toHaveCount(0);
   await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("40.00");
+  await expect(form.getByRole("textbox", { name: "Amount (RM)" })).not.toBeEditable();
+  await expect(form.getByText("Split equally · RM 15.55 each")).toBeVisible();
   await expect(form.getByRole("checkbox", { name: "Service charge" })).toBeChecked();
   await expect(form.getByRole("checkbox", { name: "SST" })).toBeChecked();
-  await expect(form.getByText("RM 46.65")).toBeVisible();
+  await expect(form.getByText("RM 46.65", { exact: true })).toBeVisible();
   await expect(form.getByText("The receipt says", { exact: false })).toHaveCount(0);
   await submit(form);
   await settled(added, {
@@ -67,8 +84,10 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   const form = await scanReceipt(page, { ok: true, data: scanned });
   await form.getByRole("group", { name: "2 × Nasi lemak" }).getByRole("button", { name: "Haziq" }).click();
   await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
-  await expect(form.getByRole("textbox", { name: "Haziq's amount" })).toHaveValue("27.34");
-  await expect(form.getByRole("textbox", { name: "Afiq's amount" })).toHaveValue("3.33");
+  await expect(form.getByText("Haziq 31.89")).toBeVisible();
+  await expect(form.getByText("Najmi 10.88")).toBeVisible();
+  await expect(form.getByText("Afiq 3.88")).toBeVisible();
+  await expect(form.getByText("Reset to equal")).toHaveCount(0);
   await submit(form);
   await settled(added, {
     amountMinor: 4665,
@@ -85,7 +104,7 @@ test("fixing a price on a line changes the amount and the total", async ({ page 
   await line.fill("");
   await line.pressSequentially("700");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("41.00");
-  await expect(form.getByText("RM 47.81")).toBeVisible();
+  await expect(form.getByText("RM 47.81", { exact: true })).toBeVisible();
 });
 
 test("a total that doesn't add up is pointed out", async ({ page }) => {
@@ -124,4 +143,52 @@ test("with no internet, scanning says you're offline", async ({ page }) => {
   await page.route("**/api/scan", (route) => route.abort("internetdisconnected"));
   const form = await scanReceipt(page);
   await expect(form.getByRole("alert")).toHaveText("You're offline. Check your internet connection and try again.");
+});
+
+test("removing the receipt clears what it filled in, and Undo brings it back", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const form = await scanReceipt(page, { ok: true, data: scanned });
+  await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
+  await form.getByRole("button", { name: "Remove the receipt" }).click();
+  await expect(form.getByText("Scan a receipt")).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("");
+  await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("");
+  await expect(form.getByText("Who had what? (optional)")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(form.getByText("Receipt attached")).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("40.00");
+  await expect(form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("a receipt with SST already in its prices says so and adds nothing", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const inclusive = { ...scanned, serviceBp: undefined, taxBp: undefined, includedTaxBp: 600, totalMinor: 4000 };
+  const form = await scanReceipt(page, { ok: true, data: inclusive });
+  await expect(form.getByText("SST 6% is already in the prices")).toBeVisible();
+  await expect(form.getByText("3 items · RM 40.00")).toBeVisible();
+  await expect(form.getByRole("checkbox", { name: "SST" })).toHaveCount(0);
+});
+
+test("on the home page, each person's part from the receipt is what prints", async ({ browser }) => {
+  const page = await newPhone(browser, { "splitin:draft:v2": { doc: { ...trip, items: [] }, billId: null } });
+  await page.route("**/api/scan", (route) => route.fulfill({ json: { ok: true, data: { ...scanned, shop: "" } } }));
+  await page.goto("/");
+  const form = panel(page);
+  await form.getByLabel("Scan a receipt").setInputFiles(photo);
+  await form.getByRole("group", { name: "2 × Nasi lemak" }).getByRole("button", { name: "Haziq" }).click();
+  await form.getByRole("group", { name: "Teh ais" }).getByRole("button", { name: "Najmi" }).click();
+  await form.getByRole("group", { name: "Roti canai" }).getByRole("button", { name: "Afiq" }).click();
+  await form.getByRole("button", { name: "See the receipt photo" }).click();
+  await expect(page.getByRole("dialog").getByRole("img", { name: "Receipt" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await form.getByRole("textbox", { name: "What for" }).fill("Makan");
+  await form.getByRole("button", { name: /Print it/ }).click();
+  await expect(text(page, "HAZIQ 27.99")).toBeVisible();
+  const draft = await page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));
+  expect(draft.doc.items[0].overrides).toEqual({ h: 2400, n: 600, a: 1000 });
 });

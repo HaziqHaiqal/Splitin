@@ -34,6 +34,7 @@ import {
   serverDoc,
   serverItem,
   settled,
+  shareFromHome,
   sheet,
   startAdding,
   submit,
@@ -116,7 +117,7 @@ test.describe("starting a bill", () => {
   test("Clear all goes back to an empty name", async ({ browser }) => {
     const phone = await newPhone(browser, openDraft());
     await phone.goto("/");
-    await button(phone, "Clear all").click();
+    await choose(phone, "Clear all");
     await expect(billName(phone)).toHaveValue("");
   });
 
@@ -133,7 +134,7 @@ test.describe("sharing", () => {
     void ownerId;
     const owner = await newPhone(browser, openDraft(doc));
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     const list = sheet(owner);
     await expect(list.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
     await list.getByRole("button", { name: "Najmi" }).click();
@@ -159,7 +160,7 @@ test.describe("sharing", () => {
     void ownerId;
     const owner = await newPhone(browser, openDraft(doc));
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     const ask = sheet(owner);
     await ask.getByRole("button", { name: "Not on the list" }).click();
     await ask.getByPlaceholder("Name").fill("Zara");
@@ -176,7 +177,7 @@ test.describe("after sharing", () => {
   test("the home page starts fresh, with Open to get back to the bill", async ({ browser }) => {
     const owner = await newPhone(browser, openDraft());
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
 
@@ -554,7 +555,7 @@ test.describe("one name per person", () => {
     const repeated = { ...trip, people: [...trip.people, { id: "x", name: "NAJMI", color: 3 }] };
     const owner = await newPhone(browser, openDraft(repeated));
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     await expect(text(owner, "NAJMI is already in the list")).toBeVisible();
     expect((await getDb()).bills).toHaveLength(1);
   });
@@ -584,7 +585,7 @@ test.describe("History", () => {
     await wipe();
     const owner = await newPhone(browser, openDraft({ ...trip, items: [hotel, dinner] }));
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();
     const { bills, bill_events } = await getDb();
     expect(bill_events.map((e) => e.data)).toEqual([

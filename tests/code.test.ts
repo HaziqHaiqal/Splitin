@@ -20,6 +20,7 @@ import {
   text,
   TOKEN,
   trip,
+  shareFromHome,
 } from "./helpers";
 
 const NOT_FOUND = "No receipt with that code";
@@ -35,7 +36,7 @@ async function enter(page: Page, code: string) {
 
 async function share(page: Page, label = "Share receipt", ready = "Copy link") {
   await page.goto("/");
-  await button(page, label).click();
+  await shareFromHome(page, label);
   await expect(sheet(page).getByText(ready)).toBeVisible();
   const db = await getDb();
   return db.bills.find((b) => b.id !== BILL)?.id as string;
@@ -348,10 +349,10 @@ test.describe("entering a code", () => {
     await button(phone, "Have a code?").click();
     await expect(panel(phone).getByText("Enter your code")).toBeVisible();
     await expect(button(phone, "Have a code?")).toHaveCount(0);
-    await expect(button(phone, "Share receipt")).toHaveCount(0);
+    await expect(button(phone, "Menu")).toHaveCount(0);
 
     await button(phone, "Back to my bill").click();
-    await expect(button(phone, "Share receipt")).toBeVisible();
+    await expect(button(phone, "Menu")).toBeVisible();
     await expect(button(phone, "Have a code?")).toBeVisible();
     await expect(text(phone, "HOTEL")).toBeVisible();
   });

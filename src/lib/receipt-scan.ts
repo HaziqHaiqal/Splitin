@@ -9,6 +9,7 @@ export type Scan = {
   subtotalMinor: number;
   serviceBp?: number;
   taxBp?: number;
+  includedTaxBp?: number;
   totalMinor: number;
 };
 
@@ -23,6 +24,7 @@ export const SCAN_PROMPT = [
   "subtotal: the amount before service charge and tax, if printed.",
   "serviceRate and taxRate: the percent printed, like 10 or 6.",
   "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
+  "includedTaxRate: the percent when the receipt says the prices already include the tax, like 6 for Inclusive Service Tax 6%.",
   "total: the final amount to pay, after any rounding.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
@@ -50,6 +52,7 @@ export const SCAN_SCHEMA = {
     service: amount,
     taxRate: amount,
     tax: amount,
+    includedTaxRate: amount,
     total: amount,
   },
   required: ["readable", "lines"],
@@ -70,6 +73,7 @@ const replySchema = z.object({
   service: num,
   taxRate: num,
   tax: num,
+  includedTaxRate: num,
   total: num,
 });
 
@@ -130,6 +134,7 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   const { serviceBp, taxBp } =
     total > 0 ? ([read, { serviceBp: read.serviceBp }, { taxBp: read.taxBp }, {}].find(fits) ?? read) : read;
   const totalMinor = total > 0 ? total : addCharges(subtotalMinor, read).total;
+  const includedTaxBp = taxBp ? undefined : (rateBp(r.includedTaxRate, 0, 0) ?? read.taxBp);
   if (subtotalMinor <= 0 || totalMinor <= 0 || totalMinor > MAX_MINOR || subtotalMinor > MAX_MINOR)
     return { ok: false, error: "unreadable" };
 
@@ -141,6 +146,7 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
       subtotalMinor,
       ...(serviceBp ? { serviceBp } : {}),
       ...(taxBp ? { taxBp } : {}),
+      ...(includedTaxBp ? { includedTaxBp } : {}),
       totalMinor,
     },
   };

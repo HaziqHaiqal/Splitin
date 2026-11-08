@@ -214,6 +214,13 @@ export async function openMenu(page: Page) {
   if (await menu.isVisible()) await menu.click();
 }
 
+export async function shareFromHome(page: Page, label = "Share receipt") {
+  await openMenu(page);
+  await menuCard(page)
+    .getByRole("button", { name: new RegExp(`^${label}`) })
+    .click();
+}
+
 export async function choose(page: Page, option: string) {
   await openMenu(page);
   await page.getByRole("button", { name: option, exact: true }).click();

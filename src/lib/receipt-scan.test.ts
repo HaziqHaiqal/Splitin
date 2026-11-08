@@ -69,8 +69,25 @@ describe("toScan", () => {
       subtotal: 40,
       total: 40,
     });
-    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 4000, totalMinor: 4000 });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 4000, totalMinor: 4000, includedTaxBp: 600 });
     expect(result.ok && "taxBp" in result.scan).toBe(false);
+  });
+
+  it("notes the tax a receipt says is already in its prices", () => {
+    const result = toScan({
+      ...receipt,
+      serviceRate: null,
+      service: null,
+      taxRate: null,
+      tax: null,
+      includedTaxRate: 6,
+      total: 40,
+    });
+    expect(result.ok && [result.scan.taxBp, result.scan.includedTaxBp, result.scan.totalMinor]).toEqual([
+      undefined,
+      600,
+      4000,
+    ]);
   });
 
   it("keeps the rates when the total doesn't match any of them", () => {
