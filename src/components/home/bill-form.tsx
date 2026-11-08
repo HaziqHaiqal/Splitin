@@ -502,15 +502,11 @@ export function BillForm({
                 />
               </label>
             )}
-            <p
-              role={scan in t.bill.scanErrors ? "alert" : undefined}
-              className={cn(
-                "text-[11.5px] leading-snug",
-                scan in t.bill.scanErrors ? "font-semibold text-owe" : "text-faint",
-              )}
-            >
-              {scan in t.bill.scanErrors ? t.bill.scanErrors[scan as ScanError] : t.bill.scanNote}
-            </p>
+            {scan in t.bill.scanErrors ? (
+              <p role="alert" className="text-[11.5px] leading-snug font-semibold text-owe">
+                {t.bill.scanErrors[scan as ScanError]}
+              </p>
+            ) : null}
           </div>
         )}
 

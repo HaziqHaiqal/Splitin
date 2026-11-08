@@ -118,7 +118,6 @@ export const ms: Dictionary = {
     scan: "Imbas resit",
     scanning: "Membaca resit…",
     scanSteps: ["Mencari item", "Membaca harga", "Menyemak SST dan caj perkhidmatan", "Mengira jumlah"],
-    scanNote: "Gambar dihantar ke AI Google, yang mungkin menyimpannya. Jangan imbas resit yang ada butiran peribadi.",
     attached: "Resit dilampirkan",
     attachedItems: "{count} item · {amount}",
     taxIncluded: "SST {rate}% sudah termasuk dalam harga",
