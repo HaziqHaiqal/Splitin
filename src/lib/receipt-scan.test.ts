@@ -152,12 +152,34 @@ describe("lineSplit", () => {
     });
   });
 
-  it("is an equal split until someone is tapped", () => {
+  it("is an equal split between the sharers until someone is tapped", () => {
     expect(
       lineSplit(
         lines.map((l) => ({ ...l, who: [] })),
         ["h", "n"],
       ),
-    ).toBeNull();
+    ).toEqual({ participants: ["h", "n"], overrides: {} });
+  });
+
+  it("shares what nobody tapped only between the sharers", () => {
+    expect(lineSplit(lines, ["h", "n"], ["h", "n", "a"])).toEqual({
+      participants: ["h", "n"],
+      overrides: { h: 2900, n: 1100 },
+    });
+  });
+
+  it("shares a whole receipt evenly instead of giving each line's spare sen to the same person", () => {
+    const groceries = [2000, 1000, 500, 1000].map((amountMinor) => ({ name: "", amountMinor, who: [] as string[] }));
+    expect(lineSplit([...groceries, { name: "Chips", amountMinor: 600, who: ["n"] }], ["h", "n", "a"])).toEqual({
+      participants: ["h", "n", "a"],
+      overrides: { h: 1500, n: 2100, a: 1500 },
+    });
+  });
+
+  it("keeps someone who isn't a sharer but had something", () => {
+    expect(lineSplit([lines[0], { ...lines[2], who: ["a"] }, lines[1]], ["h", "n"], ["h", "n", "a"])).toEqual({
+      participants: ["h", "n", "a"],
+      overrides: { h: 2400, n: 600, a: 1000 },
+    });
   });
 });
