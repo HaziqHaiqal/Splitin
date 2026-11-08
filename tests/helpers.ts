@@ -205,7 +205,7 @@ export async function addName(page: Page, name: string) {
   await form.getByRole("button", { name: "Add", exact: true }).click();
 }
 
-export const menuCard = (page: Page) => page.getByRole("dialog", { name: "Menu" });
+export const menuCard = (page: Page) => page.getByRole("dialog", { name: "Menu" }).or(panel(page));
 
 export async function openMenu(page: Page) {
   await page.addStyleTag({ content: "nextjs-portal { display: none }" });
@@ -300,7 +300,7 @@ export const paymentsOf = async (): Promise<Pick<Payment, "from" | "to" | "amoun
 
 export async function openHistory(page: Page) {
   await choose(page, "History");
-  const list = sheet(page);
+  const list = menuCard(page);
   await expect(list.getByRole("heading", { name: "History" })).toBeVisible();
   return list;
 }

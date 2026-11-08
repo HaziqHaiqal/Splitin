@@ -62,12 +62,6 @@ export const ShareIcon = (p: IconProps) => (
   </svg>
 );
 
-export const SendIcon = (p: IconProps) => (
-  <svg {...base({ strokeWidth: 2, size: 20, ...p })}>
-    <path d="M4 12l16-8-6 16-2.5-6.5L4 12z" />
-  </svg>
-);
-
 export const DownloadIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 22, ...p })}>
     <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
@@ -91,14 +85,6 @@ export const LinkIcon = (p: IconProps) => (
   <svg {...base({ strokeWidth: 2, size: 22, ...p })}>
     <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
     <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
-  </svg>
-);
-
-export const MoreIcon = (p: IconProps) => (
-  <svg {...base({ strokeWidth: 2, size: 22, ...p })}>
-    <circle cx="5" cy="12" r="1.5" />
-    <circle cx="12" cy="12" r="1.5" />
-    <circle cx="19" cy="12" r="1.5" />
   </svg>
 );
 

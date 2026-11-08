@@ -2,6 +2,13 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
+function scrollsInside(from: EventTarget, root: HTMLElement) {
+  for (let el = from instanceof Element ? from : null; el && root.contains(el); el = el.parentElement) {
+    if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) return true;
+  }
+  return false;
+}
+
 export function useKeyboardViewport(container: RefObject<HTMLElement | null>) {
   const [viewport, setViewport] = useState<{ bottom: number; height: number } | null>(null);
 
@@ -41,7 +48,7 @@ export function useKeyboardViewport(container: RefObject<HTMLElement | null>) {
       const panel = container.current;
       if (panel && e.target instanceof Node && panel.contains(e.target)) {
         const sideways = Math.abs(e.touches[0].clientX - startX) > Math.abs(e.touches[0].clientY - startY);
-        if (sideways || panel.scrollHeight > panel.clientHeight) return;
+        if (sideways || scrollsInside(e.target, panel)) return;
       }
       e.preventDefault();
     };

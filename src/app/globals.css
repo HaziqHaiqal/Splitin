@@ -136,6 +136,35 @@
   --animate-slide: slide 1.3s ease-in-out infinite;
   --animate-settle: settle 0.5s cubic-bezier(0.3, 1.3, 0.5, 1) both;
   --animate-flash: flash 1.1s ease-out both;
+  --animate-sheet-in: sheet-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+  --animate-sheet-out: sheet-out 0.3s cubic-bezier(0.5, 0, 0.75, 0) both;
+  --animate-unfade: unfade 0.3s ease-in both;
+  --animate-pill: pill 0.28s cubic-bezier(0.2, 1.25, 0.4, 1) both;
+
+  @keyframes sheet-in {
+    from {
+      translate: 0 100%;
+    }
+  }
+
+  @keyframes sheet-out {
+    to {
+      translate: 0 100%;
+    }
+  }
+
+  @keyframes unfade {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pill {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.88);
+    }
+  }
 
   @keyframes grow {
     from {
@@ -257,7 +286,11 @@
   .animate-sweep,
   .animate-slide,
   .animate-settle,
-  .animate-flash {
+  .animate-flash,
+  .animate-sheet-in,
+  .animate-sheet-out,
+  .animate-unfade,
+  .animate-pill {
     animation: none;
   }
 }

@@ -9,6 +9,7 @@ import {
   openBillDetail,
   openBills,
   ownerStorage,
+  panel,
   seed,
   serverDoc,
   serverItem,
@@ -93,7 +94,7 @@ test("editing keeps the exact total from the receipt", async ({ browser }) => {
   await openBill(owner);
   await openBillDetail(owner, "Dinner");
   await expect(owner.getByRole("checkbox", { name: "SST" })).toBeChecked();
-  await expect(owner.getByText("RM 116.65")).toBeVisible();
+  await expect(panel(owner).getByText("RM 116.65")).toBeVisible();
   await owner.getByRole("textbox", { name: "What for" }).fill("Dinner out");
   await owner.getByRole("button", { name: "Save", exact: true }).click();
   await settled(async () => {

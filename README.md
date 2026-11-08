@@ -14,7 +14,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 - **Equal split by default.** Change one person's amount and the rest re-splits, or leave someone out of a bill.
 - **SST and service charge.** Tick them on a bill and type prices before them. Each person pays what they had plus their part of the charges.
 - **Scan a receipt.** Take a photo and Splitin fills in the shop, prices, service charge, SST and total. Everything on it starts shared. Tap an item and pick who had it, and the next item comes up by itself; SST and service charge follow what each person had, and each person's part shows how much of it is tax. One receipt per bill. The photo goes to Google's AI to be read and isn't saved by Splitin.
-- **Share to the group.** Send a receipt picture, a link and a short code through WhatsApp or the phone's share menu. Nothing is saved online until you share. Then the bill page opens, and every later change happens there.
+- **Share to the group.** One Share button sends a receipt picture, a link and a short code to any app on your phone. Nothing is saved online until you share. Then the bill page opens, and every later change happens there.
 - **Everyone uses the link or code.** They pick their name, see who to pay, and tap their payment once they've paid. The person getting paid can mark it too.
 - **Pay by QR or bank details.** Anyone can add their account or payment QR to their name. Others can save the QR or copy the account number, then pay in their own bank app. Splitin warns them if the QR's name doesn't match, and never moves any money.
 - **Anyone on the bill can add to it.** They can add a bill they paid, join the bills they're in, change their part, fix the spelling of their name, or add their own name if it's missing.
@@ -22,6 +22,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 - **History.** Everyone with the link can see every change, with the name and time.
 - **See how it's worked out.** Calculation goes through the bills one by one with arrows for who owes who, cancels out debts that go both ways, then shows the fewest payments.
 - **Links delete themselves** 30 days after they are created.
+- **One button for everything on phones.** ☰ at the bottom right opens a short menu, and each item slides up from the bottom. ‹ goes back to the menu, and ✕ or a swipe down closes it.
 - **English and Bahasa Melayu**, light, dark or automatic look, and a built-in guide.
 
 Amounts are in Malaysian Ringgit (RM) only.

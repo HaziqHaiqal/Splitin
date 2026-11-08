@@ -9,7 +9,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   PlusIcon,
-  SendIcon,
+  ShareIcon,
 } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { HistoryBubble, HistoryRun } from "@/components/shared/history";
@@ -542,8 +542,8 @@ function ShareDemo() {
             !sent && "animate-nudge",
           )}
         >
-          {sent ? <CheckIcon size={15} /> : <SendIcon size={15} />}
-          WhatsApp
+          {sent ? <CheckIcon size={15} /> : <ShareIcon size={15} />}
+          {t.share.send}
         </button>
         <span className={plainButton}>{t.share.saveImage}</span>
         <button type="button" onClick={flash} className={cn(press, plainButton)}>

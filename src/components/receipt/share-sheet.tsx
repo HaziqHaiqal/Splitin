@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, destroyContext, domToCanvas } from "modern-screenshot";
-import { useEffect, useState, type RefObject } from "react";
-import { DownloadIcon, LinkIcon, MoreIcon, SendIcon } from "@/components/icons";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { DownloadIcon, LinkIcon, ShareIcon } from "@/components/icons";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
@@ -58,6 +58,10 @@ export function ShareSheet({
   doc,
   payments = [],
   receiptRef,
+  onBack,
+  ask,
+  waiting = false,
+  onPublish,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -65,20 +69,21 @@ export function ShareSheet({
   doc: BillDoc;
   payments?: Payment[];
   receiptRef: RefObject<HTMLDivElement | null>;
+  onBack?: () => void;
+  ask?: ReactNode;
+  waiting?: boolean;
+  onPublish?: () => void;
 }) {
   const { t, money } = useI18n();
   const toast = useToast();
-  const [image, setImage] = useState<{ blob: Blob; url: string } | null>(null);
-  const [pasteHint, setPasteHint] = useState(false);
+  const [image, setImage] = useState<{ blob: Blob; url: string } | "failed" | null>(null);
 
   const { title, createdAt } = doc;
   const url = billId && typeof window !== "undefined" ? `${window.location.origin}/bill/${billId}` : "";
   const code = billId && isCode(billId) ? billId : null;
   const details = fmt(t.share.details, { total: money(summarize(doc).total), count: doc.people.length });
-  const lines = (heading: string) =>
-    `${heading}\n${details}${code ? `\n${t.share.code}: ${code}` : ""}\n\n${t.share.message}`;
-  const message = `${lines(`*${title}*`)}\n${url}`;
-  const content = JSON.stringify([doc, payments]);
+  const message = `${title}\n${details}${code ? `\n${t.share.code}: ${code}` : ""}\n\n${t.share.message}\n${url}`;
+  const content = JSON.stringify([doc, payments, billId]);
 
   useEffect(() => {
     if (!open || !receiptRef.current) return;
@@ -89,60 +94,25 @@ export function ShareSheet({
       try {
         await document.fonts?.ready;
         const blob = await receiptPicture(node);
-        if (cancelled || !blob) return;
+        if (cancelled) return;
+        if (!blob) return setImage("failed");
         objectUrl = URL.createObjectURL(blob);
         setImage({ blob, url: objectUrl });
       } catch (error) {
         console.warn("[share] receipt image failed", error);
+        if (!cancelled) setImage("failed");
       }
     })();
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       setImage(null);
-      setPasteHint(false);
     };
   }, [open, receiptRef, content]);
 
+  const picture = image && image !== "failed" ? image : null;
   const fileName = receiptFileName(createdAt, billId);
-  const file = image ? new File([image.blob], fileName, { type: "image/png" }) : null;
-
-  const copyPicture = () => {
-    if (!image) return null;
-    try {
-      return navigator.clipboard.write([new ClipboardItem({ "image/png": image.blob })]);
-    } catch {
-      return null;
-    }
-  };
-
-  const sendWhatsApp = async () => {
-    const phone = window.matchMedia("(pointer: coarse)").matches;
-    if (phone && file && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], text: message });
-        return;
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-      }
-    }
-    const copying = copyPicture();
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
-    try {
-      if (copying) {
-        await copying;
-        setPasteHint(true);
-      }
-    } catch {}
-  };
-
-  const saveImage = () => {
-    if (!image) return;
-    const a = document.createElement("a");
-    a.href = image.url;
-    a.download = fileName;
-    a.click();
-  };
+  const busy = waiting || (Boolean(billId) && image === null);
 
   const copy = async (text: string, done: string) => {
     try {
@@ -155,29 +125,43 @@ export function ShareSheet({
 
   const copyLink = () => copy(url, t.share.linkCopied);
 
-  const more = async () => {
-    if (navigator.share) {
+  const send = async () => {
+    if (!navigator.share) return copyLink();
+    const file = picture ? new File([picture.blob], fileName, { type: "image/png" }) : null;
+    const text = { title, text: message };
+    try {
+      await navigator.share(
+        file && navigator.canShare?.({ ...text, files: [file] }) ? { ...text, files: [file] } : text,
+      );
+    } catch (error) {
+      if ((error as Error).name === "AbortError" || !file) return;
       try {
-        await navigator.share({ title, text: lines(title), url });
+        await navigator.share(text);
       } catch {}
-    } else {
-      await copyLink();
     }
   };
 
+  const saveImage = () => {
+    if (!picture) return;
+    const a = document.createElement("a");
+    a.href = picture.url;
+    a.download = fileName;
+    a.click();
+  };
+
   const tile =
-    "flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-[14px] bg-field text-[13px] font-bold text-ink disabled:opacity-50";
+    "flex h-[64px] flex-col items-center justify-center gap-1 rounded-[14px] bg-field text-[13px] font-bold text-ink disabled:opacity-50";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={t.share.title}>
+    <Sheet open={open} onOpenChange={onOpenChange} title={t.share.title} onBack={onBack}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-[14px] rounded-2xl bg-field p-3">
           <div className="flex h-[118px] w-[82px] shrink-0 -rotate-3 items-start justify-center overflow-hidden bg-[#0e131b] shadow-[0_2px_6px_rgba(0,0,0,0.15)]">
-            {image ? (
+            {picture ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={image.url} alt="" className="w-full" />
+              <img src={picture.url} alt="" className="w-full" />
             ) : (
-              <span className="mt-12 text-[10px] text-[#8a96a8]">{t.share.preparing}</span>
+              <span className="mt-12 text-[10px] text-[#8a96a8]">{image === "failed" ? "" : t.share.preparing}</span>
             )}
           </div>
           <div className="flex-1">
@@ -185,34 +169,24 @@ export function ShareSheet({
             <div className="mt-1 text-[13px] leading-[1.45] text-muted">{t.share.previewDesc}</div>
           </div>
         </div>
+        {ask}
         <button
           type="button"
-          onClick={sendWhatsApp}
-          className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-green text-[16px] font-bold text-white"
+          onClick={billId ? send : onPublish}
+          disabled={busy || (!billId && !onPublish)}
+          className="flex h-14 items-center justify-center gap-2.5 rounded-2xl bg-green text-[16px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
         >
-          <SendIcon />
-          {t.share.whatsapp}
+          <ShareIcon />
+          {busy ? t.share.preparing : t.share.send}
         </button>
-        {pasteHint ? (
-          <div
-            role="status"
-            className="-mt-1.5 rounded-xl bg-green-soft px-3 py-2 text-center text-[13px] font-semibold text-green-soft-ink"
-          >
-            {t.share.pictureCopied}
-          </div>
-        ) : null}
-        <div className="grid grid-cols-3 gap-2">
-          <button type="button" onClick={saveImage} disabled={!image} className={tile}>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={saveImage} disabled={!billId || !picture} className={tile}>
             <DownloadIcon />
             {t.share.saveImage}
           </button>
-          <button type="button" onClick={copyLink} className={tile}>
+          <button type="button" onClick={copyLink} disabled={!billId} className={tile}>
             <LinkIcon />
             {t.share.copyLink}
-          </button>
-          <button type="button" onClick={more} className={tile}>
-            <MoreIcon />
-            {t.share.more}
           </button>
         </div>
         {code ? (

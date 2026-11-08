@@ -22,6 +22,7 @@ import {
   TOKEN,
   trip,
   shareFromHome,
+  panel,
 } from "./helpers";
 
 const NOT_FOUND = "No receipt with that code";
@@ -38,26 +39,35 @@ async function enter(page: Page, code: string) {
 async function share(page: Page, label = "Share receipt", ready = "Copy link") {
   await page.goto("/");
   await shareFromHome(page, label);
-  await expect(sheet(page).getByText(ready)).toBeVisible();
+  await expect(sheet(page).getByRole("button", { name: ready })).toBeEnabled();
   const db = await getDb();
   return db.bills.find((b) => b.id !== BILL)?.id as string;
 }
 
-async function sentToWhatsApp(page: Page, label = "Send to WhatsApp") {
-  await sheet(page).getByRole("button", { name: label }).click();
-  const opened = await page.evaluate(() => (window as unknown as { opened: string }).opened);
-  return decodeURIComponent(opened);
+type Sent = { title: string; text: string; files: string[] };
+
+async function sent(page: Page, label = "Share") {
+  const send = sheet(page).getByRole("button", { name: label, exact: true });
+  await expect(send).toBeEnabled();
+  await send.click();
+  await expect.poll(() => page.evaluate(() => Boolean((window as unknown as { sent?: Sent }).sent))).toBe(true);
+  return page.evaluate(() => (window as unknown as { sent: Sent }).sent);
 }
 
 const linkTo = (page: Page, id: string) => `${new URL(page.url()).origin}/bill/${id}`;
 
-const catchWhatsApp = (page: Page) =>
+const catchShare = (page: Page) =>
   page.addInitScript(() => {
-    Object.defineProperty(navigator, "canShare", { value: undefined });
-    window.open = ((url: string) => {
-      (window as unknown as { opened: string }).opened = url;
-      return null;
-    }) as typeof window.open;
+    Object.defineProperty(navigator, "canShare", { value: () => true });
+    Object.defineProperty(navigator, "share", {
+      value: async (data: ShareData) => {
+        (window as unknown as { sent: Sent }).sent = {
+          title: data.title ?? "",
+          text: data.text ?? "",
+          files: (data.files ?? []).map((f) => f.name),
+        };
+      },
+    });
   });
 
 async function red(page: Page, png: Buffer, x: number, y: number) {
@@ -87,7 +97,7 @@ test.describe("sharing from a bill page", () => {
 
   test("a member can share, with numbers changed after the page opened", async ({ page }) => {
     await seed();
-    await catchWhatsApp(page);
+    await catchShare(page);
     await page.goto(`/bill/${BILL}`);
     await sheet(page).getByRole("button", { name: "Just looking" }).click();
     await patchDoc((doc) => ({ ...doc, items: [hotel, dinner] }));
@@ -95,10 +105,11 @@ test.describe("sharing from a bill page", () => {
     await openShare(page);
     await pictureReady(page);
     await expect(page.locator("[inert]").getByText("DINNER")).toBeAttached();
-    const message = await sentToWhatsApp(page);
+    const { text: message, files } = await sent(page);
     expect(message).toContain("RM 390.00");
     expect(message.endsWith(`/bill/${BILL}`)).toBe(true);
     expect(message).not.toContain("#owner");
+    expect(files).toEqual([expect.stringContaining(BILL)]);
   });
 
   test("the picture leaves out the page's tap hints", async ({ page }) => {
@@ -173,9 +184,10 @@ test.describe("sharing a code", () => {
     const owner = await newPhone(browser, draft);
     const code = await share(owner);
     expect(code).toMatch(/^[2-9A-HJKMNP-Z]{8}$/);
-    await expect(owner).toHaveURL(new RegExp(`/bill/${code}$`));
     await expect(codeRow(owner)).toHaveText(`Code${code}Copy`);
     await expect(text(owner, `CODE ${code}`)).toBeAttached();
+    await sheet(owner).getByRole("button", { name: "Close" }).click();
+    await expect(owner).toHaveURL(new RegExp(`/bill/${code}$`));
   });
 
   test("tapping the code copies it", async ({ browser }) => {
@@ -187,41 +199,37 @@ test.describe("sharing a code", () => {
     expect(await owner.evaluate(() => navigator.clipboard.readText())).toBe(code);
   });
 
-  test("the WhatsApp message is set out in lines, with the code and the link", async ({ browser }) => {
+  test("Share sends the picture and the message in lines, with the code and the link", async ({ browser }) => {
     const owner = await newPhone(browser, draft);
-    await catchWhatsApp(owner);
+    await catchShare(owner);
     const code = await share(owner);
-    const message = await sentToWhatsApp(owner);
-    expect(message).toContain(
-      `*Trip*\nRM 300.00 · 3 people\nCode: ${code}\n\nTap to see what you owe and mark paid:\n${linkTo(owner, code)}`,
+    const shared = await sent(owner);
+    expect(shared.title).toBe("Trip");
+    expect(shared.text).toBe(
+      `Trip\nRM 300.00 · 3 people\nCode: ${code}\n\nTap to see what you owe and mark paid:\n${linkTo(owner, code)}`,
     );
+    expect(shared.files).toEqual([expect.stringContaining(code)]);
   });
 
   test("the message is in BM too", async ({ browser }) => {
     const owner = await newPhone(browser, draft);
     await owner.context().addCookies([{ name: "splitin-locale", value: "ms", url: "http://localhost:3457" }]);
-    await catchWhatsApp(owner);
+    await catchShare(owner);
     const code = await share(owner, "Kongsi resit", "Salin pautan");
-    const message = await sentToWhatsApp(owner, "Hantar ke group WhatsApp");
-    expect(message).toContain(
-      `*Trip*\nRM 300.00 · 3 orang\nKod: ${code}\n\nTekan untuk lihat berapa anda berhutang dan tanda dah bayar:\n${linkTo(owner, code)}`,
+    const { text: message } = await sent(owner, "Kongsi");
+    expect(message).toBe(
+      `Trip\nRM 300.00 · 3 orang\nKod: ${code}\n\nTekan untuk lihat berapa anda berhutang dan tanda dah bayar:\n${linkTo(owner, code)}`,
     );
   });
 
-  test("More apps sends the same lines, without WhatsApp's bold stars", async ({ browser }) => {
+  test("without a share menu, Share copies the link", async ({ browser }) => {
     const owner = await newPhone(browser, draft);
-    await owner.addInitScript(() => {
-      Object.defineProperty(navigator, "share", {
-        value: async (data: ShareData) => {
-          (window as unknown as { shared: ShareData }).shared = data;
-        },
-      });
-    });
+    await owner.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await owner.addInitScript(() => Object.defineProperty(navigator, "share", { value: undefined }));
     const code = await share(owner);
-    await sheet(owner).getByRole("button", { name: "More apps" }).click();
-    const shared = await owner.evaluate(() => (window as unknown as { shared: ShareData }).shared);
-    expect(shared.text).toBe(`Trip\nRM 300.00 · 3 people\nCode: ${code}\n\nTap to see what you owe and mark paid:`);
-    expect(shared.url).toBe(linkTo(owner, code));
+    await sheet(owner).getByRole("button", { name: "Share", exact: true }).click();
+    await expect(text(owner, "Link copied")).toBeVisible();
+    expect(await owner.evaluate(() => navigator.clipboard.readText())).toBe(linkTo(owner, code));
   });
 
   test("the link preview has the bill name and no amounts", async ({ page }) => {
@@ -292,16 +300,16 @@ test.describe("entering a code", () => {
     const oldLink = "TestBill01";
     await seed(trip, {}, oldLink);
     const owner = await newPhone(browser, { [`splitin:owner:${oldLink}`]: TOKEN });
-    await catchWhatsApp(owner);
+    await catchShare(owner);
     await owner.goto(`/bill/${oldLink}`);
     await openMenu(owner);
     await button(owner, /^Share receipt/).click();
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     await expect(codeRow(owner)).toHaveCount(0);
     await expect(owner.getByText(`CODE ${oldLink}`)).toHaveCount(0);
-    const message = await sentToWhatsApp(owner);
-    expect(message).toContain(
-      `*Trip*\nRM 300.00 · 3 people\n\nTap to see what you owe and mark paid:\n${linkTo(owner, oldLink)}`,
+    const { text: message } = await sent(owner);
+    expect(message).toBe(
+      `Trip\nRM 300.00 · 3 people\n\nTap to see what you owe and mark paid:\n${linkTo(owner, oldLink)}`,
     );
     await owner.goto(`/bill/${oldLink}`);
     await expect(text(owner, "Hi Haziq")).toBeVisible();
@@ -344,20 +352,21 @@ test.describe("entering a code", () => {
     await expect(text(page, NOT_FOUND)).toBeVisible();
   });
 
-  test("on a phone with a bill, the code opens inside the menu and Back returns to it", async ({ browser }) => {
+  test("on a phone with a bill, the code slides up from the menu and Back returns to it", async ({ browser }) => {
     const phone = await newPhone(browser, draft);
     await phone.goto("/");
     await expect(button(phone, "Menu")).toBeVisible();
     await expect(button(phone, "Have a code?")).toHaveCount(0);
     await choose(phone, "Have a code?");
-    await expect(menuCard(phone).getByRole("heading", { name: "Enter your code" })).toBeVisible();
+    await expect(panel(phone).getByRole("heading", { name: "Enter your code" })).toBeVisible();
     await expect(codeBox(phone)).toBeFocused();
 
-    await menuCard(phone).getByRole("button", { name: "Back" }).click();
+    await panel(phone).getByRole("button", { name: "Back" }).click();
     await expect(menuCard(phone).getByRole("button", { name: "Have a code?" })).toBeVisible();
     await menuCard(phone).getByRole("button", { name: "Have a code?" }).click();
-    await button(phone, "Close menu").click();
-    await expect(menuCard(phone)).toHaveCount(0);
+    await panel(phone).getByRole("button", { name: "Close" }).click();
+    await expect(panel(phone)).toHaveCount(0);
+    await expect(button(phone, "Menu")).toBeVisible();
     await choose(phone, "Have a code?");
     await codeBox(phone).fill(CODE);
     await expect(phone).toHaveURL(new RegExp(`/bill/${CODE}$`));

@@ -765,7 +765,11 @@ export function BillForm({
               {problemText ? (
                 <div className="pt-1 text-[12.5px] font-semibold text-owe">{problemText}</div>
               ) : (
-                <ul ref={paysList} aria-label={t.bill.eachPays} className="m-0 flex scroll-mt-16 list-none flex-col p-0">
+                <ul
+                  ref={paysList}
+                  aria-label={t.bill.eachPays}
+                  className="m-0 flex scroll-mt-16 list-none flex-col p-0"
+                >
                   {people.map((p) => {
                     const share = finalShares[p.id] ?? 0;
                     const sub = breakdown(p.id);

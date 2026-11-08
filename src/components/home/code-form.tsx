@@ -18,7 +18,15 @@ export function HomeIntro({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-export function CodeForm({ backLabel, onBack }: { backLabel?: string; onBack: () => void }) {
+export function CodeForm({
+  backLabel,
+  onBack,
+  onClose,
+}: {
+  backLabel?: string;
+  onBack: () => void;
+  onClose?: () => void;
+}) {
   const { t } = useI18n();
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -58,7 +66,7 @@ export function CodeForm({ backLabel, onBack }: { backLabel?: string; onBack: ()
         <HomeIntro title={t.home.codeTitle} desc={t.home.codeDesc} />
       ) : (
         <PanelBack.Provider value={onBack}>
-          <PanelHead title={t.home.codeTitle} />
+          <PanelHead title={t.home.codeTitle} onClose={onClose} />
           <p className="m-0 mt-1 text-[14px] leading-[1.5] text-muted">{t.home.codeDesc}</p>
         </PanelBack.Provider>
       )}

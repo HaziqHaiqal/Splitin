@@ -63,7 +63,7 @@ import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
 import { getAsked, getMe, setAsked, setMe, setOwnerToken, useMe } from "@/lib/store";
 import { cn, newId } from "@/lib/utils";
 import { BankForm } from "./bank-form";
-import { IconTile, MenuCard, MenuFab, MenuHead, MenuItem, MenuRow, Rise, type Tile } from "./bill-menu";
+import { IconTile, MenuFab, MenuItem, MenuPills, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
 import { HistoryList, useChangesSinceVisit } from "./history";
 import { BillDetail, BillRows, NameBody, type BillRules } from "./my-bills";
@@ -1187,7 +1187,7 @@ export function BillPage({
       </div>
     ) : null;
 
-  const detail = (item: Item, onBack?: () => void) => (
+  const detail = (item: Item, onBack?: () => void, onClose?: () => void) => (
     <BillDetail
       key={`${item.id}:${me ? itemShares(item)[me] : ""}`}
       item={item}
@@ -1196,6 +1196,7 @@ export function BillPage({
       rules={rules}
       pending={pending}
       onBack={onBack}
+      onClose={onClose}
       note={
         locked && !owner ? fmt(t.page.lockedBills, { name: ownerName }) : fmt(t.page.cantLeave, { name: ownerName })
       }
@@ -1228,15 +1229,16 @@ export function BillPage({
     show(id);
   };
 
-  const menuBody = () => {
+  const menuPage = () => {
+    const head = (title: string, sub?: string) => (
+      <PanelBack.Provider value={() => setMenu("root")}>
+        <PanelHead title={title} sub={sub} onClose={closeMenu} />
+      </PanelBack.Provider>
+    );
     if (menu === "bills")
       return (
         <>
-          <MenuHead
-            title={t.page.yourBills}
-            sub={billsSub ?? (me ? fmt(t.page.yourShare, { amount: money(myShare) }) : undefined)}
-            onBack={() => setMenu("root")}
-          />
+          {head(t.page.yourBills, billsSub ?? (me ? fmt(t.page.yourShare, { amount: money(myShare) }) : undefined))}
           <BillRows
             doc={doc}
             me={me}
@@ -1245,7 +1247,7 @@ export function BillPage({
             onOpen={(id) => openRow(id, (next) => (next ? setMenu(`bill:${next}`) : undefined), "bills")}
             onToggle={toggleBill}
           />
-          <div className="mt-1 border-t border-line pt-1 pr-14">
+          <div className="mt-1 border-t border-line pt-1">
             <MenuItem icon={<PlusIcon size={18} />} label={t.home.nextBill} onClick={() => addBill("bills")} />
           </div>
         </>
@@ -1253,55 +1255,33 @@ export function BillPage({
     if (menu === "history")
       return (
         <>
-          <MenuHead title={t.history.title} onBack={() => setMenu("root")} />
+          {head(t.history.title)}
           {bill.events.length === 0 ? (
-            <p className="m-0 px-2.5 py-2 text-[14px] text-muted">{t.history.empty}</p>
+            <p className="m-0 py-2 text-[14px] text-muted">{t.history.empty}</p>
           ) : (
-            <div className="px-1.5">
-              <HistoryList doc={doc} events={bill.events} />
-            </div>
+            <HistoryList doc={doc} events={bill.events} />
           )}
-          <div className="h-11" />
         </>
       );
     if (menu?.startsWith("bill:")) {
       const item = doc.items.find((i) => i.id === menu.slice(5));
-      return item ? detail(item, () => setMenu("bills")) : null;
+      return item ? detail(item, () => setMenu("bills"), closeMenu) : null;
     }
-    const rows: Tile[] =
-      me || owner
-        ? [
-            {
-              key: "bills",
-              icon: <ReceiptIcon />,
-              label: t.page.yourBills,
-              sub: me
-                ? fmt(t.page.inBills, { count: myItems.length, total: doc.items.length, amount: money(myShare) })
-                : undefined,
-              onClick: () => setMenu("bills"),
-            },
-            ...tiles,
-          ]
-        : tiles;
-    return (
-      <Rise className="flex flex-col gap-1">
-        {[
-          <ShareCard
-            key="share"
-            onClick={() => {
-              setMenu(null);
-              share.show();
-            }}
-          />,
-          <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
-            {rows.map((tile) => (
-              <MenuRow key={tile.key} tile={tile} />
-            ))}
-          </div>,
-        ]}
-      </Rise>
-    );
+    return null;
   };
+
+  const menuTiles: Tile[] =
+    me || owner
+      ? [
+          {
+            key: "bills",
+            icon: <ReceiptIcon />,
+            label: t.page.yourBills,
+            onClick: () => setMenu("bills"),
+          },
+          ...tiles,
+        ]
+      : tiles;
 
   const sharedBy = ownerPerson?.name ?? "";
   const created = date(bill.createdAt, { day: "numeric", month: "short" });
@@ -1365,7 +1345,7 @@ export function BillPage({
       {tellCard}
       <Rise className="flex flex-col gap-[22px]">
         {[
-          <ShareCard key="share" big onClick={share.show} />,
+          <ShareCard key="share" big onClick={() => share.show()} />,
           <div key="tiles" className="flex flex-wrap justify-center gap-x-2 gap-y-3 [&>*]:w-[76px]">
             {tiles.map((tile) => (
               <IconTile key={tile.key} tile={tile} ring="var(--bg)" />
@@ -1391,27 +1371,36 @@ export function BillPage({
             </>
           )
         }
-        panel={view && !inMenu ? body(true) : undefined}
+        panel={
+          view ? (
+            inMenu ? (
+              <PanelBack.Provider value={goBack}>{body(true)}</PanelBack.Provider>
+            ) : (
+              body(true)
+            )
+          ) : menu && menu !== "root" ? (
+            menuPage()
+          ) : undefined
+        }
+        onPanelClose={closeMenu}
+        dim={!view || !["add", "edit", "pay"].includes(view.kind)}
         fab={
           desktop ? undefined : (
             <>
-              {menu || inMenu ? (
-                <MenuCard onClose={closeMenu}>
-                  {inMenu ? (
-                    <PanelBack.Provider value={goBack}>
-                      <div data-panel className="px-2 pt-2 pb-px [&_form>:last-child]:mr-[46px]">
-                        {body(true)}
-                      </div>
-                    </PanelBack.Provider>
-                  ) : (
-                    menuBody()
-                  )}
-                </MenuCard>
+              {menu === "root" ? (
+                <MenuPills
+                  tiles={menuTiles}
+                  onShare={() => {
+                    setMenu(null);
+                    share.show(() => setMenu("root"));
+                  }}
+                  onClose={closeMenu}
+                />
               ) : null}
               <MenuFab
-                open={menu !== null || inMenu}
+                open={menu === "root"}
                 dot={changes.count > 0}
-                onClick={() => (menu || inMenu ? closeMenu() : setMenu("root"))}
+                onClick={() => (menu === "root" ? closeMenu() : setMenu("root"))}
               />
             </>
           )

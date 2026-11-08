@@ -1,27 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ShareIcon } from "@/components/icons";
 import { Receipt } from "@/components/receipt/receipt";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 import { useI18n } from "@/i18n/client";
 import { ownerOf } from "@/lib/bill";
-import { getShareNext, setShareNext } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { SharedBillData } from "./shared-bill";
 
 export function useShareBill(bill: SharedBillData, bigStamp?: string) {
   const router = useRouter();
   const paper = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(() => typeof window !== "undefined" && getShareNext() === bill.id);
+  const [open, setOpen] = useState(false);
+  const [back, setBack] = useState<{ to: () => void } | null>(null);
 
-  useEffect(() => {
-    if (getShareNext() === bill.id) setShareNext(null);
-  }, [bill.id]);
-
-  const show = () => {
+  const show = (to?: () => void) => {
     router.refresh();
+    setBack(to ? { to } : null);
     setOpen(true);
   };
 
@@ -47,6 +44,14 @@ export function useShareBill(bill: SharedBillData, bigStamp?: string) {
         doc={bill.doc}
         payments={bill.payments}
         receiptRef={paper}
+        onBack={
+          back
+            ? () => {
+                setOpen(false);
+                back.to();
+              }
+            : undefined
+        }
       />
     </>
   );
@@ -74,7 +79,7 @@ export function ShareBill({
         type="button"
         aria-label={t.receipt.share}
         title={t.receipt.share}
-        onClick={share.show}
+        onClick={() => share.show()}
         className={cn(
           "inline-flex items-center justify-center gap-2 rounded-xl bg-green font-bold whitespace-nowrap text-white",
           className,
