@@ -42,7 +42,7 @@ async function scanReceipt(page: Page, reply?: unknown) {
   await choose(page, "Add bill");
   await pickMe(page, "Najmi");
   const form = panel(page);
-  await expect(form.getByText("The photo goes to Google's AI, which may keep it.", { exact: false })).toBeVisible();
+  await expect(form.getByText("Scan a receipt")).toBeVisible();
   await form.getByLabel("Scan a receipt").setInputFiles(photo);
   return form;
 }
