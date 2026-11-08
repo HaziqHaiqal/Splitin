@@ -66,23 +66,6 @@ export function useLastShared(): LastShared | null {
   }, [raw]);
 }
 
-const SHARE_NEXT = "splitin:share-next";
-
-export function getShareNext() {
-  try {
-    return window.sessionStorage.getItem(SHARE_NEXT);
-  } catch {
-    return null;
-  }
-}
-
-export function setShareNext(billId: string | null) {
-  try {
-    if (billId) window.sessionStorage.setItem(SHARE_NEXT, billId);
-    else window.sessionStorage.removeItem(SHARE_NEXT);
-  } catch {}
-}
-
 export function moveSharedDraft(draft: Draft) {
   if (!draft.billId) return;
   write(SHARED_KEY, JSON.stringify({ id: draft.billId, title: draft.doc.title }));

@@ -9,21 +9,20 @@ export const fieldClass =
   "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
 
 export const PanelBack = createContext<(() => void) | null>(null);
-export const InMenuCard = createContext(false);
 
 export function PanelHead({ title, sub, onClose }: { title: ReactNode; sub?: ReactNode; onClose?: () => void }) {
   const desktop = useIsDesktop();
   const back = useContext(PanelBack);
-  const inCard = useContext(InMenuCard);
   return (
     <div
-      className={cn(
+      data-grab={desktop ? undefined : true}
+      className={
         desktop
           ? "sticky top-16 z-10 -mt-3 bg-bg pt-3 pb-1"
-          : cn("sticky z-10 -mx-4 -mt-4 box-content bg-card px-4 pt-3 pb-1", inCard ? "-top-2" : "top-0"),
-      )}
+          : "sticky top-0 z-10 -mx-4 -mt-4 box-content touch-none bg-card px-4 pt-3 pb-1"
+      }
     >
-      <SheetHead title={title} sub={sub} onBack={back} onClose={inCard ? undefined : onClose} />
+      <SheetHead title={title} sub={sub} onBack={back} onClose={onClose} />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { CheckIcon } from "@/components/icons";
-import { InMenuCard, PanelBack, PanelHead } from "@/components/shared/panel-form";
+import { PanelBack, PanelHead } from "@/components/shared/panel-form";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
@@ -102,7 +102,6 @@ export function WhoHadIt({
 }) {
   const { t, money, plain } = useI18n();
   const desktop = useIsDesktop();
-  const inCard = useContext(InMenuCard);
   const [many, setMany] = useState(line.who.length > 1);
   const [chosen, setChosen] = useState(line.who);
   const [fixing, setFixing] = useState(false);
@@ -200,7 +199,7 @@ export function WhoHadIt({
         ))}
       </div>
 
-      <div className={cn("flex items-center justify-between gap-3", inCard && !many && "mr-[46px]")}>
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => {
@@ -219,7 +218,7 @@ export function WhoHadIt({
       </div>
 
       {many ? (
-        <div className={cn("sticky bottom-0 z-10 bg-card pt-1 pb-1", !desktop && "-mx-4 px-4", inCard && "mr-[46px]")}>
+        <div className={cn("sticky bottom-0 z-10 bg-card pt-1 pb-1", !desktop && "-mx-4 px-4")}>
           <button
             type="button"
             disabled={chosen.length === 0}

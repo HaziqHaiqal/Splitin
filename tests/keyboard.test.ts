@@ -1,5 +1,5 @@
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
-import { choose, menuCard, openBill, panel, pickMe, seed, trip } from "./helpers";
+import { choose, openBill, panel, pickMe, seed, trip } from "./helpers";
 
 const people = Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, name: `Person number ${i}`, color: i }));
 
@@ -42,8 +42,9 @@ test("the page stays still behind the form while typing", async ({ page }) => {
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
   await page.waitForTimeout(1200);
-  const card = menuCard(page);
-  const pin = () => card.evaluate((el) => (el.parentElement!.parentElement as HTMLElement).style.bottom);
+  const card = form;
+  const scroller = card.locator(".overflow-y-auto").first();
+  const pin = () => card.evaluate((el) => el.style.bottom);
   const top = async () => Math.round((await card.boundingBox())!.y);
   const dragBehind = async () => drag(cdp, page, [195, (await top()) - 30], [195, 80]);
 
@@ -59,8 +60,8 @@ test("the page stays still behind the form while typing", async ({ page }) => {
   await dragBehind();
   expect(await scrollY(), "typing: dragging behind the form does nothing").toBe(0);
 
-  await drag(cdp, page, [195, pinned + 40], [195, pinned + 240]);
-  await drag(cdp, page, [195, pinned + 240], [195, pinned + 40]);
+  await drag(cdp, page, [195, pinned + 140], [195, pinned + 340]);
+  await drag(cdp, page, [195, pinned + 340], [195, pinned + 140]);
   expect(await scrollY(), "typing: dragging the form does not move the page").toBe(0);
   expect(await top(), "typing: the form stays put").toBe(pinned);
 
@@ -76,11 +77,11 @@ test("the page stays still behind the form while typing", async ({ page }) => {
     cdp.send("Emulation.setDeviceMetricsOverride", { width: 390, height, deviceScaleFactor: 2, mobile: true });
   await shrink(200);
   await page.waitForTimeout(500);
-  expect(await card.evaluate((el) => el.scrollHeight > el.clientHeight), "short screen: form is taller").toBe(true);
+  expect(await scroller.evaluate((el) => el.scrollHeight > el.clientHeight), "short screen: form is taller").toBe(true);
   const short = (await card.boundingBox())!;
   const before = await scrollY();
   await drag(cdp, page, [195, short.y + short.height - 20], [195, short.y + 20]);
-  expect(await card.evaluate((el) => el.scrollTop), "short screen: scrolls inside the form").toBeGreaterThan(20);
+  expect(await scroller.evaluate((el) => el.scrollTop), "short screen: scrolls inside the form").toBeGreaterThan(20);
   expect(await scrollY(), "short screen: page stays still").toBe(before);
   await shrink(844);
   await page.waitForTimeout(500);

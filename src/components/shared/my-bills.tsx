@@ -8,6 +8,7 @@ import { baseOf, baseShares, itemShares, joinShare, type BillDoc, type Item } fr
 import { parseMoney, toAutoPointInput, toInputValue } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { MenuHead, MenuItem } from "./bill-menu";
+import { PanelBack, PanelHead } from "./panel-form";
 
 export type BillRules = {
   canPart: (item: Item) => boolean;
@@ -139,6 +140,7 @@ export function BillDetail({
   rules,
   pending,
   onBack,
+  onClose,
   note,
   onPart,
   onEdit,
@@ -150,6 +152,7 @@ export function BillDetail({
   rules: BillRules;
   pending: boolean;
   onBack?: () => void;
+  onClose?: () => void;
   note?: string;
   onPart: (item: Item, written: number | undefined) => void;
   onEdit: (item: Item) => void;
@@ -188,7 +191,13 @@ export function BillDetail({
 
   return (
     <>
-      <MenuHead title={item.name} sub={fmt(t.page.splitWith, { paid, names })} onBack={onBack} />
+      {onBack ? (
+        <PanelBack.Provider value={onBack}>
+          <PanelHead title={item.name} sub={fmt(t.page.splitWith, { paid, names })} onClose={onClose} />
+        </PanelBack.Provider>
+      ) : (
+        <MenuHead title={item.name} sub={fmt(t.page.splitWith, { paid, names })} />
+      )}
       {part ? (
         <>
           <div className="px-2.5 pt-1 text-[12.5px] font-semibold text-muted">{t.page.yourPart}</div>

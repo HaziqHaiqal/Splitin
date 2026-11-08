@@ -24,8 +24,8 @@ import {
 } from "@/components/icons";
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
-import { MenuCard, MenuFab, MenuRow, Rise, type Tile } from "@/components/shared/bill-menu";
-import { ShareCard } from "@/components/shared/share-bill";
+import { MenuFab, MenuPills, type Tile } from "@/components/shared/bill-menu";
+import { PanelBack } from "@/components/shared/panel-form";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
 import { useToast } from "@/components/toast";
@@ -70,10 +70,12 @@ export function BillsHome() {
   const [entering, setEntering] = useState(false);
   const [starting, setStarting] = useState<StartDraft>(NEW_START);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [codeInMenu, setCodeInMenu] = useState(false);
-  const closeMenu = () => {
-    setMenuOpen(false);
-    setCodeInMenu(false);
+  const [fromMenu, setFromMenu] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+  const backToMenu = () => {
+    setEntering(false);
+    setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
+    setMenuOpen(true);
   };
 
   useEffect(() => {
@@ -130,8 +132,14 @@ export function BillsHome() {
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
   const openPerson = (id: string) => setPersonSheet((s) => ({ open: true, id, key: s.key + 1 }));
-  const openAdd = () => setForm((f) => ({ mode: "add", editId: null, key: f.key + 1 }));
-  const openEdit = (item: { id: string }) => setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
+  const openAdd = () => {
+    setFromMenu(false);
+    setForm((f) => ({ mode: "add", editId: null, key: f.key + 1 }));
+  };
+  const openEdit = (item: { id: string }) => {
+    setFromMenu(false);
+    setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
+  };
   const closeForm = () => setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
   const printed = (id: string) => {
     setFreshId(id);
@@ -195,14 +203,21 @@ export function BillsHome() {
   const codeLink = (className?: string) => (
     <button
       type="button"
-      onClick={() => setEntering(true)}
+      onClick={() => {
+        setFromMenu(false);
+        setEntering(true);
+      }}
       className={cn("h-9 self-start text-[13.5px] font-bold text-green-ink", className)}
     >
       {t.home.haveCode}
     </button>
   );
   const codeView = (
-    <CodeForm backLabel={hasPeople ? undefined : t.home.codeBackNew} onBack={() => setEntering(false)} />
+    <CodeForm
+      backLabel={hasPeople ? undefined : t.home.codeBackNew}
+      onBack={fromMenu ? backToMenu : () => setEntering(false)}
+      onClose={desktop ? undefined : () => setEntering(false)}
+    />
   );
 
   const start = (
@@ -288,13 +303,18 @@ export function BillsHome() {
       onClick: () => {
         setMenuOpen(false);
         openAdd();
+        setFromMenu(true);
       },
     },
     {
       key: "code",
       icon: <LinkIcon size={20} />,
       label: t.home.haveCode,
-      onClick: () => setCodeInMenu(true),
+      onClick: () => {
+        setMenuOpen(false);
+        setEntering(true);
+        setFromMenu(true);
+      },
     },
     {
       key: "clear",
@@ -310,7 +330,7 @@ export function BillsHome() {
   const shareButton = (
     <button
       type="button"
-      onClick={share}
+      onClick={() => share()}
       disabled={pending}
       className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-green px-6 text-[15px] font-bold text-white disabled:opacity-60"
     >
@@ -350,37 +370,23 @@ export function BillsHome() {
           ) : entering ? (
             codeView
           ) : formOpen ? (
-            billForm(true)
+            <PanelBack.Provider value={fromMenu ? backToMenu : null}>{billForm(true)}</PanelBack.Provider>
           ) : undefined
         }
+        onPanelClose={!hasPeople ? undefined : entering ? () => setEntering(false) : hasBills ? closeForm : undefined}
+        dim={hasPeople && entering}
         fab={
           !desktop && hasBills && !formOpen && !entering ? (
             <>
               {menuOpen ? (
-                <MenuCard onClose={closeMenu}>
-                  {codeInMenu ? (
-                    <div data-panel className="px-2 pt-2 pb-6">
-                      <CodeForm onBack={() => setCodeInMenu(false)} />
-                    </div>
-                  ) : (
-                    <Rise className="flex flex-col gap-1">
-                      {[
-                        <ShareCard
-                          key="share"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            share();
-                          }}
-                        />,
-                        <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
-                          {menuRows.map((tile) => (
-                            <MenuRow key={tile.key} tile={tile} />
-                          ))}
-                        </div>,
-                      ]}
-                    </Rise>
-                  )}
-                </MenuCard>
+                <MenuPills
+                  tiles={menuRows}
+                  onShare={() => {
+                    setMenuOpen(false);
+                    share(() => setMenuOpen(true));
+                  }}
+                  onClose={closeMenu}
+                />
               ) : null}
               <MenuFab open={menuOpen} dot={false} onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))} />
             </>

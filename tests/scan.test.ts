@@ -132,7 +132,10 @@ test("the next item comes up by itself, Skip moves on, and the last one goes bac
   await row(form, "2 × Nasi lemak").click();
   await expect(form.getByRole("heading", { name: "Who had it?" })).toBeVisible();
   await expect(form.getByText("Item 1 of 3")).toBeVisible();
-  await form.getByRole("radiogroup", { name: "2 × Nasi lemak" }).getByRole("radio", { name: "Haziq", exact: true }).click();
+  await form
+    .getByRole("radiogroup", { name: "2 × Nasi lemak" })
+    .getByRole("radio", { name: "Haziq", exact: true })
+    .click();
   await expect(form.getByText("Item 2 of 3")).toBeVisible();
   await form.getByRole("button", { name: /^Skip/ }).click();
   await expect(form.getByText("Item 3 of 3")).toBeVisible();
@@ -160,7 +163,10 @@ test("more than one person can have an item, and Everyone shares it puts it back
   await row(form, "Teh ais").click();
   await expect(form.getByRole("group", { name: "Teh ais" }).getByRole("checkbox", { checked: true })).toHaveCount(2);
   await form.getByRole("button", { name: "Just one person" }).click();
-  await form.getByRole("radiogroup", { name: "Teh ais" }).getByRole("radio", { name: /^Everyone shares it/ }).click();
+  await form
+    .getByRole("radiogroup", { name: "Teh ais" })
+    .getByRole("radio", { name: /^Everyone shares it/ })
+    .click();
   await back(form).click();
   await expect(row(form, "Teh ais")).toHaveAccessibleName("Teh ais, Shared by everyone, 6.00");
   for (const name of ["Haziq", "Najmi", "Afiq"]) await expect(pays(form, name)).toHaveText("15.55");

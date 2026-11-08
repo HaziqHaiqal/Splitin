@@ -310,7 +310,7 @@ test.describe("the browser key", () => {
     const owner = await newPhone(browser, { "splitin:draft:v2": { doc: trip, billId: null } });
     await owner.goto("/");
     await shareFromHome(owner);
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     const id = (await getDb()).bills.find((b) => b.id !== BILL)!.id;
 
     await owner.evaluate(() => localStorage.clear());

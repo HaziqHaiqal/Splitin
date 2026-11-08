@@ -213,8 +213,9 @@ test.describe("who are you", () => {
     await expect(card.getByRole("button", { name: /^Share receipt/ })).toBeVisible();
     for (const label of ["Add bill", "History", "Calculation"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: /^Your bills/ })).toContainText("In 1 of 1 · you pay RM 100.00");
     await expect(button(page, "Close menu")).toBeVisible();
+    await card.getByRole("button", { name: "Your bills", exact: true }).click();
+    await expect(panel(page).getByText("Your share RM 100.00")).toBeVisible();
   });
 
   test("the receipt has no Join or Delete words on bills", async ({ page }) => {
@@ -631,10 +632,12 @@ test.describe("adding your own name", () => {
     const form = await owedAiman(page);
     const title = form.getByText("Bank details", { exact: true });
     const close = form.getByRole("button", { name: "Close" });
+    const scroller = form.locator(".overflow-y-auto").first();
+    await form.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const before = await title.boundingBox();
-    expect((await close.boundingBox())!.y - (await form.boundingBox())!.y).toBeLessThan(20);
-    await form.evaluate((el) => el.scrollTo(0, el.scrollHeight));
-    await expect.poll(() => form.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect((await close.boundingBox())!.y - (await form.boundingBox())!.y).toBeLessThan(32);
+    await scroller.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+    await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
     expect(await title.boundingBox()).toEqual(before);
     await close.click();
     await expect(form).toHaveCount(0);
@@ -1426,8 +1429,8 @@ test.describe("telling the group", () => {
 
     await openBill(me);
     await expect(dot).toBeVisible();
-    await openHistory(me);
-    await expect(sheet(me).getByText(/Afiq added Theirs/)).toBeVisible();
+    const list = await openHistory(me);
+    await expect(list.getByText(/Afiq added Theirs/)).toBeVisible();
 
     await openBill(me);
     await expect(me.getByRole("button", { name: "Menu", exact: true })).toBeVisible();

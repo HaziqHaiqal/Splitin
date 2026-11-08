@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { CloseIcon, MenuIcon } from "@/components/icons";
+import { CloseIcon, MenuIcon, ShareIcon } from "@/components/icons";
 import { SheetHead } from "@/components/sheet";
-import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
 import { useI18n } from "@/i18n/client";
 import { cn } from "@/lib/utils";
-import { InMenuCard } from "./panel-form";
 
 export type Tile = {
   key: string;
@@ -130,15 +128,9 @@ export function MenuFab({ open, dot, onClick }: { open: boolean; dot: boolean; o
   );
 }
 
-const corner = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Cpath d='M0 0H72A12 12 0 0 1 60 12H41A29 29 0 0 0 12 41V60A12 12 0 0 1 0 72Z'/%3E%3C/svg%3E")`;
-const notch: CSSProperties = {
-  mask: `${corner} right bottom / 72px 72px no-repeat, linear-gradient(#000 0 0) left top / 100% calc(100% - 71px) no-repeat, linear-gradient(#000 0 0) left bottom / calc(100% - 71px) 72px no-repeat`,
-};
-
-export function MenuCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+export function MenuPills({ tiles, onShare, onClose }: { tiles: Tile[]; onShare: () => void; onClose: () => void }) {
   const { t } = useI18n();
-  const card = useRef<HTMLDivElement>(null);
-  const keyboard = useKeyboardViewport(card);
+  const box = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
 
   useEffect(() => {
@@ -146,7 +138,7 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
   }, [onClose]);
 
   useEffect(() => {
-    card.current?.focus({ preventScroll: true });
+    box.current?.focus({ preventScroll: true });
     const esc = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       close.current();
@@ -156,26 +148,42 @@ export function MenuCard({ onClose, children }: { onClose: () => void; children:
     return () => document.removeEventListener("keydown", esc);
   }, []);
 
+  const pills: Tile[] = [
+    { key: "share", icon: <ShareIcon size={19} />, label: t.receipt.share, onClick: onShare },
+    ...tiles,
+  ];
+
   return (
     <>
       <div aria-hidden onClick={onClose} className="fixed inset-0 z-30 animate-fade bg-overlay" />
       <div
-        style={keyboard ? { top: keyboard.bottom - 8, bottom: "auto", transform: "translateY(-100%)" } : undefined}
-        className="fixed right-[calc(max(16px,env(safe-area-inset-right))-8px)] bottom-[calc(max(16px,env(safe-area-inset-bottom))-8px)] z-40 w-[calc(100vw-16px)] max-w-[424px]"
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.page.menu}
+        tabIndex={-1}
+        className="fixed right-[max(16px,env(safe-area-inset-right))] bottom-[calc(max(16px,env(safe-area-inset-bottom))+58px)] z-40 flex max-h-[calc(100dvh-140px)] flex-col items-end gap-2.5 outline-none"
       >
-        <div className="origin-[calc(100%-31px)_calc(100%-31px)] animate-grow drop-shadow-[0_14px_34px_var(--pop-shadow)]">
-          <div
-            ref={card}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t.page.menu}
-            tabIndex={-1}
-            style={keyboard ? { ...notch, maxHeight: keyboard.height - 16 } : notch}
-            className="max-h-[calc(100dvh-100px)] overflow-y-auto overscroll-contain rounded-[20px] border border-border bg-card p-2 text-ink outline-none"
+        {pills.map((tile, i) => (
+          <button
+            key={tile.key}
+            type="button"
+            onClick={tile.onClick}
+            style={{ animationDelay: `${(pills.length - 1 - i) * 35}ms` }}
+            className={cn(
+              "flex h-[46px] shrink-0 origin-right animate-pill items-center gap-2.5 rounded-full pr-[18px] pl-3.5 text-[15px] font-bold whitespace-nowrap shadow-[0_6px_18px_var(--pop-shadow)]",
+              i === 0 ? "bg-green text-white" : "bg-card text-ink",
+            )}
           >
-            <InMenuCard.Provider value={true}>{children}</InMenuCard.Provider>
-          </div>
-        </div>
+            <span aria-hidden className={cn("relative shrink-0", i === 0 ? "text-white" : "text-muted")}>
+              {tile.icon}
+              {tile.dot ? (
+                <i className="absolute -top-0.5 -right-1 size-[9px] rounded-full bg-green shadow-[0_0_0_2px_var(--card)]" />
+              ) : null}
+            </span>
+            {tile.label}
+          </button>
+        ))}
       </div>
     </>
   );

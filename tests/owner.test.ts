@@ -138,14 +138,18 @@ test.describe("sharing", () => {
     const list = sheet(owner);
     await expect(list.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
     await list.getByRole("button", { name: "Najmi" }).click();
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
+    await expect(list.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
+    await expect(sheet(owner).getByRole("button", { name: "Back" })).toHaveCount(0);
 
     const db = await getDb();
     const published = db.bills.find((b) => b.id !== BILL)!;
     expect(published.doc.ownerId).toBe("n");
+    await expect(owner).toHaveURL(/\/$/);
+    await sheet(owner).getByRole("button", { name: "Close" }).click();
     await expect(owner).toHaveURL(new RegExp(`/bill/${published.id}$`));
-    await owner.keyboard.press("Escape");
     await expect(text(owner, "Hi Najmi")).toBeVisible();
+    await expect(sheet(owner)).toHaveCount(0);
 
     const member = await newPhone(browser);
     await member.goto(`/bill/${published.id}`);
@@ -164,8 +168,8 @@ test.describe("sharing", () => {
     const ask = sheet(owner);
     await ask.getByRole("button", { name: "Not on the list" }).click();
     await ask.getByPlaceholder("Name").fill("Zara");
-    await ask.getByRole("button", { name: "Share", exact: true }).click();
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await ask.getByRole("button", { name: "That's me", exact: true }).click();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
     const zara = published.doc.people.find((p) => p.name === "Zara")!;
     expect(published.doc.ownerId).toBe(zara.id);
@@ -178,7 +182,7 @@ test.describe("after sharing", () => {
     const owner = await newPhone(browser, openDraft());
     await owner.goto("/");
     await shareFromHome(owner);
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
 
     await owner.goto("/");
@@ -586,7 +590,7 @@ test.describe("History", () => {
     const owner = await newPhone(browser, openDraft({ ...trip, items: [hotel, dinner] }));
     await owner.goto("/");
     await shareFromHome(owner);
-    await expect(sheet(owner).getByText("Copy link")).toBeVisible();
+    await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     const { bills, bill_events } = await getDb();
     expect(bill_events.map((e) => e.data)).toEqual([
       {

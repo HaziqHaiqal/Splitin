@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { Header } from "@/components/header";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useKeyboardViewport } from "@/hooks/use-keyboard-viewport";
@@ -73,6 +73,8 @@ export function PrinterPage({
   phoneTop,
   phoneBelow,
   panel,
+  onPanelClose,
+  dim = false,
   dock,
   fab,
   phoneSide = false,
@@ -87,6 +89,8 @@ export function PrinterPage({
   phoneBelow?: ReactNode;
   phoneCenter?: boolean;
   panel?: ReactNode;
+  onPanelClose?: () => void;
+  dim?: boolean;
   dock?: ReactNode;
   fab?: ReactNode;
   phoneSide?: boolean;
@@ -98,6 +102,34 @@ export function PrinterPage({
   const [pinnedHeight, setPinnedHeight] = useState(0);
   const keyboard = useKeyboardViewport(pinned);
   const typing = keyboard !== null;
+  const [held, setHeld] = useState<ReactNode>(panel ?? null);
+  const [pull, setPull] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ y: number; at: number; dy: number } | null>(null);
+  if (panel && held !== panel) setHeld(panel);
+  const leaving = !panel && held !== null;
+  const sheet = panel ?? held;
+  const shown = Boolean(sheet);
+
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = setTimeout(() => {
+      setHeld(null);
+      setPull(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [leaving]);
+
+  useEffect(() => {
+    if (desktop || !panel || !onPanelClose) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.target === document.body || (e.target instanceof Node && pinned.current?.contains(e.target)))
+        onPanelClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [desktop, panel, onPanelClose]);
 
   useEffect(() => {
     const el = pinned.current;
@@ -105,7 +137,31 @@ export function PrinterPage({
     const observer = new ResizeObserver(() => setPinnedHeight(el.offsetHeight));
     observer.observe(el);
     return () => observer.disconnect();
-  }, [desktop, panel, dock]);
+  }, [desktop, shown, dock]);
+
+  const grab = (e: PointerEvent<HTMLDivElement>) => {
+    const target = e.target as Element;
+    if (!onPanelClose || leaving || !target.closest("[data-grab]") || target.closest("button, input, a, textarea"))
+      return;
+    drag.current = { y: e.clientY, at: performance.now(), dy: 0 };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  };
+  const move = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    d.dy = e.clientY - d.y;
+    setPull(d.dy > 0 ? d.dy : d.dy / 6);
+  };
+  const letGo = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    setDragging(false);
+    const fast = d.dy > 24 && d.dy / Math.max(1, performance.now() - d.at) > 0.5;
+    if (onPanelClose && (fast || d.dy > e.currentTarget.offsetHeight * 0.3)) onPanelClose();
+    else setPull(0);
+  };
 
   useEffect(() => {
     if (desktop || follow === undefined || typing) return;
@@ -149,30 +205,53 @@ export function PrinterPage({
         </main>
       )}
       {phoneCenter ? null : <div aria-hidden style={{ height: pinnedHeight + (fab && !panel ? 76 : 24) }} />}
-      {panel ? (
+      {sheet && dim ? (
+        <div
+          aria-hidden
+          onClick={leaving ? undefined : onPanelClose}
+          className={cn("fixed inset-0 z-30 bg-overlay", leaving ? "animate-unfade" : "animate-fade")}
+        />
+      ) : null}
+      {sheet ? (
         <div
           ref={pinned}
-          style={
-            keyboard
-              ? {
-                  top: keyboard.bottom,
-                  bottom: "auto",
-                  maxHeight: keyboard.height,
-                  transform: "translateY(-100%)",
-                }
-              : undefined
-          }
-          className="fixed inset-x-0 bottom-0 z-20 max-h-[60dvh] overflow-y-auto overscroll-contain rounded-t-[22px] border-t border-sheet-edge bg-card shadow-[0_-8px_24px_var(--sheet-shadow)]"
+          inert={leaving}
+          aria-hidden={leaving || undefined}
+          onPointerDown={grab}
+          onPointerMove={move}
+          onPointerUp={letGo}
+          onPointerCancel={letGo}
+          style={{
+            ...(keyboard
+              ? { top: keyboard.bottom, bottom: "auto", maxHeight: keyboard.height, transform: "translateY(-100%)" }
+              : undefined),
+            translate: pull ? `0 ${pull}px` : undefined,
+            transition: dragging ? "none" : "translate 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
+          }}
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-30 flex max-h-[66dvh] flex-col rounded-t-[22px] border-t border-sheet-edge bg-card shadow-[0_-8px_24px_var(--sheet-shadow)]",
+            leaving ? "animate-sheet-out" : "animate-sheet-in",
+          )}
         >
-          <div className="px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">{panel}</div>
+          {onPanelClose ? (
+            <div data-grab aria-hidden className="flex shrink-0 cursor-grab touch-none justify-center pt-2">
+              <i className="h-[5px] w-10 rounded-[3px] bg-handle" />
+            </div>
+          ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="px-4 pt-4 pb-[max(16px,env(safe-area-inset-bottom))]">{sheet}</div>
+          </div>
         </div>
-      ) : dock ? (
-        <div
-          ref={pinned}
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card px-3 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))]"
-        >
-          {dock}
-        </div>
+      ) : null}
+      {panel ? null : dock ? (
+        sheet ? null : (
+          <div
+            ref={pinned}
+            className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card px-3 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))]"
+          >
+            {dock}
+          </div>
+        )
       ) : (
         fab
       )}
