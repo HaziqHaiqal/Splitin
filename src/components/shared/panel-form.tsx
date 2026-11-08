@@ -11,7 +11,7 @@ export const fieldClass =
 export const PanelBack = createContext<(() => void) | null>(null);
 export const InMenuCard = createContext(false);
 
-export function PanelHead({ title, onClose }: { title: ReactNode; onClose?: () => void }) {
+export function PanelHead({ title, sub, onClose }: { title: ReactNode; sub?: ReactNode; onClose?: () => void }) {
   const desktop = useIsDesktop();
   const back = useContext(PanelBack);
   const inCard = useContext(InMenuCard);
@@ -23,7 +23,7 @@ export function PanelHead({ title, onClose }: { title: ReactNode; onClose?: () =
           : cn("sticky z-10 -mx-4 -mt-4 box-content bg-card px-4 pt-3 pb-1", inCard ? "-top-2" : "top-0"),
       )}
     >
-      <SheetHead title={title} onBack={back} onClose={inCard ? undefined : onClose} />
+      <SheetHead title={title} sub={sub} onBack={back} onClose={inCard ? undefined : onClose} />
     </div>
   );
 }
