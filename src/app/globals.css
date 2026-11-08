@@ -132,6 +132,10 @@
   --animate-grow: grow 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.12) both;
   --animate-fade: fade 0.2s ease-out both;
   --animate-drop: drop 0.14s ease-out both;
+  --animate-sweep: sweep 1.7s ease-in-out infinite alternate;
+  --animate-slide: slide 1.3s ease-in-out infinite;
+  --animate-settle: settle 0.5s cubic-bezier(0.3, 1.3, 0.5, 1) both;
+  --animate-flash: flash 1.1s ease-out both;
 
   @keyframes grow {
     from {
@@ -210,6 +214,33 @@
       transform: translateX(4px);
     }
   }
+
+  @keyframes sweep {
+    to {
+      transform: translateY(78px);
+    }
+  }
+
+  @keyframes slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+
+  @keyframes settle {
+    from {
+      transform: scale(1.04);
+    }
+  }
+
+  @keyframes flash {
+    from {
+      background-color: var(--green-soft);
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -222,7 +253,11 @@
   .animate-printed,
   .animate-grow,
   .animate-fade,
-  .animate-drop {
+  .animate-drop,
+  .animate-sweep,
+  .animate-slide,
+  .animate-settle,
+  .animate-flash {
     animation: none;
   }
 }

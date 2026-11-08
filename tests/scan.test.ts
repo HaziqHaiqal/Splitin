@@ -192,3 +192,24 @@ test("on the home page, each person's part from the receipt is what prints", asy
   const draft = await page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));
   expect(draft.doc.items[0].overrides).toEqual({ h: 2400, n: 600, a: 1000 });
 });
+
+test("while it reads, the photo shows with the steps", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/scan", async (route) => {
+    await held;
+    await route.fulfill({ json: { ok: true, data: scanned } });
+  });
+  const form = await scanReceipt(page);
+  const status = form.getByRole("status");
+  await expect(status.getByText("Reading the receipt…")).toBeVisible();
+  await expect(status.getByText("Finding the items")).toBeVisible();
+  await expect(status.locator("img")).toHaveCount(1);
+  await expect(status.getByText("Reading the prices")).toBeVisible();
+  await page.screenshot({ path: "test-results/reading.png" });
+  release();
+  await expect(form.getByText("Receipt attached")).toBeVisible();
+  await expect(form.getByRole("status")).toHaveCount(0);
+});

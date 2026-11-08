@@ -115,6 +115,7 @@ export const en = {
     beforeCharges: "These are before service charge and SST. Each person's part of those is added on the receipt.",
     scan: "Scan a receipt",
     scanning: "Reading the receipt…",
+    scanSteps: ["Finding the items", "Reading the prices", "Checking SST and service charge", "Adding it up"],
     scanNote: "The photo goes to Google's AI, which may keep it. Don't scan receipts with personal details.",
     attached: "Receipt attached",
     attachedItems: "{count} items · {amount}",

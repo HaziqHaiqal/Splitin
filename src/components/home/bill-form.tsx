@@ -81,6 +81,9 @@ export function BillForm({
   const [scan, setScan] = useState<"idle" | "reading" | ScanError>("idle");
   const [receipt, setReceipt] = useState<Attached | null>(null);
   const [showPhoto, setShowPhoto] = useState(false);
+  const [reading, setReading] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  const [filled, setFilled] = useState(0);
   const photos = useRef<string[]>([]);
   const [paidBy, setPaidBy] = useState(
     item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
@@ -176,6 +179,12 @@ export function BillForm({
   }, [previewKey, isEdit]);
   useEffect(() => () => onPreview(null), [onPreview]);
   useEffect(() => {
+    if (scan !== "reading") return;
+    const last = t.bill.scanSteps.length - 1;
+    const timer = setInterval(() => setStep((s) => Math.min(s + 1, last)), 2600);
+    return () => clearInterval(timer);
+  }, [scan, t.bill.scanSteps.length]);
+  useEffect(() => {
     const made = photos.current;
     return () => made.forEach((url) => URL.revokeObjectURL(url));
   }, []);
@@ -243,8 +252,13 @@ export function BillForm({
 
   const scanPhoto = async (file: File) => {
     setScan("reading");
+    setStep(0);
+    setReading(null);
     const photo = await shrinkPhoto(file);
     if (!SCAN_TYPES.includes(photo.type)) return setScan("photo");
+    const url = URL.createObjectURL(photo);
+    photos.current.push(url);
+    setReading(url);
     const body = new FormData();
     body.append("photo", photo, "receipt");
     const response = await fetch("/api/scan", { method: "POST", body }).catch(() => null);
@@ -253,9 +267,8 @@ export function BillForm({
       .json()
       .catch(() => null);
     if (!reply?.ok) return setScan(reply && reply.error in t.bill.scanErrors ? reply.error : "failed");
-    const url = URL.createObjectURL(photo);
-    photos.current.push(url);
     fill(reply.data, url);
+    setFilled((n) => n + 1);
     setScan("idle");
   };
 
@@ -406,7 +419,7 @@ export function BillForm({
         />
 
         {isEdit ? null : receipt ? (
-          <div className="flex items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
+          <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
             <button
               type="button"
               onClick={() => setShowPhoto(true)}
@@ -443,26 +456,52 @@ export function BillForm({
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            <label
-              className={cn(
-                "flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green",
-                scan === "reading" && "cursor-default opacity-60",
-              )}
-            >
-              <CameraIcon size={18} />
-              {scan === "reading" ? t.bill.scanning : t.bill.scan}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={scan === "reading"}
-                className="sr-only text-[16px]"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) void scanPhoto(file);
-                }}
-              />
-            </label>
+            {scan === "reading" ? (
+              <div
+                role="status"
+                className="flex animate-settle items-center gap-3.5 overflow-hidden rounded-xl bg-chip px-3.5 py-3"
+              >
+                <div aria-hidden className="relative shrink-0 p-1.5">
+                  <i className="absolute top-0 left-0 size-3 rounded-tl-[5px] border-t-[2.5px] border-l-[2.5px] border-green-ink" />
+                  <i className="absolute top-0 right-0 size-3 rounded-tr-[5px] border-t-[2.5px] border-r-[2.5px] border-green-ink" />
+                  <i className="absolute bottom-0 left-0 size-3 rounded-bl-[5px] border-b-[2.5px] border-l-[2.5px] border-green-ink" />
+                  <i className="absolute right-0 bottom-0 size-3 rounded-br-[5px] border-r-[2.5px] border-b-[2.5px] border-green-ink" />
+                  <div className="h-[78px] w-[58px] -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                    {reading ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={reading} alt="" className="size-full object-cover" />
+                    ) : null}
+                  </div>
+                  <i className="absolute inset-x-0 top-1.5 h-0.5 animate-sweep rounded-full bg-[#34c26a] shadow-[0_0_10px_2px_#34c26a] before:absolute before:inset-x-0 before:bottom-0.5 before:h-6 before:bg-linear-to-t before:from-[#34c26a]/30 before:to-transparent before:content-['']" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <b className="block text-[14.5px] font-extrabold">{t.bill.scanning}</b>
+                  <span className="block h-[18px] overflow-hidden text-[12.5px] text-muted">
+                    <span key={step} className="block animate-rise">
+                      {t.bill.scanSteps[step]}
+                    </span>
+                  </span>
+                  <span className="relative mt-2 block h-[3px] overflow-hidden rounded-full bg-line">
+                    <i className="absolute inset-y-0 left-0 w-2/5 animate-slide rounded-full bg-green" />
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green">
+                <CameraIcon size={18} />
+                {t.bill.scan}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only text-[16px]"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) void scanPhoto(file);
+                  }}
+                />
+              </label>
+            )}
             <p
               role={scan in t.bill.scanErrors ? "alert" : undefined}
               className={cn(
@@ -480,16 +519,18 @@ export function BillForm({
             type="text"
             value={name}
             autoFocus={autoFocus}
+            key={`name-${filled}`}
             aria-label={t.bill.whatFor}
             placeholder={t.bill.namePlaceholder}
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
-            className={cn(field, "font-semibold")}
+            className={cn(field, "font-semibold", filled > 0 && "animate-flash")}
           />
           <input
             type="text"
             inputMode="numeric"
             value={amount}
+            key={`amount-${filled}`}
             aria-label={t.bill.amount}
             placeholder="0.00"
             readOnly={Boolean(lines)}
@@ -498,6 +539,7 @@ export function BillForm({
             className={cn(
               field,
               "font-extrabold tabular",
+              filled > 0 && "animate-flash",
               lines && "border-transparent bg-chip focus:border-transparent focus:shadow-none",
             )}
           />
@@ -543,7 +585,8 @@ export function BillForm({
                 key={i}
                 role="group"
                 aria-label={line.name}
-                className="flex flex-col gap-1.5 border-t border-line py-2"
+                className="flex animate-rise flex-col gap-1.5 border-t border-line py-2"
+                style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
               >
                 <div className="flex items-center gap-2.5">
                   <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{line.name}</span>
