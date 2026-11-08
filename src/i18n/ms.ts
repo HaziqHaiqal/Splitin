@@ -36,7 +36,6 @@ export const ms: Dictionary = {
     codeOpening: "Membuka…",
     codeNotFound: "Tiada resit dengan kod ini. Semak dan cuba lagi.",
     codeBackNew: "Mulakan bil baru",
-    codeBackBill: "Kembali ke bil saya",
     nextBill: "Tambah bil",
     namesPlaceholder: "Nama, termasuk anda",
     billName: "Nama bil",

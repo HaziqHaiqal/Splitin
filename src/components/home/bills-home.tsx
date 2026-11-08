@@ -15,6 +15,7 @@ import {
   ArrowRightIcon,
   CheckIcon,
   CloseIcon,
+  LinkIcon,
   PencilIcon,
   PlusIcon,
   ReceiptIcon,
@@ -69,6 +70,11 @@ export function BillsHome() {
   const [entering, setEntering] = useState(false);
   const [starting, setStarting] = useState<StartDraft>(NEW_START);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [codeInMenu, setCodeInMenu] = useState(false);
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setCodeInMenu(false);
+  };
 
   useEffect(() => {
     if (moved && stored) moveSharedDraft(stored);
@@ -196,7 +202,7 @@ export function BillsHome() {
     </button>
   );
   const codeView = (
-    <CodeForm backLabel={hasPeople ? t.home.codeBackBill : t.home.codeBackNew} onBack={() => setEntering(false)} />
+    <CodeForm backLabel={hasPeople ? undefined : t.home.codeBackNew} onBack={() => setEntering(false)} />
   );
 
   const start = (
@@ -285,6 +291,12 @@ export function BillsHome() {
       },
     },
     {
+      key: "code",
+      icon: <LinkIcon size={20} />,
+      label: t.home.haveCode,
+      onClick: () => setCodeInMenu(true),
+    },
+    {
       key: "clear",
       icon: <ResetIcon size={20} />,
       label: t.home.clearAll,
@@ -325,7 +337,9 @@ export function BillsHome() {
           ) : undefined
         }
         phoneBelow={
-          hasPeople && !formOpen && !entering ? <div className="flex justify-center">{codeLink()}</div> : undefined
+          hasPeople && !hasBills && !formOpen && !entering ? (
+            <div className="flex justify-center">{codeLink()}</div>
+          ) : undefined
         }
         panel={
           !hasPeople ? (
@@ -343,26 +357,32 @@ export function BillsHome() {
           !desktop && hasBills && !formOpen && !entering ? (
             <>
               {menuOpen ? (
-                <MenuCard onClose={() => setMenuOpen(false)}>
-                  <Rise className="flex flex-col gap-1">
-                    {[
-                      <ShareCard
-                        key="share"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          share();
-                        }}
-                      />,
-                      <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
-                        {menuRows.map((tile) => (
-                          <MenuRow key={tile.key} tile={tile} />
-                        ))}
-                      </div>,
-                    ]}
-                  </Rise>
+                <MenuCard onClose={closeMenu}>
+                  {codeInMenu ? (
+                    <div data-panel className="px-2 pt-2 pb-6">
+                      <CodeForm onBack={() => setCodeInMenu(false)} />
+                    </div>
+                  ) : (
+                    <Rise className="flex flex-col gap-1">
+                      {[
+                        <ShareCard
+                          key="share"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            share();
+                          }}
+                        />,
+                        <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
+                          {menuRows.map((tile) => (
+                            <MenuRow key={tile.key} tile={tile} />
+                          ))}
+                        </div>,
+                      ]}
+                    </Rise>
+                  )}
                 </MenuCard>
               ) : null}
-              <MenuFab open={menuOpen} dot={false} onClick={() => setMenuOpen((open) => !open)} />
+              <MenuFab open={menuOpen} dot={false} onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))} />
             </>
           ) : undefined
         }

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  choose,
+  menuCard,
   BILL,
   button,
   CODE,
@@ -10,7 +12,6 @@ import {
   newPhone,
   openMenu,
   ownerStorage,
-  panel,
   patchDoc,
   paymentRow,
   pickMe,
@@ -343,18 +344,23 @@ test.describe("entering a code", () => {
     await expect(text(page, NOT_FOUND)).toBeVisible();
   });
 
-  test("works with a bill already on the phone, and going back keeps that bill", async ({ browser }) => {
+  test("on a phone with a bill, the code opens inside the menu and Back returns to it", async ({ browser }) => {
     const phone = await newPhone(browser, draft);
     await phone.goto("/");
-    await button(phone, "Have a code?").click();
-    await expect(panel(phone).getByText("Enter your code")).toBeVisible();
-    await expect(button(phone, "Have a code?")).toHaveCount(0);
-    await expect(button(phone, "Menu")).toHaveCount(0);
-
-    await button(phone, "Back to my bill").click();
     await expect(button(phone, "Menu")).toBeVisible();
-    await expect(button(phone, "Have a code?")).toBeVisible();
-    await expect(text(phone, "HOTEL")).toBeVisible();
+    await expect(button(phone, "Have a code?")).toHaveCount(0);
+    await choose(phone, "Have a code?");
+    await expect(menuCard(phone).getByRole("heading", { name: "Enter your code" })).toBeVisible();
+    await expect(codeBox(phone)).toBeFocused();
+
+    await menuCard(phone).getByRole("button", { name: "Back" }).click();
+    await expect(menuCard(phone).getByRole("button", { name: "Have a code?" })).toBeVisible();
+    await menuCard(phone).getByRole("button", { name: "Have a code?" }).click();
+    await button(phone, "Close menu").click();
+    await expect(menuCard(phone)).toHaveCount(0);
+    await choose(phone, "Have a code?");
+    await codeBox(phone).fill(CODE);
+    await expect(phone).toHaveURL(new RegExp(`/bill/${CODE}$`));
   });
 
   test("the code replaces the first screen, and going back keeps what was typed", async ({ page }) => {
