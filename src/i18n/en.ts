@@ -114,10 +114,15 @@ export const en = {
     total: "Total",
     beforeCharges: "These are before service charge and SST. Each person's part of those is added on the receipt.",
     scan: "Scan a receipt",
-    scanAgain: "Scan another receipt",
     scanning: "Reading the receipt…",
     scanNote: "The photo goes to Google's AI, which may keep it. Don't scan receipts with personal details.",
-    scanned: "Filled in from the receipt. Check the prices before you print it.",
+    attached: "Receipt attached",
+    attachedItems: "{count} items · {amount}",
+    taxIncluded: "SST {rate}% is already in the prices",
+    seePhoto: "See the receipt photo",
+    photoTitle: "Receipt",
+    removeReceipt: "Remove the receipt",
+    receiptRemoved: "Receipt removed",
     scanErrors: {
       unreadable: "Couldn't read this receipt. Retake the photo with the whole receipt in view, or type it in.",
       currency: "This receipt isn't in RM. Splitin only works with RM for now, so please type it in.",
@@ -129,7 +134,8 @@ export const en = {
       offline: "You're offline. Check your internet connection and try again.",
     },
     whoHad: "Who had what? (optional)",
-    whoHadHint: "Tap who had each one. Anything left blank is split between everyone.",
+    whoHadHint: "Check each price and tap who had it. Anything left blank is split between everyone.",
+    eachPart: "Each person's part",
     addsUp: "The receipt says {total}, but the prices and charges add up to {sum}. Check them.",
   },
   receipt: {
@@ -418,7 +424,7 @@ export const en = {
       },
       {
         title: "Step 2: Add the bills",
-        desc: "Type what it's for and the amount, and tap who paid. Someone new? Tap + Add. Have a receipt? Tap Scan a receipt to fill it in from a photo, then check the prices and tap who had what. A dashed line shows it on the receipt; Print it adds it.",
+        desc: "Type what it's for and the amount, and tap who paid. Someone new? Tap + Add. Have a receipt? Tap Scan a receipt to fill it in from a photo, then check the prices and tap who had what. It stays attached to that bill; tap ✕ on it to remove it. A dashed line shows it on the receipt; Print it adds it.",
         hint: "Try it: print the next bill, or scan a receipt.",
       },
       {
@@ -433,7 +439,7 @@ export const en = {
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap Share receipt and pick your name or type it. The bill page opens, ready to send the picture, link and code to your group, and from then on you change the bill there. The home page starts fresh, with Open to get back to it. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, tap Hi and your name at the top for your bank details, Bill name and people, the switch that lets others add and change bills (turn it off to lock the bill), and the owner link, which lets you manage the bill from another phone. Make a new owner link if the old one got out. The ☰ button at the bottom right has Your bills, Add bill, History and Calculation (on a computer it's all on the left). Tap a bill under Your bills to change it.",
+        desc: "Tap the ☰ button at the bottom right, then Share receipt (on a computer it's under the receipt), and pick your name or type it. The bill page opens, ready to send the picture, link and code to your group, and from then on you change the bill there. The home page starts fresh, with Open to get back to it. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, tap Hi and your name at the top for your bank details, Bill name and people, the switch that lets others add and change bills (turn it off to lock the bill), and the owner link, which lets you manage the bill from another phone. Make a new owner link if the old one got out. The ☰ button at the bottom right has Your bills, Add bill, History and Calculation (on a computer it's all on the left). Tap a bill under Your bills to change it.",
         hint: "Try it: send it to WhatsApp.",
       },
       {

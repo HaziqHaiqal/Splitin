@@ -116,10 +116,15 @@ export const ms: Dictionary = {
     total: "Jumlah",
     beforeCharges: "Ini sebelum caj perkhidmatan dan SST. Bahagian setiap orang untuk caj itu ditambah pada resit.",
     scan: "Imbas resit",
-    scanAgain: "Imbas resit lain",
     scanning: "Membaca resit…",
     scanNote: "Gambar dihantar ke AI Google, yang mungkin menyimpannya. Jangan imbas resit yang ada butiran peribadi.",
-    scanned: "Diisi daripada resit. Semak harga sebelum cetak.",
+    attached: "Resit dilampirkan",
+    attachedItems: "{count} item · {amount}",
+    taxIncluded: "SST {rate}% sudah termasuk dalam harga",
+    seePhoto: "Lihat gambar resit",
+    photoTitle: "Resit",
+    removeReceipt: "Buang resit",
+    receiptRemoved: "Resit dibuang",
     scanErrors: {
       unreadable: "Resit ini tak dapat dibaca. Ambil gambar semula dengan seluruh resit kelihatan, atau taip sendiri.",
       currency: "Resit ini bukan dalam RM. Splitin hanya menyokong RM buat masa ini, jadi sila taip sendiri.",
@@ -131,7 +136,8 @@ export const ms: Dictionary = {
       offline: "Anda di luar talian. Semak sambungan internet dan cuba lagi.",
     },
     whoHad: "Siapa ambil apa? (pilihan)",
-    whoHadHint: "Ketik siapa yang ambil setiap satu. Yang dibiar kosong dibahagi antara semua.",
+    whoHadHint: "Semak setiap harga dan ketik siapa yang ambil. Yang dibiar kosong dibahagi antara semua.",
+    eachPart: "Bahagian setiap orang",
     addsUp: "Resit kata {total}, tapi harga dan caj berjumlah {sum}. Semak semula.",
   },
   receipt: {
@@ -420,7 +426,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 2: Tambah bil",
-        desc: "Taip untuk apa dan jumlahnya, kemudian ketik siapa yang bayar. Ada orang baru? Ketik + Tambah. Ada resit? Ketik Imbas resit untuk isi daripada gambar, kemudian semak harga dan ketik siapa ambil apa. Garis putus-putus menunjukkannya pada resit; Cetak menambahnya.",
+        desc: "Taip untuk apa dan jumlahnya, kemudian ketik siapa yang bayar. Ada orang baru? Ketik + Tambah. Ada resit? Ketik Imbas resit untuk isi daripada gambar, kemudian semak harga dan ketik siapa ambil apa. Resit itu kekal pada bil tersebut; ketik ✕ padanya untuk membuangnya. Garis putus-putus menunjukkannya pada resit; Cetak menambahnya.",
         hint: "Cuba: cetak bil seterusnya, atau imbas resit.",
       },
       {
@@ -435,7 +441,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik Kongsi resit dan pilih atau taip nama anda. Halaman bil dibuka, sedia untuk hantar gambar, pautan dan kod ke group, dan selepas itu anda ubah bil di situ. Halaman utama bermula semula, dengan Buka untuk kembali ke bil itu. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, ketik Hai dan nama anda di atas untuk butiran bank, Nama bil dan orang, suis yang membenarkan orang lain tambah dan ubah bil (tutup untuk kunci bil), dan pautan pemilik, yang membolehkan anda urus bil dari telefon lain. Buat pautan pemilik baru jika yang lama terlepas. Butang ☰ di bawah sebelah kanan ada Bil anda, Tambah bil, Sejarah dan Kiraan (pada komputer semuanya di sebelah kiri). Ketik bil di bawah Bil anda untuk mengubahnya.",
+        desc: "Ketik butang ☰ di bawah sebelah kanan, kemudian Kongsi resit (pada komputer ia di bawah resit), dan pilih atau taip nama anda. Halaman bil dibuka, sedia untuk hantar gambar, pautan dan kod ke group, dan selepas itu anda ubah bil di situ. Halaman utama bermula semula, dengan Buka untuk kembali ke bil itu. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, ketik Hai dan nama anda di atas untuk butiran bank, Nama bil dan orang, suis yang membenarkan orang lain tambah dan ubah bil (tutup untuk kunci bil), dan pautan pemilik, yang membolehkan anda urus bil dari telefon lain. Buat pautan pemilik baru jika yang lama terlepas. Butang ☰ di bawah sebelah kanan ada Bil anda, Tambah bil, Sejarah dan Kiraan (pada komputer semuanya di sebelah kiri). Ketik bil di bawah Bil anda untuk mengubahnya.",
         hint: "Cuba: hantar ke WhatsApp.",
       },
       {

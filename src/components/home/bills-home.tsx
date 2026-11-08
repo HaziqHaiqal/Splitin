@@ -21,8 +21,10 @@ import {
   ResetIcon,
   ShareIcon,
 } from "@/components/icons";
-import { dockButton, PrinterPage } from "@/components/receipt/printer";
+import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
+import { MenuCard, MenuFab, MenuRow, Rise, type Tile } from "@/components/shared/bill-menu";
+import { ShareCard } from "@/components/shared/share-bill";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
 import { useToast } from "@/components/toast";
@@ -66,6 +68,7 @@ export function BillsHome() {
   const [peopleFresh, setPeopleFresh] = useState(false);
   const [entering, setEntering] = useState(false);
   const [starting, setStarting] = useState<StartDraft>(NEW_START);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (moved && stored) moveSharedDraft(stored);
@@ -271,6 +274,27 @@ export function BillsHome() {
     </>
   );
 
+  const menuRows: Tile[] = [
+    {
+      key: "add",
+      icon: <PlusIcon size={21} />,
+      label: t.home.nextBill,
+      onClick: () => {
+        setMenuOpen(false);
+        openAdd();
+      },
+    },
+    {
+      key: "clear",
+      icon: <ResetIcon size={20} />,
+      label: t.home.clearAll,
+      onClick: () => {
+        setMenuOpen(false);
+        clearAll();
+      },
+    },
+  ];
+
   const shareButton = (
     <button
       type="button"
@@ -294,7 +318,7 @@ export function BillsHome() {
             <div className="flex flex-col gap-2 px-1">
               <div className="flex items-center justify-between gap-2">
                 <TitleEditor small title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
-                <ClearButton onClick={clearAll} />
+                {hasBills ? null : <ClearButton onClick={clearAll} />}
               </div>
               {peopleChips(true)}
             </div>
@@ -315,19 +339,31 @@ export function BillsHome() {
             billForm(true)
           ) : undefined
         }
-        dock={
-          hasBills && !formOpen ? (
-            <div className="grid grid-cols-[1fr_1.3fr] gap-2">
-              <button
-                type="button"
-                onClick={openAdd}
-                className={cn("inline-flex items-center justify-center gap-1.5", dockButton)}
-              >
-                <PlusIcon size={16} />
-                {t.home.nextBill}
-              </button>
-              {shareButton}
-            </div>
+        fab={
+          !desktop && hasBills && !formOpen && !entering ? (
+            <>
+              {menuOpen ? (
+                <MenuCard onClose={() => setMenuOpen(false)}>
+                  <Rise className="flex flex-col gap-1">
+                    {[
+                      <ShareCard
+                        key="share"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          share();
+                        }}
+                      />,
+                      <div key="rows" className="flex flex-col divide-y divide-line pt-1 [&>:last-child]:pr-14">
+                        {menuRows.map((tile) => (
+                          <MenuRow key={tile.key} tile={tile} />
+                        ))}
+                      </div>,
+                    ]}
+                  </Rise>
+                </MenuCard>
+              ) : null}
+              <MenuFab open={menuOpen} dot={false} onClick={() => setMenuOpen((open) => !open)} />
+            </>
           ) : undefined
         }
         follow={

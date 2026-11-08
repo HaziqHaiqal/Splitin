@@ -28,6 +28,7 @@ import {
   text,
   trip,
   wipe,
+  shareFromHome,
 } from "./helpers";
 
 async function deleteSnacks(page: Page) {
@@ -308,7 +309,7 @@ test.describe("the browser key", () => {
   test("a phone that lost local storage is still the owner, without an owner link to copy", async ({ browser }) => {
     const owner = await newPhone(browser, { "splitin:draft:v2": { doc: trip, billId: null } });
     await owner.goto("/");
-    await button(owner, "Share receipt").click();
+    await shareFromHome(owner);
     await expect(sheet(owner).getByText("Copy link")).toBeVisible();
     const id = (await getDb()).bills.find((b) => b.id !== BILL)!.id;
 
