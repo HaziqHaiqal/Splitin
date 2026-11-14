@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { addCharges, splitByWeights, type Allocation, type Rates } from "./money";
 
-export type ScanLine = { name: string; amountMinor: number };
+export type ScanLine = { name: string; amountMinor: number; offMinor?: number };
 
 export type Scan = {
   shop: string;
@@ -107,7 +107,10 @@ function foldDiscounts(lines: ScanLine[]) {
     if (line.amountMinor < 0) {
       const last = items.at(-1);
       const off = Math.min(-line.amountMinor, last?.amountMinor ?? 0);
-      if (last) last.amountMinor -= off;
+      if (last && off > 0) {
+        last.amountMinor -= off;
+        last.offMinor = (last.offMinor ?? 0) + off;
+      }
       itemOff += off;
       spare += -line.amountMinor - off;
     } else if (line.name && line.amountMinor > 0) items.push({ ...line });
