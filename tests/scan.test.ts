@@ -103,6 +103,23 @@ test("a scanned receipt fills in the bill and keeps its exact total", async ({ p
   await expect(text(page, "INCL. SERVICE 10% · SST 6%")).toBeVisible();
 });
 
+test("a discount on the receipt is taken off and shown", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const discounted: Scan = {
+    ...scanned,
+    lines: [{ name: "2 × Nasi lemak", amountMinor: 2000 }, ...scanned.lines.slice(1)],
+    subtotalMinor: 3600,
+    offMinor: 400,
+    totalMinor: 4198,
+  };
+  const form = await scanReceipt(page, { ok: true, data: discounted });
+  await expect(form.getByText("3 items · RM 41.98")).toBeVisible();
+  await expect(form.getByText("RM 4.00 discount is already taken off")).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveValue("36.00");
+  await expect(row(form, "2 × Nasi lemak")).toHaveAccessibleName(/20\.00$/);
+});
+
 test("tapping who had what sets each person's part", async ({ page }) => {
   await seed();
   await openBill(page);

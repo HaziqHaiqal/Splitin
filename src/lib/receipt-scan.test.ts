@@ -95,6 +95,65 @@ describe("toScan", () => {
     expect(result.ok && [result.scan.serviceBp, result.scan.taxBp, result.scan.totalMinor]).toEqual([1000, 600, 4500]);
   });
 
+  it("takes an item's discount off that item, whatever it was printed as", () => {
+    const lines = [receipt.lines[0], { name: "DISC", amount: -4 }, ...receipt.lines.slice(1)];
+    expect(toScan({ ...receipt, lines, subtotal: 36, service: 3.6, tax: 2.38, total: 41.98 })).toEqual({
+      ok: true,
+      scan: {
+        shop: "Restoran Ali",
+        lines: [
+          { name: "2 × Nasi lemak", amountMinor: 2000 },
+          { name: "Teh ais", amountMinor: 600 },
+          { name: "Roti canai", amountMinor: 1000 },
+        ],
+        subtotalMinor: 3600,
+        serviceBp: 1000,
+        taxBp: 600,
+        offMinor: 400,
+        totalMinor: 4198,
+      },
+    });
+  });
+
+  it("spreads a discount on the whole bill over every item, before the charges", () => {
+    const result = toScan({ ...receipt, discount: 10, service: 3, tax: 1.98, total: 34.98 });
+    expect(result.ok && result.scan).toMatchObject({
+      lines: [
+        { name: "2 × Nasi lemak", amountMinor: 1800 },
+        { name: "Teh ais", amountMinor: 450 },
+        { name: "Roti canai", amountMinor: 750 },
+      ],
+      subtotalMinor: 3000,
+      serviceBp: 1000,
+      taxBp: 600,
+      offMinor: 1000,
+      totalMinor: 3498,
+    });
+  });
+
+  it("still matches the total when a voucher comes off after the charges", () => {
+    const result = toScan({ ...receipt, discount: 10, total: 36.65 });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 3142, offMinor: 1000, totalMinor: 3665 });
+    const scan = result.ok ? result.scan : null;
+    expect(scan?.lines.reduce((sum, line) => sum + line.amountMinor, 0)).toBe(3142);
+  });
+
+  it("drops free items and counts a discount with no item above it as for the whole bill", () => {
+    const lines = [
+      { name: "Voucher", amount: -2 },
+      { name: "Teh ais", amount: 6 },
+      { name: "FREE", amount: -6 },
+      { name: "Roti canai", amount: 10 },
+    ];
+    const result = toScan({ readable: true, shop: "Kedai", lines, total: 8 });
+    expect(result.ok && result.scan).toMatchObject({
+      lines: [{ name: "Roti canai", amountMinor: 800 }],
+      subtotalMinor: 800,
+      offMinor: 800,
+      totalMinor: 800,
+    });
+  });
+
   it("refuses other currencies", () => {
     expect(toScan({ ...receipt, currency: "SGD" })).toEqual({ ok: false, error: "currency" });
     expect(toScan({ ...receipt, currency: "rm" }).ok).toBe(true);

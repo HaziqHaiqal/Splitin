@@ -117,6 +117,7 @@ export const en = {
     scanSteps: ["Finding the items", "Reading the prices", "Checking SST and service charge", "Adding it up"],
     attached: "Receipt attached",
     attachedItems: "{count} items · {amount}",
+    discountOff: "{amount} discount is already taken off",
     taxIncluded: "SST {rate}% is already in the prices",
     seePhoto: "See the receipt photo",
     photoTitle: "Receipt",
@@ -446,7 +447,7 @@ export const en = {
       },
       {
         title: "Step 2: Add the bills",
-        desc: "Type what it's for and the amount, and tap who paid. Someone new? Tap + Add. Have a receipt? Tap Scan a receipt to fill it in from a photo. Everything on it starts shared. Tap an item and pick who had it, and the next item comes up by itself; tap Fix price if a price is wrong. It stays attached to that bill; tap ✕ on it to remove it. A dashed line shows it on the receipt; Print it adds it.",
+        desc: "Type what it's for and the amount, and tap who paid. Someone new? Tap + Add. Have a receipt? Tap Scan a receipt to fill it in from a photo; any discount on it is taken off. Everything on it starts shared. Tap an item and pick who had it, and the next item comes up by itself; tap Fix price if a price is wrong. It stays attached to that bill; tap ✕ on it to remove it. A dashed line shows it on the receipt; Print it adds it.",
         hint: "Try it: print the next bill, or scan a receipt.",
       },
       {
