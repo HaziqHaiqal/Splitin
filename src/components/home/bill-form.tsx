@@ -34,7 +34,7 @@ const rateOf = (bp: number | undefined, fallback: string): Rate =>
 
 type Kept = { subtotalMinor: number; serviceBp?: number; taxBp?: number; totalMinor: number };
 type Line = ScanLine & { who: string[] };
-type Attached = { shop: string; includedTaxBp?: number; photo: string | null };
+type Attached = { shop: string; includedTaxBp?: number; offMinor?: number; photo: string | null };
 
 export function BillForm({
   item,
@@ -263,7 +263,7 @@ export function BillForm({
       totalMinor: result.totalMinor,
     });
     setLines(result.lines.length > 1 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
-    setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, photo });
+    setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, offMinor: result.offMinor, photo });
     setPicking(null);
     setSharers(null);
     setPickSharers(false);
@@ -526,6 +526,11 @@ export function BillForm({
                   ? fmt(t.bill.attachedItems, { count: lines.length, amount: money(totalMinor) })
                   : money(totalMinor)}
               </span>
+              {receipt.offMinor ? (
+                <span className="block text-[12px] font-semibold text-green-ink">
+                  {fmt(t.bill.discountOff, { amount: money(receipt.offMinor) })}
+                </span>
+              ) : null}
               {receipt.includedTaxBp ? (
                 <span className="block text-[12px] font-semibold text-green-ink">
                   {fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) })}

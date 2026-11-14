@@ -119,6 +119,7 @@ export const ms: Dictionary = {
     scanSteps: ["Mencari item", "Membaca harga", "Menyemak SST dan caj perkhidmatan", "Mengira jumlah"],
     attached: "Resit dilampirkan",
     attachedItems: "{count} item · {amount}",
+    discountOff: "Diskaun {amount} sudah ditolak",
     taxIncluded: "SST {rate}% sudah termasuk dalam harga",
     seePhoto: "Lihat gambar resit",
     photoTitle: "Resit",
@@ -448,7 +449,7 @@ export const ms: Dictionary = {
       },
       {
         title: "Langkah 2: Tambah bil",
-        desc: "Taip untuk apa dan jumlahnya, kemudian ketik siapa yang bayar. Ada orang baru? Ketik + Tambah. Ada resit? Ketik Imbas resit untuk isi daripada gambar. Semua item dikongsi dahulu. Ketik item dan pilih siapa yang ambil, dan item seterusnya muncul sendiri; ketik Betulkan harga jika harga salah. Resit itu kekal pada bil tersebut; ketik ✕ padanya untuk membuangnya. Garis putus-putus menunjukkannya pada resit; Cetak menambahnya.",
+        desc: "Taip untuk apa dan jumlahnya, kemudian ketik siapa yang bayar. Ada orang baru? Ketik + Tambah. Ada resit? Ketik Imbas resit untuk isi daripada gambar; diskaun padanya ditolak terus. Semua item dikongsi dahulu. Ketik item dan pilih siapa yang ambil, dan item seterusnya muncul sendiri; ketik Betulkan harga jika harga salah. Resit itu kekal pada bil tersebut; ketik ✕ padanya untuk membuangnya. Garis putus-putus menunjukkannya pada resit; Cetak menambahnya.",
         hint: "Cuba: cetak bil seterusnya, atau imbas resit.",
       },
       {
