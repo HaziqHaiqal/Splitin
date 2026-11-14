@@ -102,7 +102,7 @@ describe("toScan", () => {
       scan: {
         shop: "Restoran Ali",
         lines: [
-          { name: "2 × Nasi lemak", amountMinor: 2000 },
+          { name: "2 × Nasi lemak", amountMinor: 2000, offMinor: 400 },
           { name: "Teh ais", amountMinor: 600 },
           { name: "Roti canai", amountMinor: 1000 },
         ],

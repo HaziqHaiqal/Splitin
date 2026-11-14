@@ -7,6 +7,7 @@ import { PanelHead } from "@/components/shared/panel-form";
 import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
+import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useI18n } from "@/i18n/client";
 import {
   baseOf,
@@ -23,7 +24,6 @@ import { lineSplit, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from 
 import { shrinkPhoto } from "@/lib/shrink-photo";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { PersonChips } from "./person-chips";
-import { Dot, PickRow, WhoHadIt } from "./who-had-it";
 
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 const parse = (v: string) => parseMoney(v, "MYR");
@@ -94,13 +94,15 @@ export function BillForm({
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
   const [showSplit, setShowSplit] = useState(false);
-  const [picking, setPicking] = useState<number | null>(null);
-  const landing = useRef<number | "pays" | null>(null);
-  const rows = useRef<(HTMLButtonElement | null)[]>([]);
-  const paysList = useRef<HTMLUListElement>(null);
-  const [sharers, setSharers] = useState<string[] | null>(null);
-  const [pickSharers, setPickSharers] = useState(false);
-  const sharing = sharers ? everyone.filter((id) => sharers.includes(id)) : everyone;
+  const [paid, setPaid] = useState("");
+  const [editPaid, setEditPaid] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [payerOpen, setPayerOpen] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
+  const [fixing, setFixing] = useState<string | null>(null);
+  const jump = useRef(false);
+  const openRow = useRef<HTMLLIElement>(null);
+  const desktop = useIsDesktop();
 
   const amountMinor = parse(amount) ?? 0;
   const included = everyone.filter((id) => participants.includes(id));
@@ -120,10 +122,20 @@ export function BillForm({
     amountMinor === kept.subtotalMinor &&
     (serviceBp ?? undefined) === kept.serviceBp &&
     (taxBp ?? undefined) === kept.taxBp;
-  const totalMinor = keepTotal ? kept.totalMinor : added.total;
+  const scanned = receipt !== null && lines !== null;
+  const paidMinor = parse(paid) ?? 0;
+  const asPrinted = kept !== null && amountMinor === kept.subtotalMinor && paidMinor === kept.totalMinor;
+  const totalMinor = scanned ? paidMinor : keepTotal ? kept.totalMinor : added.total;
   const offBy = keepTotal && !isEdit ? Math.abs(added.total - kept.totalMinor) : 0;
-  const charges: Charges | undefined =
-    ratesOk && (totalMinor !== amountMinor || serviceBp || taxBp)
+  const charges: Charges | undefined = scanned
+    ? paidMinor > 0 && paidMinor !== amountMinor
+      ? {
+          subtotalMinor: amountMinor,
+          ...(asPrinted && kept?.serviceBp ? { serviceBp: kept.serviceBp } : {}),
+          ...(asPrinted && kept?.taxBp ? { taxBp: kept.taxBp } : {}),
+        }
+      : undefined
+    : ratesOk && (totalMinor !== amountMinor || serviceBp || taxBp)
       ? {
           subtotalMinor: amountMinor,
           ...(serviceBp ? { serviceBp } : {}),
@@ -155,7 +167,8 @@ export function BillForm({
   })();
 
   const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
-  const canSave = Boolean(name.trim()) && amountMinor > 0 && split.ok && Boolean(paidBy) && ratesOk;
+  const canSave =
+    Boolean(name.trim()) && amountMinor > 0 && totalMinor > 0 && split.ok && Boolean(paidBy) && (scanned || ratesOk);
 
   const previewKey = JSON.stringify([
     name,
@@ -194,13 +207,22 @@ export function BillForm({
     return () => clearInterval(timer);
   }, [scan, t.bill.scanSteps.length]);
   useEffect(() => {
-    const to = landing.current;
-    if (picking !== null || to === null) return;
-    landing.current = null;
-    const row = to === "pays" ? paysList.current : rows.current[to];
-    row?.scrollIntoView({ block: "nearest" });
-    if (to !== "pays") rows.current[to]?.focus({ preventScroll: true });
-  }, [picking]);
+    const row = openRow.current;
+    if (!jump.current || !row?.parentElement) return;
+    jump.current = false;
+    let box = row.parentElement.parentElement;
+    while (box && !/auto|scroll/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+    const page = box ?? document.documentElement;
+    const target =
+      page.scrollTop +
+      row.getBoundingClientRect().top -
+      (box?.getBoundingClientRect().top ?? 0) -
+      (parseFloat(getComputedStyle(row).scrollMarginTop) || 0);
+    const list = row.parentElement;
+    const room = page.scrollHeight - (parseFloat(list.style.paddingBottom) || 0) - page.clientHeight;
+    list.style.paddingBottom = `${Math.max(0, Math.ceil(target - room))}px`;
+    page.scrollTo({ top: target, behavior: "smooth" });
+  }, [open]);
   useEffect(() => {
     const made = photos.current;
     return () => made.forEach((url) => URL.revokeObjectURL(url));
@@ -231,7 +253,7 @@ export function BillForm({
     });
   };
 
-  const addNames = (text: string) => {
+  const addNames = (text: string, to?: number) => {
     const taken = new Set(people.map((p) => p.name.toLowerCase()));
     let color = people.reduce((max, p) => Math.max(max, p.color + 1), 0);
     const added: Person[] = [];
@@ -244,15 +266,20 @@ export function BillForm({
       added.push({ id: newId(6), name: person, color: color++ % 100 });
     }
     setNewPeople((p) => [...p, ...added]);
-    if (!lines) return setParticipants((p) => [...p, ...added.map((a) => a.id)]);
-    const nextSharers = sharers && [...sharers, ...added.map((a) => a.id)];
-    setSharers(nextSharers);
-    applyLines(lines, nextSharers, [...everyone, ...added.map((a) => a.id)]);
+    const ids = added.map((a) => a.id);
+    if (!lines) setParticipants((p) => [...p, ...ids]);
+    else
+      applyLines(
+        lines.map((l, j) => (j === to ? { ...l, who: [...l.who, ...ids] } : l)),
+        [...everyone, ...ids],
+      );
+    return ids;
   };
 
   const fill = (result: Scan, photo: string | null) => {
     if (result.shop) setName(result.shop);
-    setAmount(toInputValue(result.subtotalMinor, "MYR"));
+    const linesMinor = result.lines.reduce((sum, line) => sum + line.amountMinor, 0);
+    setAmount(toInputValue(linesMinor > 0 ? linesMinor : result.subtotalMinor, "MYR"));
     setShowCharges(Boolean(result.serviceBp || result.taxBp || result.totalMinor !== result.subtotalMinor));
     setService(rateOf(result.serviceBp, "10"));
     setTax(rateOf(result.taxBp, "6"));
@@ -262,11 +289,14 @@ export function BillForm({
       taxBp: result.taxBp,
       totalMinor: result.totalMinor,
     });
-    setLines(result.lines.length > 1 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
+    setLines(linesMinor > 0 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
     setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, offMinor: result.offMinor, photo });
-    setPicking(null);
-    setSharers(null);
-    setPickSharers(false);
+    setPaid(toInputValue(result.totalMinor, "MYR"));
+    setEditPaid(false);
+    setEditName(false);
+    setPayerOpen(false);
+    setOpen(0);
+    setFixing(null);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -296,7 +326,7 @@ export function BillForm({
   };
 
   const removeReceipt = () => {
-    const before = { name, amount, showCharges, service, tax, kept, lines, receipt, participants, overrides, sharers };
+    const before = { name, amount, showCharges, service, tax, kept, lines, receipt, participants, overrides, paid };
     if (receipt?.shop && name === receipt.shop) setName("");
     setAmount("");
     setShowCharges(false);
@@ -305,9 +335,9 @@ export function BillForm({
     setKept(null);
     setLines(null);
     setReceipt(null);
-    setPicking(null);
-    setSharers(null);
-    setPickSharers(false);
+    setEditName(false);
+    setEditPaid(false);
+    setPayerOpen(false);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -326,13 +356,13 @@ export function BillForm({
           setReceipt(before.receipt);
           setParticipants(before.participants);
           setOverrides(before.overrides);
-          setSharers(before.sharers);
+          setPaid(before.paid);
         },
       },
     });
   };
 
-  const applyLines = (next: Line[], only = sharers, all = everyone) => {
+  const applyLines = (next: Line[], all = everyone) => {
     setLines(next);
     setAmount(
       toInputValue(
@@ -340,41 +370,46 @@ export function BillForm({
         "MYR",
       ),
     );
-    const fromLines = lineSplit(next, only ? all.filter((id) => only.includes(id)) : all, all);
+    const fromLines = lineSplit(next, all, all);
     setParticipants(fromLines.participants);
     setOverrides(fromLines.overrides);
     setEditing(null);
   };
 
-  const leavePick = (to: number | "pays") => {
-    landing.current = to;
-    setPicking(null);
+  const openItem = (i: number | null) => {
+    jump.current = i !== null;
+    setOpen(i);
+    setFixing(null);
   };
 
-  const nextPick = (i: number) => {
-    if (lines && i + 1 < lines.length) setPicking(i + 1);
-    else leavePick("pays");
-  };
-
-  const pickWho = (i: number, who: string[]) => {
+  const setWho = (i: number, id: string | null) => {
     if (!lines) return;
-    applyLines(lines.map((l, j) => (j === i ? { ...l, who: everyone.filter((x) => who.includes(x)) } : l)));
-    nextPick(i);
+    applyLines(
+      lines.map((l, j) =>
+        j !== i
+          ? l
+          : {
+              ...l,
+              who:
+                id === null
+                  ? []
+                  : l.who.includes(id)
+                    ? l.who.filter((x) => x !== id)
+                    : everyone.filter((x) => x === id || l.who.includes(x)),
+            },
+      ),
+    );
   };
 
-  const setPrice = (i: number, amountMinor: number) => {
-    if (lines) applyLines(lines.map((l, j) => (j === i ? { ...l, amountMinor } : l)));
+  const commitFix = (i: number) => {
+    const v = fixing === null ? null : parse(fixing);
+    if (lines && v !== null && v > 0) applyLines(lines.map((l, j) => (j === i ? { ...l, amountMinor: v } : l)));
+    setFixing(null);
   };
 
-  const toggleSharer = (id: string) => {
-    if (!lines) return;
-    const next = sharing.includes(id)
-      ? sharing.filter((x) => x !== id)
-      : everyone.filter((x) => x === id || sharing.includes(x));
-    if (next.length === 0) return;
-    const value = next.length === everyone.length ? null : next;
-    setSharers(value);
-    applyLines(lines, value);
+  const commitPaid = () => {
+    if (paidMinor <= 0 && kept) setPaid(toInputValue(kept.totalMinor, "MYR"));
+    setEditPaid(false);
   };
 
   const save = () => {
@@ -412,9 +447,11 @@ export function BillForm({
       setKept(null);
       setLines(null);
       setReceipt(null);
-      setPicking(null);
-      setSharers(null);
-      setPickSharers(false);
+      setPaid("");
+      setOpen(null);
+      setFixing(null);
+      setEditName(false);
+      setEditPaid(false);
       setScan("idle");
     }
   };
@@ -461,31 +498,47 @@ export function BillForm({
       ? fmt(exact ? t.bill.splitEachLine : t.bill.splitAboutLine, { amount: money(evenEach) })
       : t.bill.splitEveryone;
 
-  const named = lines ? lines.filter((l) => l.who.length > 0).length : 0;
-  const sharedText =
-    sharing.length === everyone.length
-      ? t.bill.sharedAll
-      : sharing.length === 1
-        ? nameOf(sharing[0])
-        : fmt(t.bill.sharedCount, { count: sharing.length });
-  const eachOf = (amountMinor: number, count: number) =>
-    amountMinor > 0 && count > 1 ? fmt(t.bill.lineEach, { amount: plain(Math.round(amountMinor / count)) }) : null;
-  const includedTaxBp = receipt?.includedTaxBp;
-  const chargesOn = Boolean(serviceBp || taxBp);
-  const breakdown = (id: string) => {
-    const share = finalShares[id] ?? 0;
-    if (share <= 0) return null;
-    if (chargesOn) {
-      const base = split.ok ? (split.shares[id] ?? 0) : 0;
-      const key = serviceBp && taxBp ? t.bill.plusBoth : serviceBp ? t.bill.plusService : t.bill.plusSst;
-      return fmt(key, { items: plain(base), charges: plain(share - base) });
-    }
-    if (includedTaxBp)
-      return fmt(t.bill.inclSst, { amount: plain(Math.round((share * includedTaxBp) / (10000 + includedTaxBp))) });
-    return null;
-  };
+  const payer = people.find((p) => p.id === paidBy);
+  const scannedLine = [
+    lines?.length === 1 ? t.bill.scannedOne : fmt(t.bill.scannedItems, { count: lines?.length ?? 0 }),
+    receipt?.offMinor ? fmt(t.bill.discountOff, { amount: money(receipt.offMinor) }) : "",
+    receipt?.includedTaxBp ? fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) }) : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const phone = bare && !desktop;
+  const pill =
+    "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full bg-chip px-3 text-[13.5px] font-bold text-ink";
+  const chip = "inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-full pr-3.5 pl-[5px] text-[14px] font-bold";
+  const arrow =
+    "grid h-[44px] w-[52px] shrink-0 place-items-center rounded-xl bg-chip text-[24px] leading-none font-bold text-ink disabled:opacity-35";
   const field =
     "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
+
+  const thumb = receipt ? (
+    <button
+      type="button"
+      onClick={() => setShowPhoto(true)}
+      disabled={!receipt.photo}
+      aria-label={t.bill.seePhoto}
+      className="h-[50px] w-[38px] shrink-0 -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_5px_rgba(0,0,0,0.22)] transition-transform hover:rotate-0"
+    >
+      {receipt.photo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={receipt.photo} alt="" className="size-full object-cover" />
+      ) : null}
+    </button>
+  ) : null;
+  const unattach = (
+    <button
+      type="button"
+      onClick={removeReceipt}
+      aria-label={t.bill.removeReceipt}
+      className="grid size-10 shrink-0 place-items-center rounded-full text-muted hover:bg-card"
+    >
+      <CloseIcon size={14} strokeWidth={2.6} />
+    </button>
+  );
 
   return (
     <>
@@ -494,450 +547,615 @@ export function BillForm({
           e.preventDefault();
           save();
         }}
-        className={cn(
-          "flex flex-col",
-          bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4",
-          picking !== null && "invisible absolute inset-x-0 top-0 h-0 overflow-hidden",
-        )}
+        className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
       >
         <PanelHead
           title={title ?? (isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle)}
           onClose={onCancel}
         />
 
-        {isEdit ? null : receipt ? (
-          <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
-            <button
-              type="button"
-              onClick={() => setShowPhoto(true)}
-              disabled={!receipt.photo}
-              aria-label={t.bill.seePhoto}
-              className="h-[50px] w-[38px] shrink-0 -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_5px_rgba(0,0,0,0.22)] transition-transform hover:rotate-0"
-            >
-              {receipt.photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={receipt.photo} alt="" className="size-full object-cover" />
-              ) : null}
-            </button>
-            <div className="min-w-0 flex-1 leading-snug">
-              <b className="block text-[14px]">{t.bill.attached}</b>
-              <span className="block text-[12.5px] text-muted tabular">
-                {lines
-                  ? fmt(t.bill.attachedItems, { count: lines.length, amount: money(totalMinor) })
-                  : money(totalMinor)}
-              </span>
-              {receipt.offMinor ? (
-                <span className="block text-[12px] font-semibold text-green-ink">
-                  {fmt(t.bill.discountOff, { amount: money(receipt.offMinor) })}
-                </span>
-              ) : null}
-              {receipt.includedTaxBp ? (
-                <span className="block text-[12px] font-semibold text-green-ink">
-                  {fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) })}
-                </span>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={removeReceipt}
-              aria-label={t.bill.removeReceipt}
-              className="grid size-10 shrink-0 place-items-center rounded-full text-muted hover:bg-card"
-            >
-              <CloseIcon size={14} strokeWidth={2.6} />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {scan === "reading" ? (
-              <div
-                role="status"
-                className="flex animate-settle items-center gap-3.5 overflow-hidden rounded-xl bg-chip px-3.5 py-3"
-              >
-                <div aria-hidden className="relative shrink-0 p-1.5">
-                  <i className="absolute top-0 left-0 size-3 rounded-tl-[5px] border-t-[2.5px] border-l-[2.5px] border-green-ink" />
-                  <i className="absolute top-0 right-0 size-3 rounded-tr-[5px] border-t-[2.5px] border-r-[2.5px] border-green-ink" />
-                  <i className="absolute bottom-0 left-0 size-3 rounded-bl-[5px] border-b-[2.5px] border-l-[2.5px] border-green-ink" />
-                  <i className="absolute right-0 bottom-0 size-3 rounded-br-[5px] border-r-[2.5px] border-b-[2.5px] border-green-ink" />
-                  <div className="h-[78px] w-[58px] -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
-                    {reading ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={reading} alt="" className="size-full object-cover" />
-                    ) : null}
-                  </div>
-                  <i className="absolute inset-x-0 top-1.5 h-0.5 animate-sweep rounded-full bg-[#34c26a] shadow-[0_0_10px_2px_#34c26a] before:absolute before:inset-x-0 before:bottom-0.5 before:h-6 before:bg-linear-to-t before:from-[#34c26a]/30 before:to-transparent before:content-['']" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <b className="block text-[14.5px] font-extrabold">{t.bill.scanning}</b>
-                  <span className="block h-[18px] overflow-hidden text-[12.5px] text-muted">
-                    <span key={step} className="block animate-rise">
-                      {t.bill.scanSteps[step]}
-                    </span>
-                  </span>
-                  <span className="relative mt-2 block h-[3px] overflow-hidden rounded-full bg-line">
-                    <i className="absolute inset-y-0 left-0 w-2/5 animate-slide rounded-full bg-green" />
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green">
-                <CameraIcon size={18} />
-                {t.bill.scan}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only text-[16px]"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) void scanPhoto(file);
-                  }}
-                />
-              </label>
-            )}
-            {scan in t.bill.scanErrors ? (
-              <p role="alert" className="text-[11.5px] leading-snug font-semibold text-owe">
-                {t.bill.scanErrors[scan as ScanError]}
-              </p>
-            ) : null}
-          </div>
-        )}
-
-        <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-          <input
-            type="text"
-            value={name}
-            autoFocus={autoFocus}
-            key={`name-${filled}`}
-            aria-label={t.bill.whatFor}
-            placeholder={t.bill.namePlaceholder}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={60}
-            className={cn(field, "font-semibold", filled > 0 && "animate-flash")}
-          />
-          <input
-            type="text"
-            inputMode="numeric"
-            value={amount}
-            key={`amount-${filled}`}
-            aria-label={t.bill.amount}
-            placeholder="0.00"
-            readOnly={Boolean(lines)}
-            tabIndex={lines ? -1 : undefined}
-            onChange={(e) => setAmount(autoPoint(e.target.value))}
-            className={cn(
-              field,
-              "font-extrabold tabular",
-              filled > 0 && "animate-flash",
-              lines && "border-transparent bg-chip focus:border-transparent focus:shadow-none",
-            )}
-          />
-        </div>
-
-        {showCharges ? (
-          <div className="flex flex-col">
-            <ChargeRow label={t.bill.service} rate={service} onChange={setService} added={plain(added.service)} />
-            <ChargeRow label={t.bill.sst} rate={tax} onChange={setTax} added={plain(added.tax)} />
-            <div className="flex h-9 items-center justify-between border-t border-line text-[14px] font-bold">
-              <span>{t.bill.total}</span>
-              <span className="tabular">{money(totalMinor)}</span>
-            </div>
-            {offBy > 10 && kept ? (
-              <div className="text-[12px] font-semibold text-owe">
-                {fmt(t.bill.addsUp, { total: money(kept.totalMinor), sum: money(added.total) })}
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowCharges(true)}
-            className="-mt-1 h-7 self-start text-[12.5px] font-bold text-green-ink"
-          >
-            {t.bill.addCharges}
-          </button>
-        )}
-
-        <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
-          <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-          <PersonChips people={people} value={paidBy} onChange={setPaidBy} bare={bare}>
-            <NewNameChip onAdd={addNames} />
-          </PersonChips>
-        </div>
-
-        {lines ? (
-          <div className="flex flex-col">
-            <span className="text-[12.5px] text-muted">{t.bill.whoHad}</span>
-            <span
-              className={cn(
-                "pb-1.5 text-[12.5px] leading-snug",
-                named === lines.length ? "font-bold text-green-ink" : "text-faint",
-              )}
-            >
-              {named === 0
-                ? t.bill.whoHadNone
-                : named === lines.length
-                  ? t.bill.whoHadAll
-                  : fmt(t.bill.whoHadSome, { done: named, count: lines.length })}
-            </span>
-            {lines.map((line, i) => {
-              const who = line.who.length > 3 ? line.who.slice(0, 2) : line.who;
-              const each = eachOf(line.amountMinor, line.who.length || sharing.length);
-              return (
-                <button
-                  key={i}
-                  ref={(el) => {
-                    rows.current[i] = el;
-                  }}
-                  type="button"
-                  aria-label={`${line.name}, ${line.who.length ? list(line.who) : sharedText}, ${plain(line.amountMinor)}`}
-                  onClick={() => setPicking(i)}
-                  className="grid w-full scroll-mt-16 grid-cols-[minmax(0,1fr)_auto_10px] items-start gap-x-2.5 border-t border-line py-[11px] text-left"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[14.5px] leading-[1.35] font-semibold [overflow-wrap:anywhere]">
-                      {line.name}
-                    </span>
-                    {line.who.length === 0 ? (
-                      <span className="mt-1 block text-[12.5px] leading-[1.4] font-semibold text-faint">
-                        {sharedText}
-                        {each ? ` · ${each}` : null}
-                      </span>
-                    ) : (
-                      <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] leading-[1.4] font-bold">
-                        {who.map((id) => {
-                          const p = people.find((x) => x.id === id);
-                          return p ? (
-                            <span key={id} className="inline-flex items-center gap-[5px] [overflow-wrap:anywhere]">
-                              <Dot color={p.color} />
-                              {p.name}
-                            </span>
-                          ) : null;
-                        })}
-                        {line.who.length > who.length ? (
-                          <span className="font-semibold text-faint">
-                            {fmt(t.bill.andMore, { count: line.who.length - who.length })}
-                          </span>
-                        ) : null}
-                        {each ? <span className="font-semibold text-faint">· {each}</span> : null}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-[14.5px] leading-[1.35] font-bold tabular">{plain(line.amountMinor)}</span>
-                  <span aria-hidden className="text-[18px] leading-[1.1] text-faint">
-                    ›
-                  </span>
-                </button>
-              );
-            })}
-            {named < lines.length ? (
-              <div className="border-t border-line pt-2 text-[12.5px] leading-relaxed text-muted">
-                {sharing.length === everyone.length ? t.bill.restAll : fmt(t.bill.restSome, { names: list(sharing) })}{" "}
-                <button
-                  type="button"
-                  aria-expanded={pickSharers}
-                  onClick={() => setPickSharers(!pickSharers)}
-                  className="font-bold text-green-ink"
-                >
-                  {pickSharers ? t.bill.done : t.bill.change}
-                </button>
-              </div>
-            ) : null}
-            {pickSharers && named < lines.length ? (
-              <div role="group" aria-label={t.bill.whoShares} className="flex animate-rise flex-col">
-                {people.map((p) => (
-                  <PickRow
-                    key={p.id}
-                    many
-                    checked={sharing.includes(p.id)}
-                    lead={<Avatar name={p.name} color={p.color} size={32} />}
-                    label={p.name}
-                    onClick={() => toggleSharer(p.id)}
+        {scanned && receipt && lines ? (
+          <>
+            <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
+              {thumb}
+              <div className="min-w-0 flex-1 leading-snug">
+                {editName || !name.trim() ? (
+                  <input
+                    type="text"
+                    value={name}
+                    autoFocus={editName}
+                    aria-label={t.bill.whatFor}
+                    placeholder={t.bill.namePlaceholder}
+                    maxLength={60}
+                    enterKeyHint="done"
+                    onFocus={() => setEditName(true)}
+                    onBlur={() => setEditName(false)}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    className="h-9 w-full min-w-0 rounded-lg border-[1.5px] border-green bg-card px-2.5 text-[16px] font-bold text-ink outline-none placeholder:font-normal"
                   />
-                ))}
-              </div>
-            ) : null}
-            <div className="mt-2 border-t border-line pt-2 text-[12.5px] leading-snug text-muted">
-              {chargesOn
-                ? serviceBp && taxBp
-                  ? t.bill.chargesFollow
-                  : fmt(t.bill.chargeFollows, { name: serviceBp ? t.bill.service : t.bill.sst })
-                : includedTaxBp
-                  ? t.bill.taxInPrices
-                  : t.bill.noCharges}
-            </div>
-            <div className="mt-2 flex flex-col border-t border-line pt-2.5">
-              <span className="text-[12.5px] text-muted">{t.bill.eachPays}</span>
-              {problemText ? (
-                <div className="pt-1 text-[12.5px] font-semibold text-owe">{problemText}</div>
-              ) : (
-                <ul
-                  ref={paysList}
-                  aria-label={t.bill.eachPays}
-                  className="m-0 flex scroll-mt-16 list-none flex-col p-0"
-                >
-                  {people.map((p) => {
-                    const share = finalShares[p.id] ?? 0;
-                    const sub = breakdown(p.id);
-                    return (
-                      <li
-                        key={p.id}
-                        className="grid min-h-[46px] grid-cols-[30px_minmax(0,1fr)_auto] items-center gap-x-2.5 border-t border-line py-1.5 first:border-t-0"
-                      >
-                        <Avatar name={p.name} color={p.color} size={30} />
-                        <span className="text-[14px] leading-[1.3] font-bold [overflow-wrap:anywhere]">
-                          {p.name}
-                          {sub ? (
-                            <small className="block text-[11.5px] font-semibold text-faint tabular">{sub}</small>
-                          ) : null}
-                        </span>
-                        <span
-                          className={cn("text-[15px] tabular", share > 0 ? "font-extrabold" : "font-bold text-faint")}
-                        >
-                          {plain(share)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        ) : expanded ? (
-          <div className="flex flex-col">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[12.5px] text-muted">{t.bill.split}</span>
-              {custom ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOverrides({});
-                    setParticipants(everyone);
-                    setEditing(null);
-                  }}
-                  className="h-7 text-[12.5px] font-bold text-green-ink"
-                >
-                  {t.bill.resetEqual}
-                </button>
-              ) : (
-                <span className="text-[12px] text-faint">{t.bill.tapToChange}</span>
-              )}
-            </div>
-            {people.map((p) => {
-              const on = participants.includes(p.id);
-              const isSet = on && liveOverrides[p.id] !== undefined;
-              const share = split.ok ? split.shares[p.id] : undefined;
-              const isEditing = editing?.id === p.id;
-              return (
-                <div key={p.id} className="flex h-11 items-center gap-2.5">
+                ) : (
                   <button
                     type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    aria-label={fmt(t.bill.include, { name: p.name })}
-                    onClick={() => toggle(p.id)}
-                    className={cn(
-                      "inline-flex size-[22px] shrink-0 items-center justify-center rounded-md",
-                      on ? "bg-green text-white" : "border-2 border-dash",
-                    )}
+                    aria-label={`${t.bill.whatFor}: ${name}`}
+                    onClick={() => setEditName(true)}
+                    className="block max-w-full text-left text-[16px] leading-tight font-extrabold [overflow-wrap:anywhere]"
                   >
-                    {on ? <CheckIcon size={13} /> : null}
+                    {name}{" "}
+                    <span aria-hidden className="text-[13px] font-semibold text-muted">
+                      ✎
+                    </span>
                   </button>
-                  <span className={cn("min-w-0 flex-1 truncate text-[14px] font-semibold", !on && "text-muted")}>
-                    {p.name}
-                    {isSet ? <span className="ml-1.5 text-[11.5px] text-green-ink">{t.bill.youSetThis}</span> : null}
+                )}
+                <span className="mt-0.5 block text-[12.5px] text-muted">{scannedLine}</span>
+              </div>
+              {unattach}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="relative"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setPayerOpen(false);
+                }}
+              >
+                <button
+                  type="button"
+                  aria-expanded={payerOpen}
+                  onClick={() => setPayerOpen(!payerOpen)}
+                  className={cn(pill, payer && "pl-1.5")}
+                >
+                  {payer ? <Avatar name={payer.name} color={payer.color} size={24} /> : null}
+                  {payer ? fmt(t.bill.paidBy, { name: payer.name }) : t.bill.whoPaid}
+                  <span aria-hidden className="text-muted">
+                    ⌄
                   </span>
-                  {isEditing || isSet ? (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoFocus={isEditing}
-                      aria-label={fmt(t.bill.amountOf, { name: p.name })}
-                      value={isEditing ? editing.value : toInputValue(liveOverrides[p.id] ?? 0, "MYR")}
-                      onFocus={() => {
-                        if (!isEditing) {
-                          const current = toInputValue(liveOverrides[p.id] ?? 0, "MYR");
-                          setEditing({ id: p.id, value: current, start: current });
-                        }
-                      }}
-                      onChange={(e) =>
-                        setEditing({ id: p.id, value: autoPoint(e.target.value), start: editing?.start ?? "" })
-                      }
-                      onBlur={commitEditing}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          commitEditing();
-                        }
-                      }}
-                      className="h-[34px] w-[92px] rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
-                    />
-                  ) : (
+                </button>
+                {payerOpen ? (
+                  <>
                     <button
                       type="button"
-                      disabled={!on || amountMinor <= 0}
-                      onClick={() => {
-                        const current = share !== undefined ? toInputValue(share, "MYR") : "";
-                        setEditing({ id: p.id, value: current, start: current });
-                      }}
-                      className="h-[34px] w-[92px] rounded-lg border border-border bg-bg px-2.5 text-right text-[14px] font-bold text-muted tabular"
+                      aria-hidden
+                      tabIndex={-1}
+                      onClick={() => setPayerOpen(false)}
+                      className="fixed inset-0 z-20 cursor-default"
+                    />
+                    <div
+                      role="group"
+                      aria-label={t.bill.whoPaid}
+                      className="absolute top-10 left-0 z-30 flex max-h-[260px] w-[230px] animate-drop flex-col overflow-y-auto rounded-2xl bg-card px-3 py-1 shadow-[0_12px_30px_rgba(0,0,0,0.28)] ring-1 ring-border"
                     >
-                      {on && share !== undefined ? plain(share) : "–"}
+                      {people.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          aria-pressed={p.id === paidBy}
+                          onClick={() => {
+                            setPaidBy(p.id);
+                            setPayerOpen(false);
+                          }}
+                          className="flex min-h-[46px] shrink-0 items-center gap-2.5 border-b border-line text-left"
+                        >
+                          <Avatar name={p.name} color={p.color} size={26} />
+                          <span className="min-w-0 flex-1 text-[14px] font-bold [overflow-wrap:anywhere]">
+                            {p.name}
+                          </span>
+                          {p.id === paidBy ? (
+                            <span className="text-green-ink">
+                              <CheckIcon size={15} />
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                      <div className="py-2">
+                        <NewNameChip
+                          onAdd={(text) => {
+                            const [id] = addNames(text);
+                            if (id) setPaidBy(id);
+                            setPayerOpen(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              {editPaid ? (
+                <span className="inline-flex h-[34px] items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 text-[13.5px] font-bold shadow-[0_0_0_3px_var(--green-soft)]">
+                  RM
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="numeric"
+                    value={paid}
+                    aria-label={t.bill.totalPaid}
+                    onChange={(e) => setPaid(autoPoint(e.target.value))}
+                    onBlur={commitPaid}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitPaid();
+                      }
+                    }}
+                    className="w-[84px] bg-transparent text-[16px] font-extrabold text-ink tabular outline-none"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={commitPaid}
+                    className="h-[26px] rounded-full bg-green px-2.5 text-[12.5px] font-bold text-white"
+                  >
+                    {t.bill.done}
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setEditPaid(true)} className={pill}>
+                  {t.bill.totalPaid} <span className="tabular">{money(paidMinor)}</span>
+                  <span aria-hidden className="text-muted">
+                    ✎
+                  </span>
+                </button>
+              )}
+            </div>
+            {kept && paidMinor > 0 && paidMinor < kept.totalMinor ? (
+              <span className="animate-pop self-start rounded-full bg-green-soft px-2.5 py-1 text-[12.5px] font-bold text-green-ink">
+                {fmt(t.bill.paidLess, {
+                  amount: money(kept.totalMinor - paidMinor),
+                  percent: Math.max(1, Math.round((1 - paidMinor / kept.totalMinor) * 100)),
+                })}
+              </span>
+            ) : null}
+
+            <div
+              className={cn("mt-2 flex h-[26px] items-center gap-3", phone && "-mx-4 px-[18px]")}
+              style={
+                phone
+                  ? {
+                      background:
+                        "radial-gradient(circle at 0 50%, var(--tray) 11px, transparent 11.5px), radial-gradient(circle at 100% 50%, var(--tray) 11px, transparent 11.5px)",
+                    }
+                  : undefined
+              }
+            >
+              <i aria-hidden className="flex-1 border-t-2 border-dashed border-dash" />
+              <h3 className="text-[13px] font-extrabold text-muted">{t.bill.whoHad}</h3>
+              <i aria-hidden className="flex-1 border-t-2 border-dashed border-dash" />
+            </div>
+
+            <ol className="m-0 flex list-none flex-col p-0">
+              {lines.map((line, i) => {
+                const was = line.offMinor ? (
+                  <>
+                    <s className="font-semibold text-faint">{plain(line.amountMinor + line.offMinor)}</s>{" "}
+                  </>
+                ) : null;
+                if (open !== i)
+                  return (
+                    <li key={i} className="border-b border-line last:border-b-0">
+                      <button
+                        type="button"
+                        aria-expanded={false}
+                        onClick={() => openItem(i)}
+                        className="flex w-full items-center gap-3 px-0.5 py-3 text-left"
+                      >
+                        <span
+                          aria-hidden
+                          className="grid size-6 shrink-0 place-items-center rounded-full bg-chip text-[11.5px] font-extrabold text-muted"
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <b className="block text-[15px] leading-snug font-semibold [overflow-wrap:anywhere]">
+                            {line.name}
+                          </b>
+                          <small className="mt-0.5 block truncate text-[12.5px] text-muted">
+                            {line.who.length ? list(line.who) : t.bill.everyone}
+                            {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(line.offMinor) })}` : null}
+                          </small>
+                        </span>
+                        <span className="text-right text-[14px] font-bold tabular">
+                          {was}
+                          {plain(line.amountMinor)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                return (
+                  <li
+                    key={i}
+                    ref={openRow}
+                    className={cn(
+                      "-mx-1.5 my-1 rounded-2xl bg-chip px-2.5 pb-3",
+                      phone ? "scroll-mt-[68px]" : "scroll-mt-[140px]",
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        aria-expanded
+                        onClick={() => openItem(null)}
+                        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-0.5 text-left"
+                      >
+                        <span
+                          aria-hidden
+                          className="grid size-6 shrink-0 place-items-center rounded-full bg-green text-[11.5px] font-extrabold text-white"
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <b className="block text-[15px] leading-snug font-bold [overflow-wrap:anywhere]">
+                            {line.name}
+                          </b>
+                          {line.offMinor ? (
+                            <small className="mt-0.5 block text-[12.5px] font-semibold text-green-ink">
+                              {fmt(t.bill.itemOff, { amount: money(line.offMinor) })}
+                            </small>
+                          ) : null}
+                        </span>
+                      </button>
+                      {fixing !== null ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          inputMode="numeric"
+                          value={fixing}
+                          aria-label={fmt(t.bill.priceOf, { name: line.name })}
+                          onChange={(e) => setFixing(autoPoint(e.target.value))}
+                          onBlur={() => commitFix(i)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              commitFix(i);
+                            }
+                          }}
+                          className="h-[34px] w-[88px] shrink-0 rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label={fmt(t.bill.priceOf, { name: line.name })}
+                          onClick={() => setFixing(toInputValue(line.amountMinor, "MYR"))}
+                          className="flex h-[34px] shrink-0 items-center gap-1 text-[14px] font-bold tabular"
+                        >
+                          {was}
+                          {plain(line.amountMinor)}
+                          <span aria-hidden className="text-[12px] text-muted">
+                            ✎
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    <div
+                      role="group"
+                      aria-label={fmt(t.bill.whoHadItem, { name: line.name })}
+                      className="flex flex-wrap gap-1.5"
+                    >
+                      <button
+                        type="button"
+                        aria-pressed={line.who.length === 0}
+                        onClick={() => setWho(i, null)}
+                        className={cn(chip, "px-4", line.who.length === 0 ? "bg-green text-white" : "bg-card text-ink")}
+                      >
+                        {t.bill.everyone}
+                      </button>
+                      {people.map((p) => {
+                        const had = line.who.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            aria-pressed={had}
+                            onClick={() => setWho(i, p.id)}
+                            className={cn(chip, had ? "bg-green text-white" : "bg-card text-ink")}
+                          >
+                            <Avatar name={p.name} color={p.color} size={28} />
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                      <NewNameChip tall onAdd={(text) => addNames(text, i)} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div
+              className={cn(
+                "flex gap-2",
+                bare && "sticky bottom-0 z-10 pt-2",
+                bare && (desktop ? "bg-bg pb-4" : "-mx-4 bg-card px-4"),
+              )}
+            >
+              <button
+                type="button"
+                aria-label={t.bill.prevItem}
+                disabled={!open}
+                onClick={() => openItem((open ?? 1) - 1)}
+                className={arrow}
+              >
+                ‹
+              </button>
+              <button
+                type="submit"
+                disabled={!canSave}
+                onMouseDown={(e) => e.preventDefault()}
+                className="h-[44px] min-w-0 flex-1 rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
+              >
+                {`${t.bill.printIt} ↵`}
+              </button>
+              <button
+                type="button"
+                aria-label={t.bill.nextItem}
+                disabled={open !== null && open >= lines.length - 1}
+                onClick={() => openItem(open === null ? 0 : open + 1)}
+                className={arrow}
+              >
+                ›
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {isEdit ? null : receipt ? (
+              <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
+                {thumb}
+                <div className="min-w-0 flex-1 leading-snug">
+                  <b className="block text-[14px]">{t.bill.attached}</b>
+                  <span className="block text-[12.5px] text-muted tabular">{money(totalMinor)}</span>
+                  {receipt.offMinor ? (
+                    <span className="block text-[12px] font-semibold text-green-ink">
+                      {fmt(t.bill.discountOff, { amount: money(receipt.offMinor) })}
+                    </span>
+                  ) : null}
+                  {receipt.includedTaxBp ? (
+                    <span className="block text-[12px] font-semibold text-green-ink">
+                      {fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) })}
+                    </span>
+                  ) : null}
+                </div>
+                {unattach}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {scan === "reading" ? (
+                  <div
+                    role="status"
+                    className="flex animate-settle items-center gap-3.5 overflow-hidden rounded-xl bg-chip px-3.5 py-3"
+                  >
+                    <div aria-hidden className="relative shrink-0 p-1.5">
+                      <i className="absolute top-0 left-0 size-3 rounded-tl-[5px] border-t-[2.5px] border-l-[2.5px] border-green-ink" />
+                      <i className="absolute top-0 right-0 size-3 rounded-tr-[5px] border-t-[2.5px] border-r-[2.5px] border-green-ink" />
+                      <i className="absolute bottom-0 left-0 size-3 rounded-bl-[5px] border-b-[2.5px] border-l-[2.5px] border-green-ink" />
+                      <i className="absolute right-0 bottom-0 size-3 rounded-br-[5px] border-r-[2.5px] border-b-[2.5px] border-green-ink" />
+                      <div className="h-[78px] w-[58px] -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                        {reading ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={reading} alt="" className="size-full object-cover" />
+                        ) : null}
+                      </div>
+                      <i className="absolute inset-x-0 top-1.5 h-0.5 animate-sweep rounded-full bg-[#34c26a] shadow-[0_0_10px_2px_#34c26a] before:absolute before:inset-x-0 before:bottom-0.5 before:h-6 before:bg-linear-to-t before:from-[#34c26a]/30 before:to-transparent before:content-['']" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <b className="block text-[14.5px] font-extrabold">{t.bill.scanning}</b>
+                      <span className="block h-[18px] overflow-hidden text-[12.5px] text-muted">
+                        <span key={step} className="block animate-rise">
+                          {t.bill.scanSteps[step]}
+                        </span>
+                      </span>
+                      <span className="relative mt-2 block h-[3px] overflow-hidden rounded-full bg-line">
+                        <i className="absolute inset-y-0 left-0 w-2/5 animate-slide rounded-full bg-green" />
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green">
+                    <CameraIcon size={18} />
+                    {t.bill.scan}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only text-[16px]"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (file) void scanPhoto(file);
+                      }}
+                    />
+                  </label>
+                )}
+                {scan in t.bill.scanErrors ? (
+                  <p role="alert" className="text-[11.5px] leading-snug font-semibold text-owe">
+                    {t.bill.scanErrors[scan as ScanError]}
+                  </p>
+                ) : null}
+              </div>
+            )}
+
+            <div className="grid grid-cols-[1.3fr_1fr] gap-2">
+              <input
+                type="text"
+                value={name}
+                autoFocus={autoFocus}
+                key={`name-${filled}`}
+                aria-label={t.bill.whatFor}
+                placeholder={t.bill.namePlaceholder}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={60}
+                className={cn(field, "font-semibold", filled > 0 && "animate-flash")}
+              />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={amount}
+                key={`amount-${filled}`}
+                aria-label={t.bill.amount}
+                placeholder="0.00"
+                onChange={(e) => setAmount(autoPoint(e.target.value))}
+                className={cn(field, "font-extrabold tabular", filled > 0 && "animate-flash")}
+              />
+            </div>
+
+            {showCharges ? (
+              <div className="flex flex-col">
+                <ChargeRow label={t.bill.service} rate={service} onChange={setService} added={plain(added.service)} />
+                <ChargeRow label={t.bill.sst} rate={tax} onChange={setTax} added={plain(added.tax)} />
+                <div className="flex h-9 items-center justify-between border-t border-line text-[14px] font-bold">
+                  <span>{t.bill.total}</span>
+                  <span className="tabular">{money(totalMinor)}</span>
+                </div>
+                {offBy > 10 && kept ? (
+                  <div className="text-[12px] font-semibold text-owe">
+                    {fmt(t.bill.addsUp, { total: money(kept.totalMinor), sum: money(added.total) })}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowCharges(true)}
+                className="-mt-1 h-7 self-start text-[12.5px] font-bold text-green-ink"
+              >
+                {t.bill.addCharges}
+              </button>
+            )}
+
+            <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
+              <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
+              <PersonChips people={people} value={paidBy} onChange={setPaidBy} bare={bare}>
+                <NewNameChip onAdd={addNames} />
+              </PersonChips>
+            </div>
+
+            {expanded ? (
+              <div className="flex flex-col">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[12.5px] text-muted">{t.bill.split}</span>
+                  {custom ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOverrides({});
+                        setParticipants(everyone);
+                        setEditing(null);
+                      }}
+                      className="h-7 text-[12.5px] font-bold text-green-ink"
+                    >
+                      {t.bill.resetEqual}
                     </button>
+                  ) : (
+                    <span className="text-[12px] text-faint">{t.bill.tapToChange}</span>
                   )}
                 </div>
-              );
-            })}
-            {problemText ? (
-              <div className="text-[12.5px] font-semibold text-owe">{problemText}</div>
-            ) : restHint ? (
-              <div className="text-[12px] text-muted">{restHint}</div>
-            ) : null}
-            {charges ? <div className="pt-1 text-[12px] text-muted">{t.bill.beforeCharges}</div> : null}
-          </div>
-        ) : (
-          <div className="text-[12.5px] text-muted">
-            {equalLine} ·{" "}
-            <button type="button" onClick={() => setShowSplit(true)} className="font-bold text-green-ink">
-              {t.bill.change}
-            </button>
-          </div>
-        )}
-
-        <div className={cn("flex items-center gap-3", isEdit ? "justify-between" : "justify-end")}>
-          {isEdit ? (
-            <button type="button" onClick={remove} className="h-10 text-[13.5px] font-bold text-owe">
-              {t.bill.delete}
-            </button>
-          ) : null}
-          <button
-            type="submit"
-            disabled={!canSave}
-            onMouseDown={(e) => e.preventDefault()}
-            className={cn(
-              "h-[44px] rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink",
-              bare && !isEdit && "w-full",
+                {people.map((p) => {
+                  const on = participants.includes(p.id);
+                  const isSet = on && liveOverrides[p.id] !== undefined;
+                  const share = split.ok ? split.shares[p.id] : undefined;
+                  const isEditing = editing?.id === p.id;
+                  return (
+                    <div key={p.id} className="flex h-11 items-center gap-2.5">
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={on}
+                        aria-label={fmt(t.bill.include, { name: p.name })}
+                        onClick={() => toggle(p.id)}
+                        className={cn(
+                          "inline-flex size-[22px] shrink-0 items-center justify-center rounded-md",
+                          on ? "bg-green text-white" : "border-2 border-dash",
+                        )}
+                      >
+                        {on ? <CheckIcon size={13} /> : null}
+                      </button>
+                      <span className={cn("min-w-0 flex-1 truncate text-[14px] font-semibold", !on && "text-muted")}>
+                        {p.name}
+                        {isSet ? (
+                          <span className="ml-1.5 text-[11.5px] text-green-ink">{t.bill.youSetThis}</span>
+                        ) : null}
+                      </span>
+                      {isEditing || isSet ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoFocus={isEditing}
+                          aria-label={fmt(t.bill.amountOf, { name: p.name })}
+                          value={isEditing ? editing.value : toInputValue(liveOverrides[p.id] ?? 0, "MYR")}
+                          onFocus={() => {
+                            if (!isEditing) {
+                              const current = toInputValue(liveOverrides[p.id] ?? 0, "MYR");
+                              setEditing({ id: p.id, value: current, start: current });
+                            }
+                          }}
+                          onChange={(e) =>
+                            setEditing({ id: p.id, value: autoPoint(e.target.value), start: editing?.start ?? "" })
+                          }
+                          onBlur={commitEditing}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              commitEditing();
+                            }
+                          }}
+                          className="h-[34px] w-[92px] rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!on || amountMinor <= 0}
+                          onClick={() => {
+                            const current = share !== undefined ? toInputValue(share, "MYR") : "";
+                            setEditing({ id: p.id, value: current, start: current });
+                          }}
+                          className="h-[34px] w-[92px] rounded-lg border border-border bg-bg px-2.5 text-right text-[14px] font-bold text-muted tabular"
+                        >
+                          {on && share !== undefined ? plain(share) : "–"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {problemText ? (
+                  <div className="text-[12.5px] font-semibold text-owe">{problemText}</div>
+                ) : restHint ? (
+                  <div className="text-[12px] text-muted">{restHint}</div>
+                ) : null}
+                {charges ? <div className="pt-1 text-[12px] text-muted">{t.bill.beforeCharges}</div> : null}
+              </div>
+            ) : (
+              <div className="text-[12.5px] text-muted">
+                {equalLine} ·{" "}
+                <button type="button" onClick={() => setShowSplit(true)} className="font-bold text-green-ink">
+                  {t.bill.change}
+                </button>
+              </div>
             )}
-          >
-            {isEdit ? t.common.save : `${t.bill.printIt} ↵`}
-          </button>
-        </div>
+
+            <div className={cn("flex items-center gap-3", isEdit ? "justify-between" : "justify-end")}>
+              {isEdit ? (
+                <button type="button" onClick={remove} className="h-10 text-[13.5px] font-bold text-owe">
+                  {t.bill.delete}
+                </button>
+              ) : null}
+              <button
+                type="submit"
+                disabled={!canSave}
+                onMouseDown={(e) => e.preventDefault()}
+                className={cn(
+                  "h-[44px] rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink",
+                  bare && !isEdit && "w-full",
+                )}
+              >
+                {isEdit ? t.common.save : `${t.bill.printIt} ↵`}
+              </button>
+            </div>
+          </>
+        )}
       </form>
-      {lines && picking !== null && lines[picking] ? (
-        <WhoHadIt
-          key={picking}
-          line={lines[picking]}
-          index={picking}
-          count={lines.length}
-          people={people}
-          sharing={sharing}
-          bare={bare}
-          onPick={(who) => pickWho(picking, who)}
-          onPrice={(amountMinor) => setPrice(picking, amountMinor)}
-          onSkip={() => nextPick(picking)}
-          onBack={() => leavePick(picking)}
-          onClose={onCancel}
-        />
-      ) : null}
       {receipt?.photo ? (
         <Sheet open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -995,7 +1213,7 @@ function ChargeRow({
   );
 }
 
-function NewNameChip({ onAdd }: { onAdd: (text: string) => void }) {
+function NewNameChip({ onAdd, tall = false }: { onAdd: (text: string) => void; tall?: boolean }) {
   const { t } = useI18n();
   const [value, setValue] = useState<string | null>(null);
   const commit = () => {
@@ -1007,14 +1225,22 @@ function NewNameChip({ onAdd }: { onAdd: (text: string) => void }) {
       <button
         type="button"
         onClick={() => setValue("")}
-        className="inline-flex h-[34px] shrink-0 items-center rounded-full border-[1.5px] border-dashed border-dash px-3 text-[13px] font-bold whitespace-nowrap text-green-ink"
+        className={cn(
+          "inline-flex shrink-0 items-center rounded-full border-[1.5px] border-dashed border-dash px-3 text-[13px] font-bold whitespace-nowrap text-green-ink",
+          tall ? "h-[38px]" : "h-[34px]",
+        )}
       >
         {t.home.addPerson}
       </button>
     );
   }
   return (
-    <span className="inline-flex h-[34px] shrink-0 items-center rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 shadow-[0_0_0_3px_var(--green-soft)]">
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 shadow-[0_0_0_3px_var(--green-soft)]",
+        tall ? "h-[38px]" : "h-[34px]",
+      )}
+    >
       <input
         autoFocus
         type="text"
