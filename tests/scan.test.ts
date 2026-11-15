@@ -134,7 +134,7 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   });
 });
 
-test("the arrows move between items, and tapping the open item closes it", async ({ page }) => {
+test("the arrows on the line move between items, and tapping the open item closes it", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
@@ -149,11 +149,13 @@ test("the arrows move between items, and tapping the open item closes it", async
   await expect(next).toBeDisabled();
   await prev.click();
   await expect(who(form, "Teh ais")).toBeVisible();
+  await expect(form.getByText("2 of 3")).toBeVisible();
   await item(form, "Teh ais").click();
   await expect(form.getByRole("group", { name: /^Who had/ })).toHaveCount(0);
-  await expect(prev).toBeDisabled();
-  await next.click();
+  await expect(next).toHaveCount(0);
+  await item(form, "2 × Nasi lemak").click();
   await expect(who(form, "2 × Nasi lemak")).toBeVisible();
+  await expect(prev).toBeDisabled();
 });
 
 test("more than one person can have an item, and Everyone puts it back", async ({ page }) => {

@@ -126,6 +126,16 @@ test.describe("starting a bill", () => {
     await phone.goto("/");
     await expect(billName(phone)).toHaveValue("Trip");
   });
+
+  test("the first bill's drawer closes to the menu, and Add bill opens it again", async ({ browser }) => {
+    const phone = await newPhone(browser, openDraft({ ...trip, items: [] }));
+    await phone.goto("/");
+    await expect(panel(phone).getByText("Add a bill")).toBeVisible();
+    await panel(phone).getByRole("button", { name: "Close" }).click();
+    await expect(panel(phone)).toHaveCount(0);
+    await choose(phone, "Add bill");
+    await expect(panel(phone).getByText("Add a bill")).toBeVisible();
+  });
 });
 
 test.describe("sharing", () => {

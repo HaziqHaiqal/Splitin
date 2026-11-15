@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { CameraIcon, CheckIcon, CloseIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
@@ -40,7 +40,6 @@ export function BillForm({
   item,
   doc,
   update,
-  first,
   bare = false,
   autoFocus = false,
   title,
@@ -54,7 +53,6 @@ export function BillForm({
   item: Item | null;
   doc: BillDoc;
   update?: (fn: (doc: BillDoc) => BillDoc) => void;
-  first: boolean;
   bare?: boolean;
   autoFocus?: boolean;
   title?: string;
@@ -102,6 +100,8 @@ export function BillForm({
   const [fixing, setFixing] = useState<string | null>(null);
   const jump = useRef(false);
   const payerPicked = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [headH, setHeadH] = useState(0);
   const openRow = useRef<HTMLLIElement>(null);
   const desktop = useIsDesktop();
 
@@ -207,6 +207,10 @@ export function BillForm({
     const timer = setInterval(() => setStep((s) => Math.min(s + 1, last)), 2600);
     return () => clearInterval(timer);
   }, [scan, t.bill.scanSteps.length]);
+  useLayoutEffect(() => {
+    const head = formRef.current?.firstElementChild;
+    if (scanned && head instanceof HTMLElement) setHeadH(head.offsetHeight);
+  }, [scanned]);
   useEffect(() => {
     const row = openRow.current;
     if (!jump.current || !row?.parentElement) return;
@@ -513,8 +517,9 @@ export function BillForm({
   const pill =
     "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full bg-chip px-3 text-[13.5px] font-bold text-ink";
   const chip = "inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-full pr-3.5 pl-[5px] text-[14px] font-bold";
-  const arrow =
-    "grid h-[44px] w-[52px] shrink-0 place-items-center rounded-xl bg-chip text-[24px] leading-none font-bold text-ink disabled:opacity-35";
+  const stickTop = (desktop ? 64 : 0) + headH;
+  const notches =
+    "radial-gradient(circle at 0 50%, var(--tray) 11px, transparent 11.5px), radial-gradient(circle at 100% 50%, var(--tray) 11px, transparent 11.5px)";
   const field =
     "h-[44px] w-full min-w-0 rounded-xl border border-border bg-card px-3.5 text-[16px] text-ink outline-none placeholder:font-normal focus:border-[1.5px] focus:border-green focus:shadow-[0_0_0_3px_var(--green-soft)]";
 
@@ -546,6 +551,7 @@ export function BillForm({
   return (
     <>
       <form
+        ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
           save();
@@ -553,7 +559,7 @@ export function BillForm({
         className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
       >
         <PanelHead
-          title={title ?? (isEdit ? t.bill.editTitle : first ? t.bill.firstTitle : t.bill.addTitle)}
+          title={title ?? (isEdit ? t.bill.editTitle : t.bill.addTitle)}
           onClose={onCancel}
         />
 
@@ -718,18 +724,47 @@ export function BillForm({
             ) : null}
 
             <div
-              className={cn("mt-2 flex h-[26px] items-center gap-3", phone && "-mx-4 px-[18px]")}
-              style={
-                phone
-                  ? {
-                      background:
-                        "radial-gradient(circle at 0 50%, var(--tray) 11px, transparent 11.5px), radial-gradient(circle at 100% 50%, var(--tray) 11px, transparent 11.5px)",
-                    }
-                  : undefined
-              }
+              className={cn(
+                "mt-1 flex h-10 items-center gap-3",
+                phone && "-mx-4 px-[18px]",
+                open !== null && "sticky z-[9]",
+              )}
+              style={{
+                top: open !== null ? stickTop : undefined,
+                background: phone
+                  ? `${notches}, ${open !== null ? "var(--card)" : "transparent"}`
+                  : open !== null
+                    ? bare
+                      ? "var(--bg)"
+                      : "var(--card)"
+                    : undefined,
+              }}
             >
               <i aria-hidden className="flex-1 border-t-2 border-dashed border-dash" />
               <h3 className="text-[13px] font-extrabold text-muted">{t.bill.whoHad}</h3>
+              {open !== null ? (
+                <span className="inline-flex h-[30px] shrink-0 items-center rounded-full bg-chip text-[12.5px] font-extrabold text-ink tabular">
+                  <button
+                    type="button"
+                    aria-label={t.bill.prevItem}
+                    disabled={open === 0}
+                    onClick={() => openItem(open - 1)}
+                    className="grid size-[30px] place-items-center text-[19px] leading-none disabled:opacity-30"
+                  >
+                    ‹
+                  </button>
+                  {fmt(t.bill.stepOf, { n: open + 1, count: lines.length })}
+                  <button
+                    type="button"
+                    aria-label={t.bill.nextItem}
+                    disabled={open >= lines.length - 1}
+                    onClick={() => openItem(open + 1)}
+                    className="grid size-[30px] place-items-center text-[19px] leading-none disabled:opacity-30"
+                  >
+                    ›
+                  </button>
+                </span>
+              ) : null}
               <i aria-hidden className="flex-1 border-t-2 border-dashed border-dash" />
             </div>
 
@@ -775,10 +810,8 @@ export function BillForm({
                   <li
                     key={i}
                     ref={openRow}
-                    className={cn(
-                      "-mx-1.5 my-1 rounded-2xl bg-chip px-2.5 pb-3",
-                      phone ? "scroll-mt-[68px]" : "scroll-mt-[140px]",
-                    )}
+                    style={{ scrollMarginTop: stickTop + 46 }}
+                    className="-mx-1.5 my-1 rounded-2xl bg-chip px-2.5 pb-3"
                   >
                     <div className="flex items-center gap-3">
                       <button
@@ -873,36 +906,17 @@ export function BillForm({
 
             <div
               className={cn(
-                "flex gap-2",
                 bare && "sticky bottom-0 z-10 pt-2",
                 bare && (desktop ? "bg-bg pb-4" : "-mx-4 bg-card px-4"),
               )}
             >
               <button
-                type="button"
-                aria-label={t.bill.prevItem}
-                disabled={!open}
-                onClick={() => openItem((open ?? 1) - 1)}
-                className={arrow}
-              >
-                ‹
-              </button>
-              <button
                 type="submit"
                 disabled={!canSave}
                 onMouseDown={(e) => e.preventDefault()}
-                className="h-[44px] min-w-0 flex-1 rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
+                className="h-[44px] w-full rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
               >
-                {`${t.bill.printIt} ↵`}
-              </button>
-              <button
-                type="button"
-                aria-label={t.bill.nextItem}
-                disabled={open !== null && open >= lines.length - 1}
-                onClick={() => openItem(open === null ? 0 : open + 1)}
-                className={arrow}
-              >
-                ›
+                {desktop ? `${t.bill.printIt} ↵` : t.bill.printIt}
               </button>
             </div>
           </>

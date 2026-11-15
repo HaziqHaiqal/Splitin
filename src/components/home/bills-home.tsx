@@ -63,6 +63,7 @@ export function BillsHome() {
     key: 0,
   });
   const [form, setForm] = useState<FormState>({ mode: "closed", editId: null, key: 0 });
+  const [firstClosed, setFirstClosed] = useState(false);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
   const [peopleKey, setPeopleKey] = useState(0);
@@ -126,7 +127,8 @@ export function BillsHome() {
 
   const hasPeople = doc.people.length > 0;
   const hasBills = doc.items.length > 0;
-  const formOpen = hasPeople && (form.mode !== "closed" || !hasBills);
+  const formOpen = hasPeople && (form.mode !== "closed" || (!hasBills && !firstClosed));
+  const canClose = hasBills || !desktop;
   const editing = form.mode === "edit" ? (doc.items.find((i) => i.id === form.editId) ?? null) : null;
   const total = doc.items.reduce((s, i) => s + i.amountMinor, 0);
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
@@ -140,7 +142,10 @@ export function BillsHome() {
     setFromMenu(false);
     setForm((f) => ({ mode: "edit", editId: item.id, key: f.key + 1 }));
   };
-  const closeForm = () => setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
+  const closeForm = () => {
+    setFirstClosed(true);
+    setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
+  };
   const printed = (id: string) => {
     setFreshId(id);
     setPeopleFresh(false);
@@ -153,11 +158,10 @@ export function BillsHome() {
       item={editing}
       doc={doc}
       update={update}
-      first={!hasBills}
       bare={bare}
       autoFocus={desktop && hasBills}
       onPrinted={printed}
-      onCancel={hasBills ? closeForm : undefined}
+      onCancel={canClose ? closeForm : undefined}
       onPreview={setPreview}
     />
   );
@@ -373,10 +377,10 @@ export function BillsHome() {
             <PanelBack.Provider value={fromMenu ? backToMenu : null}>{billForm(true)}</PanelBack.Provider>
           ) : undefined
         }
-        onPanelClose={!hasPeople ? undefined : entering ? () => setEntering(false) : hasBills ? closeForm : undefined}
+        onPanelClose={!hasPeople ? undefined : entering ? () => setEntering(false) : canClose ? closeForm : undefined}
         dim={hasPeople && entering}
         fab={
-          !desktop && hasBills && !formOpen && !entering ? (
+          !desktop && hasPeople && !formOpen && !entering ? (
             <>
               {menuOpen ? (
                 <MenuPills

@@ -229,7 +229,7 @@ export function PrinterPage({
             transition: dragging ? "none" : "translate 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
           }}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-30 flex max-h-[66dvh] flex-col rounded-t-[22px] border-t border-sheet-edge bg-card shadow-[0_-8px_24px_var(--sheet-shadow)]",
+            "fixed inset-x-0 bottom-0 z-30 flex max-h-[66dvh] flex-col overflow-hidden rounded-t-[22px] border-t border-sheet-edge bg-card shadow-[0_-8px_24px_var(--sheet-shadow)]",
             leaving ? "animate-sheet-out" : "animate-sheet-in",
           )}
         >

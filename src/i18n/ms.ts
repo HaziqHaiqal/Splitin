@@ -81,7 +81,6 @@ export const ms: Dictionary = {
     hasPayment: "{name} ada bayaran yang ditanda. Tanda belum bayar dahulu.",
   },
   bill: {
-    firstTitle: "Tambah bil pertama",
     namePlaceholder: "Untuk apa, cth. Air",
     printIt: "Cetak",
     change: "Ubah",
@@ -146,6 +145,7 @@ export const ms: Dictionary = {
     priceOf: "Harga {name}",
     whoHadItem: "Siapa ambil {name}?",
     prevItem: "Item sebelumnya",
+    stepOf: "{n} daripada {count}",
     nextItem: "Item seterusnya",
     done: "Siap",
     addsUp: "Resit kata {total}, tapi harga dan caj berjumlah {sum}. Semak semula.",
