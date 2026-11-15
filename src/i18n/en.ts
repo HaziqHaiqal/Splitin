@@ -79,7 +79,6 @@ export const en = {
     hasPayment: "{name} has a payment marked. Mark it unpaid first.",
   },
   bill: {
-    firstTitle: "Add the first bill",
     namePlaceholder: "What for, e.g. Water",
     printIt: "Print it",
     change: "Change",
@@ -144,6 +143,7 @@ export const en = {
     priceOf: "Price of {name}",
     whoHadItem: "Who had {name}?",
     prevItem: "Previous item",
+    stepOf: "{n} of {count}",
     nextItem: "Next item",
     done: "Done",
     addsUp: "The receipt says {total}, but the prices and charges add up to {sum}. Check them.",

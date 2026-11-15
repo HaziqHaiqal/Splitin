@@ -760,7 +760,6 @@ export function BillPage({
           <BillForm
             item={null}
             doc={doc}
-            first={false}
             bare={bare}
             autoFocus={desktop}
             title={owner ? undefined : t.member.addTitle}
@@ -778,7 +777,6 @@ export function BillPage({
             key={item.id}
             item={item}
             doc={doc}
-            first={false}
             bare={bare}
             autoFocus={desktop}
             onAdd={(next, people) => saveItem(item, next, people)}
