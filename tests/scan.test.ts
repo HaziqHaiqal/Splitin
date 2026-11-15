@@ -57,6 +57,11 @@ async function tapWho(form: Locator, line: string, name: string) {
   await who(form, line).getByRole("button", { name, exact: true }).click();
 }
 
+async function paidBy(form: Locator, name: string) {
+  await form.getByRole("button", { name: /^Who paid\?/ }).click();
+  await form.getByRole("group", { name: "Who paid?" }).getByRole("button", { name, exact: true }).click();
+}
+
 const added = async () => {
   const item = (await serverDoc()).items.find((i) => i.name === "Restoran Ali");
   return item && { amountMinor: item.amountMinor, charges: item.charges, overrides: item.overrides };
@@ -71,6 +76,9 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await expect(form.getByText("Scanned · 3 items")).toBeVisible();
   await expect(form.getByText("Scan a receipt")).toHaveCount(0);
   await expect(form.getByRole("button", { name: "What for: Restoran Ali" })).toBeVisible();
+  await expect(form.getByRole("button", { name: /^Who paid\?/ })).toBeVisible();
+  await expect(form.locator("button[type=submit]")).toBeDisabled();
+  await paidBy(form, "Najmi");
   await expect(form.getByRole("button", { name: /^Najmi paid/ })).toBeVisible();
   await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
   await expect(form.getByRole("heading", { name: "Who had what?" })).toBeVisible();
@@ -117,6 +125,7 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   await tapWho(form, "Teh ais", "Najmi");
   await expect(who(form, "2 × Nasi lemak")).toHaveCount(0);
   await expect(item(form, "2 × Nasi lemak")).toHaveAccessibleName("2 × Nasi lemak Haziq 24.00");
+  await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, {
     amountMinor: 4665,
@@ -158,6 +167,7 @@ test("more than one person can have an item, and Everyone puts it back", async (
   await expect(item(form, "Teh ais")).toHaveAccessibleName("Teh ais Haziq and Najmi 6.00");
   await tapWho(form, "Teh ais", "Everyone");
   await expect(who(form, "Teh ais").getByRole("button", { pressed: true })).toHaveText("Everyone");
+  await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, {
     amountMinor: 4665,
@@ -190,6 +200,7 @@ test("paying less than the receipt, like with a ShopeePay deal, shares the savin
   await form.getByRole("button", { name: "Done" }).click();
   await expect(form.getByRole("button", { name: /^Total paid RM 35\.00/ })).toBeVisible();
   await expect(form.getByText("RM 11.65 off at payment · everyone pays 25% less")).toBeVisible();
+  await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, { amountMinor: 3500, charges: { subtotalMinor: 4000 }, overrides: {} });
 });
@@ -198,6 +209,7 @@ test("who paid is picked from a list", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
+  await paidBy(form, "Najmi");
   await form.getByRole("button", { name: /^Najmi paid/ }).click();
   await form.getByRole("group", { name: "Who paid?" }).getByRole("button", { name: "Afiq" }).click();
   await expect(form.getByRole("button", { name: /^Afiq paid/ })).toBeVisible();
@@ -216,6 +228,7 @@ test("fixing a price keeps the total paid", async ({ page }) => {
   await price.press("Enter");
   await expect(form.getByRole("button", { name: "Price of Teh ais" })).toHaveText(/7\.00/);
   await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
+  await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, { amountMinor: 4665, charges: { subtotalMinor: 4100 }, overrides: {} });
 });
@@ -286,6 +299,7 @@ test("a receipt with SST already in its prices says so and adds nothing", async 
   await expect(form.getByText("Scanned · 3 items · SST 6% is already in the prices")).toBeVisible();
   await expect(form.getByRole("button", { name: /^Total paid RM 40\.00/ })).toBeVisible();
   await tapWho(form, "Roti canai", "Afiq");
+  await paidBy(form, "Najmi");
   await submit(form);
   await settled(async () => (await added())?.overrides, { h: 1000, n: 1000, a: 2000 });
 });
@@ -303,6 +317,7 @@ test("on the home page, each person's part from the receipt is what prints", asy
   await expect(page.getByRole("dialog").getByRole("img", { name: "Receipt" })).toBeVisible();
   await page.keyboard.press("Escape");
   await form.getByRole("textbox", { name: "What for" }).fill("Makan");
+  await paidBy(form, "Haziq");
   await form.getByRole("button", { name: /Print it/ }).click();
   await expect(text(page, "HAZIQ 27.99")).toBeVisible();
   const draft = await page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));

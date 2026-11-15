@@ -101,6 +101,7 @@ export function BillForm({
   const [open, setOpen] = useState<number | null>(null);
   const [fixing, setFixing] = useState<string | null>(null);
   const jump = useRef(false);
+  const payerPicked = useRef(false);
   const openRow = useRef<HTMLLIElement>(null);
   const desktop = useIsDesktop();
 
@@ -296,6 +297,7 @@ export function BillForm({
     setEditName(false);
     setPayerOpen(false);
     setOpen(0);
+    if (!payerPicked.current) setPaidBy("");
     setFixing(null);
     setParticipants(everyone);
     setOverrides({});
@@ -452,6 +454,7 @@ export function BillForm({
       setFixing(null);
       setEditName(false);
       setEditPaid(false);
+      payerPicked.current = false;
       setScan("idle");
     }
   };
@@ -608,7 +611,10 @@ export function BillForm({
                   type="button"
                   aria-expanded={payerOpen}
                   onClick={() => setPayerOpen(!payerOpen)}
-                  className={cn(pill, payer && "pl-1.5")}
+                  className={cn(
+                    pill,
+                    payer ? "pl-1.5" : "border-[1.5px] border-dashed border-dash bg-transparent text-green-ink",
+                  )}
                 >
                   {payer ? <Avatar name={payer.name} color={payer.color} size={24} /> : null}
                   {payer ? fmt(t.bill.paidBy, { name: payer.name }) : t.bill.whoPaid}
@@ -1027,7 +1033,15 @@ export function BillForm({
 
             <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
               <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-              <PersonChips people={people} value={paidBy} onChange={setPaidBy} bare={bare}>
+              <PersonChips
+                people={people}
+                value={paidBy}
+                onChange={(id) => {
+                  payerPicked.current = true;
+                  setPaidBy(id);
+                }}
+                bare={bare}
+              >
                 <NewNameChip onAdd={addNames} />
               </PersonChips>
             </div>
