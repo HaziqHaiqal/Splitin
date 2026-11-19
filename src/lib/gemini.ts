@@ -47,6 +47,7 @@ async function ask(key: string, photo: Blob): Promise<Read> {
       "[splitin] scan read:",
       JSON.stringify({
         lines: lines.length,
+        footer: Array.isArray(read?.footer) ? read.footer.length : 0,
         sum: lines.reduce((sum, line) => sum + (typeof line?.amount === "number" ? line.amount : 0), 0),
         ...Object.fromEntries([...fields, "discount", "total"].map((key) => [key, read?.[key] ?? null])),
       }),

@@ -30,6 +30,7 @@ export const SCAN_PROMPT = [
   "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
   "includedTaxRate and includedTax: the percent and the tax amount when the receipt says the prices already include the tax, like 6 and 5.58 for Inclusive Service Tax 6% with Tax 5.58. Inclusive Service Tax, SST or GST in a Tax Summary is a tax, never a service charge.",
   "taxLines: every line that mentions tax, SST, GST or cukai, including a Tax Summary at the bottom, with its label as printed, the tax amount, the percent if printed, and inclusive true when it says the prices already include it.",
+  "footer: every printed line after the last item that has a number on it, top to bottom, with its words as printed and its numbers. Include totals, payment and every row of a Tax Summary.",
   "total: the final amount to pay, after discounts and any rounding.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
@@ -67,10 +68,18 @@ export const SCAN_SCHEMA = {
         required: ["label", "amount"],
       },
     },
+    footer: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { text: { type: "string" }, numbers: { type: "array", items: amount } },
+        required: ["text"],
+      },
+    },
     discount: amount,
     total: amount,
   },
-  required: ["readable", "lines"],
+  required: ["readable", "lines", "footer"],
 };
 
 const num = z.number().finite().nullish();
@@ -93,6 +102,10 @@ const replySchema = z.object({
   taxLines: z
     .array(z.object({ label: z.string(), amount: z.number().finite(), rate: num, inclusive: z.boolean().nullish() }))
     .max(10)
+    .nullish(),
+  footer: z
+    .array(z.object({ text: z.string(), numbers: z.array(z.number().finite()).nullish() }))
+    .max(60)
     .nullish(),
   discount: num,
   total: num,
@@ -166,10 +179,21 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   const printed = toMinor(r.subtotal);
   const service = toMinor(r.service);
   const total = toMinor(r.total);
+  const printedTax = (r.footer ?? [])
+    .filter((row) => !/total/i.test(row.text))
+    .map((row) => ({
+      label: row.text,
+      amount: row.numbers?.at(-1) ?? 0,
+      rate: Number(/(\d+(?:\.\d+)?)\s*%/.exec(row.text)?.[1]) || undefined,
+      inclusive: undefined,
+    }));
   const taxLine =
     r.tax || r.includedTax
       ? undefined
-      : (r.taxLines ?? []).find((line) => /tax|sst|gst|cukai/i.test(line.label) && line.amount > 0);
+      : [...(r.taxLines ?? []), ...printedTax].find(
+          (line) =>
+            /tax|sst|gst|cukai/i.test(line.label) && line.amount > 0 && (total <= 0 || line.amount * 100 < total),
+        );
   const lineInside = Boolean(
     taxLine &&
     (taxLine.inclusive || /incl/i.test(taxLine.label) || (total > 0 && Math.abs(total - linesMinor + billOff) <= 10)),
