@@ -73,7 +73,7 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await expect(form.getByText("Scanned · 3 items")).toBeVisible();
+  await expect(form.getByText("Scanned · 3 items · Service charge 10% RM 4.00 · SST 6% RM 2.64")).toBeVisible();
   await expect(form.getByText("Scan a receipt")).toHaveCount(0);
   await expect(form.getByRole("button", { name: "What for: Restoran Ali" })).toBeVisible();
   await expect(form.getByRole("button", { name: /^Who paid\?/ })).toBeVisible();

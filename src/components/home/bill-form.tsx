@@ -529,9 +529,14 @@ export function BillForm({
       : t.bill.splitEveryone;
 
   const payer = people.find((p) => p.id === paidBy);
+  const onTop = asPrinted && kept ? addCharges(kept.subtotalMinor, kept) : null;
+  const chargeText = (label: string, bp: number | undefined, amount: number | undefined) =>
+    bp && amount ? `${label} ${rateText(bp)}% ${money(amount)}` : "";
   const scannedLine = [
     lines?.length === 1 ? t.bill.scannedOne : fmt(t.bill.scannedItems, { count: lines?.length ?? 0 }),
     receipt?.offMinor ? fmt(t.bill.discountOff, { amount: money(receipt.offMinor) }) : "",
+    chargeText(t.bill.service, kept?.serviceBp, onTop?.service),
+    chargeText(t.bill.sst, kept?.taxBp, onTop?.tax),
     receipt?.includedTaxBp ? fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) }) : "",
   ]
     .filter(Boolean)
