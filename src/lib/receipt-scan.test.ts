@@ -59,7 +59,29 @@ describe("toScan", () => {
     expect(result.ok && result.scan.taxBp).toBe(600);
   });
 
-  it("leaves out SST that is already inside the prices", () => {
+  it("takes SST that is already inside the prices out of them and adds it back as its own charge", () => {
+    const result = toScan({
+      ...receipt,
+      lines: [
+        { name: "Apple juice", amount: 8.5 },
+        { name: "Lamb briyani", amount: 30 },
+        { name: "Chicken briyani", amount: 21.5 },
+        { name: "Naan set", amount: 38.5 },
+      ],
+      subtotal: 98.5,
+      serviceRate: null,
+      service: null,
+      taxRate: null,
+      tax: null,
+      includedTax: 5.58,
+      total: 98.5,
+    });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
+    expect(result.ok && result.scan.lines.map((line) => line.amountMinor)).toEqual([802, 2830, 2028, 3632]);
+    expect(result.ok && "includedTaxBp" in result.scan).toBe(false);
+  });
+
+  it("works out SST inside the prices from its percent when the tax read can't be right", () => {
     const result = toScan({
       ...receipt,
       serviceRate: null,
@@ -69,40 +91,21 @@ describe("toScan", () => {
       subtotal: 40,
       total: 40,
     });
-    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 4000, totalMinor: 4000, includedTaxBp: 600 });
-    expect(result.ok && "taxBp" in result.scan).toBe(false);
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 3774, taxBp: 600, totalMinor: 4000 });
   });
 
-  it("notes the tax a receipt says is already in its prices", () => {
+  it("only notes SST inside the prices when a service charge is added on top", () => {
     const result = toScan({
       ...receipt,
-      serviceRate: null,
-      service: null,
       taxRate: null,
       tax: null,
       includedTaxRate: 6,
-      total: 40,
+      total: 44,
     });
-    expect(result.ok && [result.scan.taxBp, result.scan.includedTaxBp, result.scan.totalMinor]).toEqual([
+    expect(result.ok && [result.scan.serviceBp, result.scan.taxBp, result.scan.includedTaxBp]).toEqual([
+      1000,
       undefined,
       600,
-      4000,
-    ]);
-  });
-
-  it("adds SST printed on top when the total read is the amount before it", () => {
-    const result = toScan({
-      ...receipt,
-      lines: [{ name: "Nasi kandar", amount: 98.5 }],
-      subtotal: 98.5,
-      serviceRate: null,
-      service: null,
-      taxRate: 6,
-      tax: 5.91,
-      total: 98.5,
-    });
-    expect(result.ok && [result.scan.subtotalMinor, result.scan.taxBp, result.scan.totalMinor]).toEqual([
-      9850, 600, 10441,
     ]);
   });
 
