@@ -22,6 +22,8 @@ export function Logo() {
 const LANGUAGES: { code: Locale; name: string }[] = [
   { code: "en", name: "English" },
   { code: "ms", name: "Bahasa Melayu" },
+  { code: "zh", name: "中文" },
+  { code: "ta", name: "தமிழ்" },
 ];
 
 const LOOKS = [

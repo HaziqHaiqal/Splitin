@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { htmlLang } from "@/i18n";
 import { getI18n } from "@/i18n/server";
 import "./globals.css";
 
@@ -41,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { locale } = await getI18n();
   return (
     <html
-      lang={locale}
+      lang={htmlLang(locale)}
       suppressHydrationWarning
       className={`${jakarta.variable} ${plexMono.variable} h-full antialiased`}
     >

@@ -34,6 +34,38 @@ const languages = [
     scan: "Imbas resit",
     incl: "TERMASUK CAJ PERKHIDMATAN 10% · SST 6%",
   },
+  {
+    locale: "zh",
+    settings: "设置",
+    help: "如何使用 Splitin",
+    next: "下一步",
+    step: "第 9 步",
+    swap: "换一个 QR",
+    warning: "这个 QR 显示的是 AMIR BIN ZULKIFLI，不是 Haziq。",
+    add: "+ 添加",
+    title: "家里的账单",
+    looking: "只是看看",
+    pick: "付了吗？点击选择你的名字",
+    hi: "嗨 Afiq",
+    scan: "扫描收据",
+    incl: "含 服务费 10% · SST 6%",
+  },
+  {
+    locale: "ta",
+    settings: "அமைப்புகள்",
+    help: "Splitin-ஐப் பயன்படுத்துவது எப்படி",
+    next: "அடுத்து",
+    step: "படி 9",
+    swap: "QR-ஐ மாற்று",
+    warning: "இந்த QR-இல் AMIR BIN ZULKIFLI என்று உள்ளது, Haziq அல்ல.",
+    add: "+ சேர்",
+    title: "வீட்டுப் பில்கள்",
+    looking: "சும்மா பார்க்கிறேன்",
+    pick: "செலுத்திவிட்டீர்களா? உங்கள் பெயரைத் தேர்வு செய்யத் தட்டவும்",
+    hi: "வணக்கம் Afiq",
+    scan: "ரசீதை ஸ்கேன் செய்",
+    incl: "உட்பட சேவைக் கட்டணம் 10% · SST 6%",
+  },
 ];
 
 for (const {
@@ -132,8 +164,8 @@ for (const {
       guide.getByRole("heading", { name: new RegExp(step) }).or(guide.getByText(step).first()),
     ).toBeVisible();
 
-    const join = guide.getByRole("button", { name: /^(Join|Sertai) ·/ });
-    const leave = guide.getByRole("button", { name: /^(Leave|Keluar dari) / });
+    const join = guide.getByRole("button", { name: /^(Join|Sertai|加入|இணை) ·/ });
+    const leave = guide.getByRole("button", { name: /^(Leave|Keluar dari|退出) |இலிருந்து விலகு$/ });
     await expect(guide.getByText("RM 40.32")).toHaveCount(2);
     await join.first().dispatchEvent("click");
     await expect(guide.getByText("RM 76.32")).toBeVisible();
