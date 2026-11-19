@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Item } from "./bill";
 import { addCharges, splitByWeights, type Allocation, type Rates } from "./money";
 
-export type ScanLine = { name: string; amountMinor: number; offMinor?: number };
+export type ScanLine = { name: string; amountMinor: number; offMinor?: number; printedMinor?: number };
 
 export type Scan = {
   shop: string;
@@ -261,6 +261,7 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
           .map(({ offMinor, ...line }, i) => ({
             ...line,
             amountMinor: pre[i] ?? 0,
+            printedMinor: line.amountMinor,
             ...(offMinor ? { offMinor: Math.round((offMinor * before) / subtotalMinor) } : {}),
           }))
           .filter((line) => line.amountMinor > 0)

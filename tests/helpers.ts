@@ -228,10 +228,12 @@ export async function choose(page: Page, option: string) {
 
 export async function openMine(page: Page) {
   await page.addStyleTag({ content: "nextjs-portal { display: none }" });
-  await page
-    .getByRole("button", { name: /^(Hi |Owner$)/ })
-    .first()
-    .click();
+  if ((page.viewportSize()?.width ?? 0) >= 768)
+    await page
+      .getByRole("button", { name: /^(Hi |Owner$)/ })
+      .first()
+      .click();
+  else await choose(page, "People");
   return sheet(page);
 }
 
@@ -278,7 +280,7 @@ export const submit = (form: ReturnType<typeof panel>) => form.locator("button[t
 export async function addMe(page: Page, name: string) {
   await button(page, "Who are you?").click();
   await addName(page, name);
-  await expect(button(page, `Hi ${name}`)).toBeVisible();
+  await expect(text(page, `Hi ${name}`)).toBeVisible();
 }
 
 export async function joinAs(page: Page, name: string, item = "Hotel") {

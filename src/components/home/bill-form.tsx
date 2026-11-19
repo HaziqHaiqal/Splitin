@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Avatar } from "@/components/avatar";
 import { CameraIcon, CheckIcon, CloseIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
 import { Sheet } from "@/components/sheet";
@@ -12,6 +11,7 @@ import { useI18n } from "@/i18n/client";
 import {
   baseOf,
   splitItem,
+  taxShares,
   withCharges,
   type BillDoc,
   type Charges,
@@ -24,7 +24,8 @@ import { loadPhoto, savePhoto } from "@/lib/receipt-photos";
 import { lineSplit, linesMatch, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from "@/lib/receipt-scan";
 import { shrinkPhoto } from "@/lib/shrink-photo";
 import { cn, newId, parseNames } from "@/lib/utils";
-import { PersonChips } from "./person-chips";
+import { ChoiceChip, PersonChips } from "./person-chips";
+import { Avatar } from "@/components/avatar";
 
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 const parse = (v: string) => parseMoney(v, "MYR");
@@ -234,7 +235,7 @@ export function BillForm({
       row.getBoundingClientRect().top -
       (box?.getBoundingClientRect().top ?? 0) -
       (parseFloat(getComputedStyle(row).scrollMarginTop) || 0);
-    const list = row.parentElement;
+    const list = row.closest<HTMLElement>("[data-items]") ?? row.parentElement;
     const room = page.scrollHeight - (parseFloat(list.style.paddingBottom) || 0) - page.clientHeight;
     list.style.paddingBottom = `${Math.max(0, Math.ceil(target - room))}px`;
     page.scrollTo({ top: target, behavior: "smooth" });
@@ -431,7 +432,16 @@ export function BillForm({
 
   const commitFix = (i: number) => {
     const v = fixing === null ? null : parse(fixing);
-    if (lines && v !== null && v > 0) applyLines(lines.map((l, j) => (j === i ? { ...l, amountMinor: v } : l)));
+    if (lines && v !== null && v > 0)
+      applyLines(
+        lines.map((l, j) =>
+          j !== i
+            ? l
+            : l.printedMinor !== undefined && kept?.taxBp
+              ? { ...l, printedMinor: v, amountMinor: Math.round((v * 10_000) / (10_000 + kept.taxBp)) }
+              : { ...l, amountMinor: v },
+        ),
+      );
     setFixing(null);
   };
 
@@ -531,6 +541,13 @@ export function BillForm({
 
   const onTop = asPrinted && kept ? addCharges(kept.subtotalMinor, kept) : null;
   const sharers = new Set(lines?.flatMap((line) => line.who) ?? []).size;
+  const taxInside = lines?.some((line) => line.printedMinor !== undefined) ?? false;
+  const shown = (line: Line) => line.printedMinor ?? line.amountMinor;
+  const offShown = (line: Line) =>
+    line.offMinor && line.printedMinor !== undefined
+      ? Math.round((line.offMinor * line.printedMinor) / line.amountMinor)
+      : (line.offMinor ?? 0);
+  const taxEach = taxShares({ amountMinor: totalMinor, charges }, split.ok ? split.shares : {});
   const taxNote = (tax: number) =>
     sharers > 1 ? fmt(t.bill.taxEach, { amount: money(Math.round(tax / sharers)) }) : t.bill.taxEqual;
   const chargeRows = [
@@ -560,7 +577,6 @@ export function BillForm({
     } else if (missing === "who") openItem(unpicked);
   };
   const phone = bare && !desktop;
-  const chip = "inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-full pr-3.5 pl-[5px] text-[14px] font-bold";
   const stickTop = (desktop ? 64 : 0) + headH;
   const notches =
     "radial-gradient(circle at 0 50%, var(--tray) 11px, transparent 11.5px), radial-gradient(circle at 100% 50%, var(--tray) 11px, transparent 11.5px)";
@@ -667,7 +683,7 @@ export function BillForm({
               {chargeRows.length > 0 ? (
                 <>
                   <div className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
-                    <span>{t.bill.items}</span>
+                    <span>{taxInside ? t.bill.beforeTax : t.bill.items}</span>
                     <span className="tabular">{money(amountMinor)}</span>
                   </div>
                   {chargeRows.map((c) => (
@@ -764,139 +780,159 @@ export function BillForm({
               <i aria-hidden className="flex-1 border-t-2 border-dashed border-dash" />
             </div>
 
-            <ol className="m-0 flex list-none flex-col p-0">
-              {lines.map((line, i) => {
-                const was = line.offMinor ? (
-                  <>
-                    <s className="font-semibold text-faint">{plain(line.amountMinor + line.offMinor)}</s>{" "}
-                  </>
-                ) : null;
-                if (open !== i)
-                  return (
-                    <li key={i} className="border-b border-line last:border-b-0">
-                      <button
-                        type="button"
-                        aria-expanded={false}
-                        onClick={() => openItem(i)}
-                        className="flex w-full items-center gap-3 px-0.5 py-3 text-left"
-                      >
-                        <span
-                          aria-hidden
-                          className="grid size-6 shrink-0 place-items-center rounded-full bg-chip text-[11.5px] font-extrabold text-muted"
-                        >
-                          {i + 1}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <b className="block text-[15px] leading-snug font-semibold [overflow-wrap:anywhere]">
-                            {line.name}
-                          </b>
-                          <small className="mt-0.5 block truncate text-[12.5px] text-muted">
-                            {line.who.length === 0 ? (
-                              <span className="font-semibold text-green-ink">{t.bill.notPicked}</span>
-                            ) : line.who.length === everyone.length ? (
-                              t.bill.everyone
-                            ) : (
-                              list(line.who)
-                            )}
-                            {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(line.offMinor) })}` : null}
-                          </small>
-                        </span>
-                        <span className="text-right text-[14px] font-bold tabular">
-                          {was}
-                          {plain(line.amountMinor)}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                return (
-                  <li
-                    key={i}
-                    ref={openRow}
-                    style={{ scrollMarginTop: stickTop + 46 }}
-                    className="-mx-1.5 my-1 rounded-2xl bg-chip px-2.5 pb-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        aria-expanded
-                        onClick={() => openItem(null)}
-                        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-0.5 text-left"
-                      >
-                        <span
-                          aria-hidden
-                          className="grid size-6 shrink-0 place-items-center rounded-full bg-green text-[11.5px] font-extrabold text-white"
-                        >
-                          {i + 1}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <b className="block text-[15px] leading-snug font-bold [overflow-wrap:anywhere]">
-                            {line.name}
-                          </b>
-                          {line.offMinor ? (
-                            <small className="mt-0.5 block text-[12.5px] font-semibold text-green-ink">
-                              {fmt(t.bill.itemOff, { amount: money(line.offMinor) })}
-                            </small>
-                          ) : null}
-                        </span>
-                      </button>
-                      {fixing !== null ? (
-                        <input
-                          autoFocus
-                          type="text"
-                          inputMode="numeric"
-                          value={fixing}
-                          aria-label={fmt(t.bill.priceOf, { name: line.name })}
-                          onChange={(e) => setFixing(autoPoint(e.target.value))}
-                          onBlur={() => commitFix(i)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              commitFix(i);
-                            }
-                          }}
-                          className="h-[34px] w-[88px] shrink-0 rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
-                        />
-                      ) : (
+            <div data-items className="flex flex-col gap-3">
+              <ol className="m-0 flex list-none flex-col p-0">
+                {lines.map((line, i) => {
+                  const was = line.offMinor ? (
+                    <>
+                      <s className="font-semibold text-faint">{plain(shown(line) + offShown(line))}</s>{" "}
+                    </>
+                  ) : null;
+                  if (open !== i)
+                    return (
+                      <li key={i} className="border-b border-line last:border-b-0">
                         <button
                           type="button"
-                          aria-label={fmt(t.bill.priceOf, { name: line.name })}
-                          onClick={() => setFixing(toInputValue(line.amountMinor, "MYR"))}
-                          className="flex h-[34px] shrink-0 items-center gap-1 text-[14px] font-bold tabular"
+                          aria-expanded={false}
+                          onClick={() => openItem(i)}
+                          className="flex w-full items-center gap-3 px-0.5 py-3 text-left"
                         >
-                          {was}
-                          {plain(line.amountMinor)}
-                          <span aria-hidden className="text-[12px] text-muted">
-                            ✎
+                          <span
+                            aria-hidden
+                            className="grid size-6 shrink-0 place-items-center rounded-full bg-chip text-[11.5px] font-extrabold text-muted"
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <b className="block text-[15px] leading-snug font-semibold [overflow-wrap:anywhere]">
+                              {line.name}
+                            </b>
+                            <small className="mt-0.5 block truncate text-[12.5px] text-muted">
+                              {line.who.length === 0 ? (
+                                <span className="font-semibold text-green-ink">{t.bill.notPicked}</span>
+                              ) : line.who.length === everyone.length ? (
+                                t.bill.everyone
+                              ) : (
+                                list(line.who)
+                              )}
+                              {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(offShown(line)) })}` : null}
+                            </small>
+                          </span>
+                          <span className="text-right text-[14px] font-bold tabular">
+                            {was}
+                            {plain(shown(line))}
                           </span>
                         </button>
-                      )}
-                    </div>
-                    <div
-                      role="group"
-                      aria-label={fmt(t.bill.whoHadItem, { name: line.name })}
-                      className="flex flex-wrap gap-1.5"
+                      </li>
+                    );
+                  return (
+                    <li
+                      key={i}
+                      ref={openRow}
+                      style={{ scrollMarginTop: stickTop + 46 }}
+                      className="-mx-1.5 my-1 rounded-2xl bg-chip px-2.5 pb-3"
                     >
-                      {people.map((p) => {
-                        const had = line.who.includes(p.id);
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            aria-pressed={had}
-                            onClick={() => setWho(i, p.id)}
-                            className={cn(chip, had ? "bg-green text-white" : "bg-card text-ink")}
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          aria-expanded
+                          onClick={() => openItem(null)}
+                          className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-0.5 text-left"
+                        >
+                          <span
+                            aria-hidden
+                            className="grid size-6 shrink-0 place-items-center rounded-full bg-green text-[11.5px] font-extrabold text-white"
                           >
-                            <Avatar name={p.name} color={p.color} size={28} />
-                            {p.name}
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <b className="block text-[15px] leading-snug font-bold [overflow-wrap:anywhere]">
+                              {line.name}
+                            </b>
+                            {line.offMinor ? (
+                              <small className="mt-0.5 block text-[12.5px] font-semibold text-green-ink">
+                                {fmt(t.bill.itemOff, { amount: money(offShown(line)) })}
+                              </small>
+                            ) : null}
+                          </span>
+                        </button>
+                        {fixing !== null ? (
+                          <input
+                            autoFocus
+                            type="text"
+                            inputMode="numeric"
+                            value={fixing}
+                            aria-label={fmt(t.bill.priceOf, { name: line.name })}
+                            onChange={(e) => setFixing(autoPoint(e.target.value))}
+                            onBlur={() => commitFix(i)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitFix(i);
+                              }
+                            }}
+                            className="h-[34px] w-[88px] shrink-0 rounded-lg border-[1.5px] border-green bg-card px-2.5 text-right text-[16px] font-extrabold text-ink tabular shadow-[0_0_0_3px_var(--green-soft)] outline-none"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label={fmt(t.bill.priceOf, { name: line.name })}
+                            onClick={() => setFixing(toInputValue(shown(line), "MYR"))}
+                            className="flex h-[34px] shrink-0 items-center gap-1 text-[14px] font-bold tabular"
+                          >
+                            {was}
+                            {plain(shown(line))}
+                            <span aria-hidden className="text-[12px] text-muted">
+                              ✎
+                            </span>
                           </button>
-                        );
-                      })}
-                      <NewNameChip tall onAdd={(text) => addNames(text, i)} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+                        )}
+                      </div>
+                      <div
+                        role="group"
+                        aria-label={fmt(t.bill.whoHadItem, { name: line.name })}
+                        className="flex flex-wrap gap-1.5"
+                      >
+                        {people.map((p) => (
+                          <ChoiceChip
+                            key={p.id}
+                            person={p}
+                            tall
+                            on={line.who.includes(p.id)}
+                            onClick={() => setWho(i, p.id)}
+                          />
+                        ))}
+                        <NewNameChip tall onAdd={(text) => addNames(text, i)} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {unpicked < 0 && split.ok ? (
+                <div className="flex flex-col rounded-xl border border-line px-3.5 py-2">
+                  <h3 className="m-0 py-1 text-[13px] font-extrabold text-muted">{t.bill.eachPays}</h3>
+                  {people
+                    .filter((p) => (finalShares[p.id] ?? 0) > 0)
+                    .map((p) => {
+                      const pays = finalShares[p.id];
+                      const taxed = taxEach[p.id] ?? 0;
+                      return (
+                        <div key={p.id} className="flex min-h-9 items-center gap-2.5">
+                          <Avatar name={p.name} color={p.color} size={24} />
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{p.name}</span>
+                          {taxed > 0 ? (
+                            <span className="shrink-0 text-[12.5px] text-muted tabular">
+                              {fmt(t.bill.foodTax, { food: plain(pays - taxed), tax: plain(taxed) })}
+                            </span>
+                          ) : null}
+                          <b className="w-[60px] shrink-0 text-right text-[14px] tabular">{plain(pays)}</b>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : null}
+            </div>
 
             <div
               className={cn(
@@ -1276,7 +1312,7 @@ function NewNameChip({ onAdd, tall = false }: { onAdd: (text: string) => void; t
           tall ? "h-[38px]" : "h-[34px]",
         )}
       >
-        {t.home.addPerson}
+        {t.home.newPerson}
       </button>
     );
   }

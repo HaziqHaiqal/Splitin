@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
+import { CheckIcon } from "@/components/icons";
 import type { Person } from "@/lib/bill";
 import { cn } from "@/lib/utils";
 
@@ -20,25 +21,49 @@ export function PersonChips({
 }) {
   return (
     <div className={cn("flex gap-1.5", bare ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
-      {people.map((p) => {
-        const on = value === p.id;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(p.id)}
-            className={cn(
-              "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full pr-3 pl-1 text-[13px] font-bold",
-              on ? "bg-green text-white" : "bg-chip text-ink",
-            )}
-          >
-            <Avatar name={p.name} color={p.color} size={26} />
-            {p.name}
-          </button>
-        );
-      })}
+      {people.map((p) => (
+        <ChoiceChip key={p.id} person={p} on={value === p.id} onClick={() => onChange(p.id)} />
+      ))}
       {children}
     </div>
+  );
+}
+
+export function ChoiceChip({
+  person,
+  on,
+  onClick,
+  tall = false,
+}: {
+  person: Person;
+  on: boolean;
+  onClick: () => void;
+  tall?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border pr-3 pl-1 font-bold transition-colors",
+        tall ? "h-[38px] text-[14px]" : "h-[34px] text-[13px]",
+        on ? "border-green bg-green text-white" : "border-border bg-card text-ink",
+      )}
+    >
+      {on ? (
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center rounded-full bg-white text-green-ink",
+            tall ? "size-7" : "size-[26px]",
+          )}
+        >
+          <CheckIcon size={14} />
+        </span>
+      ) : (
+        <Avatar name={person.name} color={person.color} size={tall ? 28 : 26} />
+      )}
+      {person.name}
+    </button>
   );
 }

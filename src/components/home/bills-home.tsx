@@ -17,6 +17,7 @@ import {
   CloseIcon,
   LinkIcon,
   PencilIcon,
+  PeopleIcon,
   PlusIcon,
   ReceiptIcon,
   ResetIcon,
@@ -25,7 +26,7 @@ import {
 import { PrinterPage } from "@/components/receipt/printer";
 import { Receipt } from "@/components/receipt/receipt";
 import { MenuFab, MenuPills, type Tile } from "@/components/shared/bill-menu";
-import { PanelBack } from "@/components/shared/panel-form";
+import { PanelBack, PanelHead } from "@/components/shared/panel-form";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
 import { useShareReceipt } from "@/hooks/use-share-receipt";
 import { useToast } from "@/components/toast";
@@ -44,7 +45,7 @@ import {
 import { cn, newId, parseNames } from "@/lib/utils";
 import { BillForm } from "./bill-form";
 import { CodeForm, HomeIntro } from "./code-form";
-import { PersonSheet } from "./person-sheet";
+import { PersonForm } from "./person-sheet";
 
 type FormState = { mode: "closed" | "add" | "edit"; editId: string | null; key: number };
 
@@ -57,11 +58,6 @@ export function BillsHome() {
   const { share, pending, leaving, sheet } = useShareReceipt(stored);
   const moved = Boolean(stored?.billId) && !leaving;
 
-  const [personSheet, setPersonSheet] = useState<{ open: boolean; id: string | null; key: number }>({
-    open: false,
-    id: null,
-    key: 0,
-  });
   const [form, setForm] = useState<FormState>({ mode: "closed", editId: null, key: 0 });
   const [firstClosed, setFirstClosed] = useState(false);
   const [preview, setPreview] = useState<PreviewItem | null>(null);
@@ -72,9 +68,17 @@ export function BillsHome() {
   const [starting, setStarting] = useState<StartDraft>(NEW_START);
   const [menuOpen, setMenuOpen] = useState(false);
   const [fromMenu, setFromMenu] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [personId, setPersonId] = useState<string | null>(null);
+  const [peopleFromMenu, setPeopleFromMenu] = useState(false);
+  const closePeople = () => {
+    setPeopleOpen(false);
+    setPersonId(null);
+  };
   const closeMenu = () => setMenuOpen(false);
   const backToMenu = () => {
     setEntering(false);
+    closePeople();
     setForm((f) => ({ mode: "closed", editId: null, key: f.key + 1 }));
     setMenuOpen(true);
   };
@@ -133,7 +137,6 @@ export function BillsHome() {
   const total = doc.items.reduce((s, i) => s + i.amountMinor, 0);
   const nameOf = (id: string) => doc.people.find((p) => p.id === id)?.name ?? "?";
 
-  const openPerson = (id: string) => setPersonSheet((s) => ({ open: true, id, key: s.key + 1 }));
   const openAdd = () => {
     setFromMenu(false);
     setForm((f) => ({ mode: "add", editId: null, key: f.key + 1 }));
@@ -164,26 +167,6 @@ export function BillsHome() {
       onCancel={canClose ? closeForm : undefined}
       onPreview={setPreview}
     />
-  );
-
-  const peopleChips = (compact: boolean) => (
-    <div className={cn("flex gap-1.5", compact ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
-      {doc.people.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          onClick={() => openPerson(p.id)}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-chip pr-3 pl-1 font-bold text-ink",
-            compact ? "h-8 text-[12.5px]" : "h-9 text-[13.5px]",
-          )}
-        >
-          <Avatar name={p.name} color={p.color} size={compact ? 24 : 28} />
-          {p.name}
-        </button>
-      ))}
-      <AddPersonChip onAdd={addPeople} />
-    </div>
   );
 
   const typedNames = [...starting.names, ...parseNames(starting.text)];
@@ -239,53 +222,122 @@ export function BillsHome() {
     </div>
   );
 
+  const shownPerson = doc.people.find((p) => p.id === personId) ?? null;
+  const peopleView = shownPerson ? (
+    <div className="flex flex-col">
+      <PanelBack.Provider value={() => setPersonId(null)}>
+        <PanelHead title={<span className="sr-only">{shownPerson.name}</span>} onClose={closePeople} />
+      </PanelBack.Provider>
+      <PersonForm
+        key={shownPerson.id}
+        person={shownPerson}
+        doc={doc}
+        update={update}
+        pinned
+        onDone={() => setPersonId(null)}
+      />
+    </div>
+  ) : (
+    <div className="flex flex-col gap-2">
+      <PanelBack.Provider value={peopleFromMenu ? backToMenu : null}>
+        <PanelHead title={t.home.people} onClose={closePeople} />
+      </PanelBack.Provider>
+      <ul className="m-0 flex list-none flex-col p-0">
+        {doc.people.map((p) => (
+          <li key={p.id} className="border-b border-line last:border-b-0">
+            <button
+              type="button"
+              onClick={() => setPersonId(p.id)}
+              className="flex min-h-[60px] w-full items-center gap-3 py-2 text-left"
+            >
+              <Avatar name={p.name} color={p.color} size={36} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[15px] font-bold text-ink">{p.name}</span>
+                <span className="truncate text-[13px] text-muted">
+                  {[p.bank, p.payQr ? t.person.qrAdded : null].filter(Boolean).join(" · ") || t.home.noBank}
+                </span>
+              </span>
+              <span aria-hidden className="text-[20px] text-faint">
+                ›
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <AddPersonChip onAdd={addPeople} />
+    </div>
+  );
+
+  const peopleButton = (
+    <button
+      type="button"
+      onClick={() => {
+        setPeopleFromMenu(false);
+        setPersonId(null);
+        setPeopleOpen(true);
+      }}
+      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 text-[13.5px] font-bold text-ink"
+    >
+      <PeopleIcon size={17} />
+      {doc.people.length === 1 ? t.home.peopleOne : fmt(t.home.peopleCount, { count: doc.people.length })}
+      <span aria-hidden className="text-faint">
+        ›
+      </span>
+    </button>
+  );
+
   const bills = !hasPeople ? (
     start
   ) : (
     <>
       <div className="flex items-center justify-between gap-2">
         <TitleEditor title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
-        <ClearButton onClick={clearAll} />
+        <div className="flex shrink-0 items-center gap-1">
+          {peopleButton}
+          <ClearButton onClick={clearAll} />
+        </div>
       </div>
-      {peopleChips(false)}
-      {formOpen ? (
-        billForm(false)
-      ) : (
-        <>
-          <div className="rounded-2xl border border-border bg-card px-4 py-1">
-            {doc.items.map((item, i) => (
+      {peopleOpen ? peopleView : null}
+      <div className={peopleOpen ? "hidden" : "contents"}>
+        {formOpen ? (
+          billForm(false)
+        ) : (
+          <>
+            <div className="rounded-2xl border border-border bg-card px-4 py-1">
+              {doc.items.map((item, i) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => openEdit(item)}
+                  className={cn(
+                    "flex min-h-[52px] w-full items-center justify-between gap-3 text-left",
+                    i > 0 && "border-t border-line",
+                  )}
+                >
+                  <span className="min-w-0 truncate">
+                    <b className="text-[14.5px]">{item.name}</b>
+                    <span className="text-[13px] text-muted"> · {nameOf(item.paidBy)}</span>
+                  </span>
+                  <b className="shrink-0 text-[14.5px] tabular">{money(item.amountMinor)}</b>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between gap-3">
               <button
-                key={item.id}
                 type="button"
-                onClick={() => openEdit(item)}
-                className={cn(
-                  "flex min-h-[52px] w-full items-center justify-between gap-3 text-left",
-                  i > 0 && "border-t border-line",
-                )}
+                onClick={openAdd}
+                className="inline-flex h-[42px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-[14px] font-bold text-ink"
               >
-                <span className="min-w-0 truncate">
-                  <b className="text-[14.5px]">{item.name}</b>
-                  <span className="text-[13px] text-muted"> · {nameOf(item.paidBy)}</span>
-                </span>
-                <b className="shrink-0 text-[14.5px] tabular">{money(item.amountMinor)}</b>
+                <PlusIcon size={16} />
+                {t.home.nextBill}
               </button>
-            ))}
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex h-[42px] items-center gap-1.5 rounded-xl border border-border bg-card px-4 text-[14px] font-bold text-ink"
-            >
-              <PlusIcon size={16} />
-              {t.home.nextBill}
-            </button>
-            <span className="text-[14px] text-muted">
-              {t.home.total} <b className="text-[19px] text-ink tabular">{money(total)}</b>
-            </span>
-          </div>
-        </>
-      )}
+              <span className="text-[14px] text-muted">
+                {t.home.total} <b className="text-[19px] text-ink tabular">{money(total)}</b>
+              </span>
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 
@@ -300,6 +352,16 @@ export function BillsHome() {
   );
 
   const menuRows: Tile[] = [
+    {
+      key: "people",
+      icon: <PeopleIcon size={21} />,
+      label: t.home.people,
+      onClick: () => {
+        setMenuOpen(false);
+        setPeopleFromMenu(true);
+        setPeopleOpen(true);
+      },
+    },
     {
       key: "add",
       icon: <PlusIcon size={21} />,
@@ -351,12 +413,9 @@ export function BillsHome() {
         below={hasBills && !formOpen ? shareButton : undefined}
         phoneTop={
           hasPeople ? (
-            <div className="flex flex-col gap-2 px-1">
-              <div className="flex items-center justify-between gap-2">
-                <TitleEditor small title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
-                {hasBills ? null : <ClearButton onClick={clearAll} />}
-              </div>
-              {peopleChips(true)}
+            <div className="flex items-center justify-between gap-2 px-1">
+              <TitleEditor small title={doc.title} onChange={(title) => update((d) => ({ ...d, title }))} />
+              {hasBills ? null : <ClearButton onClick={clearAll} />}
             </div>
           ) : undefined
         }
@@ -373,14 +432,31 @@ export function BillsHome() {
             </>
           ) : entering ? (
             codeView
-          ) : formOpen ? (
-            <PanelBack.Provider value={fromMenu ? backToMenu : null}>{billForm(true)}</PanelBack.Provider>
+          ) : peopleOpen || formOpen ? (
+            <>
+              {formOpen ? (
+                <div className={peopleOpen ? "hidden" : "contents"}>
+                  <PanelBack.Provider value={fromMenu ? backToMenu : null}>{billForm(true)}</PanelBack.Provider>
+                </div>
+              ) : null}
+              {peopleOpen ? peopleView : null}
+            </>
           ) : undefined
         }
-        onPanelClose={!hasPeople ? undefined : entering ? () => setEntering(false) : canClose ? closeForm : undefined}
-        dim={hasPeople && entering}
+        onPanelClose={
+          !hasPeople
+            ? undefined
+            : entering
+              ? () => setEntering(false)
+              : peopleOpen
+                ? closePeople
+                : canClose
+                  ? closeForm
+                  : undefined
+        }
+        dim={hasPeople && (entering || peopleOpen)}
         fab={
-          !desktop && hasPeople && !formOpen && !entering ? (
+          !desktop && hasPeople && !formOpen && !entering && !peopleOpen ? (
             <>
               {menuOpen ? (
                 <MenuPills
@@ -399,14 +475,6 @@ export function BillsHome() {
         follow={
           formOpen ? `${doc.people.length}:${doc.items.length}:${preview ? JSON.stringify(preview) : ""}` : undefined
         }
-      />
-      <PersonSheet
-        key={`p-${personSheet.key}`}
-        open={personSheet.open}
-        onOpenChange={(open) => setPersonSheet((s) => ({ ...s, open }))}
-        person={doc.people.find((p) => p.id === personSheet.id) ?? null}
-        doc={doc}
-        update={update}
       />
       {sheet}
     </>
@@ -515,9 +583,9 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
           cancelled.current = false;
           setEditing(true);
         }}
-        className="inline-flex h-9 shrink-0 items-center rounded-full border-[1.5px] border-dashed border-dash px-[14px] text-[14px] font-semibold whitespace-nowrap text-green-ink transition-colors hover:border-green"
+        className="inline-flex h-12 w-full shrink-0 items-center justify-center rounded-xl border-[1.5px] border-dashed border-dash text-[15px] font-semibold whitespace-nowrap text-green-ink transition-colors hover:border-green"
       >
-        {t.home.addPerson}
+        + {t.home.addPersonLabel}
       </button>
     );
   }
@@ -527,7 +595,7 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
         e.preventDefault();
         commit();
       }}
-      className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-[14px] shadow-[0_0_0_3px_var(--green-soft)]"
+      className="inline-flex h-12 w-full shrink-0 items-center gap-1 rounded-xl border-[1.5px] border-green bg-card pr-1 pl-[14px] shadow-[0_0_0_3px_var(--green-soft)]"
     >
       <label htmlFor="add-person" className="sr-only">
         {t.home.addPersonLabel}
@@ -553,7 +621,7 @@ function AddPersonChip({ onAdd }: { onAdd: (text: string) => void }) {
         enterKeyHint="done"
         autoCapitalize="words"
         autoComplete="off"
-        className="w-28 bg-transparent text-[14px] font-semibold text-ink outline-none"
+        className="min-w-0 flex-1 bg-transparent text-[16px] font-semibold text-ink outline-none"
       />
       <button
         type="submit"

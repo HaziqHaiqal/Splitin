@@ -136,6 +136,36 @@ test.describe("starting a bill", () => {
     await choose(phone, "Add bill");
     await expect(panel(phone).getByText("Add a bill")).toBeVisible();
   });
+
+  test("People in the menu lists everyone with their bank details, and adds and opens a person", async ({
+    browser,
+  }) => {
+    const phone = await newPhone(browser, openDraft());
+    await phone.goto("/");
+    await choose(phone, "People");
+    const list = panel(phone);
+    await expect(list.getByRole("button", { name: /Haziq/ })).toBeVisible();
+    await expect(list.getByText("No bank details yet").first()).toBeVisible();
+    await list.getByRole("button", { name: "+ Add person" }).click();
+    await list.getByRole("textbox", { name: "Add person" }).fill("Siti");
+    await list.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(list.getByRole("button", { name: /Siti/ })).toBeVisible();
+    await list.getByRole("button", { name: /Najmi/ }).click();
+    await expect(list.getByText("Where should people pay Najmi?")).toBeVisible();
+    await list.getByRole("button", { name: "Maybank" }).click();
+    await expect(list.getByPlaceholder("e.g. 7012 4455 0921")).toBeFocused();
+    await list.getByPlaceholder("e.g. 7012 4455 0921").fill("1234");
+    await list.getByRole("button", { name: "Save" }).click();
+    await expect(list.getByText("Maybank")).toBeVisible();
+    await list.getByRole("button", { name: /Siti/ }).click();
+    await list.getByRole("button", { name: "Remove Siti" }).click();
+    await expect(list.getByRole("button", { name: /Siti/ })).toHaveCount(0);
+    await phone.getByRole("button", { name: "Undo" }).click();
+    await expect(list.getByRole("button", { name: /Siti/ })).toBeVisible();
+    await list.getByRole("button", { name: /Afiq/ }).click();
+    await list.getByRole("button", { name: "Back" }).click();
+    await expect(list.getByRole("button", { name: /Siti/ })).toBeVisible();
+  });
 });
 
 test.describe("sharing", () => {
@@ -232,12 +262,12 @@ test.describe("owner screen", () => {
   const paidLine = (page: Page, from: string) =>
     page.getByRole("button", { name: new RegExp(`${from} PAYS HAZIQ .* PAID`) });
 
-  test("greets the owner: owner tools under Hi Haziq, the rest in the menu", async ({ browser }) => {
+  test("greets the owner: owner tools under People in the menu, with the rest", async ({ browser }) => {
     const owner = await tracking(browser);
     await expect(owner.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
     await openMenu(owner);
     const card = menuCard(owner);
-    for (const label of ["Add bill", "History", "Calculation"])
+    for (const label of ["People", "Add bill", "History", "Calculation"])
       await expect(card.getByRole("button", { name: label, exact: true })).toBeVisible();
     for (const label of ["Bank", "Rename", "Lock", "Owner link", "Edit name"])
       await expect(card.getByRole("button", { name: label, exact: true })).toHaveCount(0);
@@ -260,9 +290,9 @@ test.describe("owner screen", () => {
     await expect(ask.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
     await ask.getByRole("button", { name: "Haziq" }).click();
     await settled(async () => (await serverDoc()).ownerId, "h");
-    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect(text(owner, "Hi Haziq")).toBeVisible();
     await openFresh(owner);
-    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect(text(owner, "Hi Haziq")).toBeVisible();
     await expect(owner.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
   });
 
@@ -275,7 +305,8 @@ test.describe("owner screen", () => {
     await ask.getByRole("button", { name: "Not on the list" }).click();
     await ask.getByPlaceholder("Name").fill("Zara");
     await ask.getByRole("button", { name: "Save", exact: true }).click();
-    await expect(button(owner, "Hi Zara")).toBeVisible();
+    await expect(text(owner, "Hi Zara")).toBeVisible();
+    await settled(async () => (await serverDoc()).people.some((p) => p.name === "Zara"), true);
     const saved = await serverDoc();
     const zara = saved.people.find((p) => p.name === "Zara")!;
     expect(saved.ownerId).toBe(zara.id);
@@ -541,7 +572,7 @@ test("+ Add in the bill form adds a name for the owner too", async ({ browser })
   await expect(form.getByText("Add a bill")).toBeVisible();
   await form.locator("input[maxlength='60']").fill("Water");
   await form.locator("input[inputmode='numeric']").pressSequentially("3000");
-  await form.getByRole("button", { name: "+ Add" }).click();
+  await form.getByRole("button", { name: "+ New person" }).click();
   await form.getByPlaceholder("Name").fill("Siti");
   await form.getByRole("button", { name: "Add", exact: true }).click();
   await submit(form);

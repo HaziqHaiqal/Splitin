@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UploadIcon } from "@/components/icons";
 import { QrImage } from "@/components/pay-qr";
 import { fmt } from "@/i18n";
@@ -108,6 +108,16 @@ export function BankFields({
 }) {
   const { t } = useI18n();
   const { bank, setBank, otherBank, setOtherBank, accountNo, setAccountNo, payQr, setPayQr, bankName } = details;
+  const account = useRef<HTMLInputElement>(null);
+  const picked = useRef(false);
+  useEffect(() => {
+    if (picked.current && bankName && bank !== "other") account.current?.focus();
+    picked.current = false;
+  }, [bank, bankName]);
+  const pick = (next: string) => {
+    picked.current = bank !== next;
+    setBank(bank === next ? null : next);
+  };
 
   const chip = (selected: boolean) =>
     selected
@@ -134,7 +144,7 @@ export function BankFields({
               key={b}
               type="button"
               aria-pressed={bank === b}
-              onClick={() => setBank(bank === b ? null : b)}
+              onClick={() => pick(b)}
               className={chip(bank === b)}
             >
               {b}
@@ -143,7 +153,7 @@ export function BankFields({
           <button
             type="button"
             aria-pressed={bank === "other"}
-            onClick={() => setBank(bank === "other" ? null : "other")}
+            onClick={() => pick("other")}
             className={
               bank === "other"
                 ? chip(true)
@@ -159,6 +169,7 @@ export function BankFields({
             value={otherBank}
             onChange={(e) => setOtherBank(e.target.value)}
             placeholder={t.person.otherPlaceholder}
+            autoFocus={!otherBank}
             maxLength={40}
             aria-label={t.person.otherPlaceholder}
             className="h-12 rounded-xl border border-border bg-card px-[14px] text-[16px] font-semibold text-ink outline-none focus:border-green"
@@ -169,12 +180,13 @@ export function BankFields({
       <label className="flex flex-col gap-1.5">
         <span className="text-[13px] font-semibold text-muted">{t.person.accountLabel}</span>
         <input
+          ref={account}
           type="text"
           inputMode="numeric"
           value={accountNo}
           onChange={(e) => setAccountNo(e.target.value.replace(/[^\d -]/g, ""))}
           disabled={!bankName}
-          placeholder={t.person.accountPlaceholder}
+          placeholder={bankName ? t.person.accountPlaceholder : t.person.pickBankFirst}
           maxLength={40}
           className={
             bankName

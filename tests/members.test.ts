@@ -66,11 +66,11 @@ test.describe("who are you", () => {
 
     await list.getByRole("button", { name: "Najmi" }).click();
     await expect(sheet(page)).toHaveCount(0);
-    await expect(button(page, "Hi Najmi")).toBeVisible();
+    await expect(text(page, "Hi Najmi")).toBeVisible();
     await expect(page.getByText("Not Najmi?")).toHaveCount(0);
 
     await page.reload();
-    await expect(button(page, "Hi Najmi")).toBeVisible();
+    await expect(text(page, "Hi Najmi")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
 
@@ -88,7 +88,7 @@ test.describe("who are you", () => {
     await button(page, "Paid? Tap to pick your name").click();
     await expect(sheet(page).getByRole("button", { name: "Just looking" })).toHaveCount(0);
     await pickMe(page, "Afiq");
-    await expect(button(page, "Hi Afiq")).toBeVisible();
+    await expect(text(page, "Hi Afiq")).toBeVisible();
   });
 
   test("closing the question counts as Just looking", async ({ page }) => {
@@ -104,7 +104,7 @@ test.describe("who are you", () => {
   test("a name not on the list can be added from the question", async ({ page }) => {
     await openFresh(page);
     await addName(page, "Aiman");
-    await expect(button(page, "Hi Aiman")).toBeVisible();
+    await expect(text(page, "Hi Aiman")).toBeVisible();
     await settled(names, ["Haziq", "Najmi", "Afiq", "Aiman"]);
     await expect(page.getByText("Paid? ")).toHaveCount(0);
   });
@@ -127,7 +127,7 @@ test.describe("who are you", () => {
   test("a phone that already has a name is not asked", async ({ browser }) => {
     const phone = await newPhone(browser, { [`splitin:me:${BILL}`]: "n" });
     await openFresh(phone);
-    await expect(button(phone, "Hi Najmi")).toBeVisible();
+    await expect(text(phone, "Hi Najmi")).toBeVisible();
     await phone.waitForTimeout(500);
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toHaveCount(0);
   });
@@ -174,7 +174,7 @@ test.describe("who are you", () => {
     await openAs(page, "Najmi");
     await notMe(page);
     await pickMe(page, "Afiq");
-    await expect(button(page, "Hi Afiq")).toBeVisible();
+    await expect(text(page, "Hi Afiq")).toBeVisible();
   });
 
   test("tapping your name hides it from the list and can leave it", async ({ page }) => {
@@ -185,7 +185,7 @@ test.describe("who are you", () => {
     await expect(list.getByRole("button", { name: "Najmi" })).toHaveCount(0);
     await list.getByRole("button", { name: "Just looking" }).click();
 
-    await expect(button(page, "Hi Najmi")).toHaveCount(0);
+    await expect(text(page, "Hi Najmi")).toHaveCount(0);
     await expect(button(page, "Paid? Tap to pick your name")).toBeVisible();
     expect(await page.evaluate((id) => localStorage.getItem(`splitin:me:${id}`), BILL)).toBeNull();
     await openMenu(page);
@@ -200,7 +200,7 @@ test.describe("who are you", () => {
 
   test("the name sits above the receipt, and the rest waits in the menu", async ({ page }) => {
     await openAs(page, "Najmi");
-    const name = (await button(page, "Hi Najmi").boundingBox())!;
+    const name = (await text(page, "Hi Najmi").boundingBox())!;
     const paper = (await text(page, "HOTEL").boundingBox())!;
     expect(name.y).toBeLessThan(paper.y);
     await expect(button(page, "Add bill")).toHaveCount(0);
@@ -220,7 +220,7 @@ test.describe("who are you", () => {
 
   test("the receipt has no Join or Delete words on bills", async ({ page }) => {
     await openAs(page, "Najmi");
-    await expect(button(page, "Hi Najmi")).toBeVisible();
+    await expect(text(page, "Hi Najmi")).toBeVisible();
     await expect(button(page, /(Join|Change|Delete) Hotel/)).toHaveCount(0);
   });
 
@@ -307,7 +307,7 @@ test.describe("adding your own name", () => {
     await sheet(page).getByRole("button", { name: "Save" }).click();
     await expect(text(page, "Your name is now Najmi R")).toBeVisible();
     await settled(names, ["Haziq", "Najmi R", "Afiq"]);
-    await expect(button(page, "Hi Najmi R")).toBeVisible();
+    await expect(text(page, "Hi Najmi R")).toBeVisible();
 
     await button(page, "Undo").click();
     await settled(names, ["Haziq", "Najmi", "Afiq"]);
@@ -342,7 +342,7 @@ test.describe("adding your own name", () => {
     await expect(phone.getByRole("heading", { name: "Who are you?" })).toBeVisible();
     await expect(button(phone, /^Hi /)).toHaveCount(0);
     await pickMe(phone, "Najmi");
-    await expect(button(phone, "Hi Najmi")).toBeVisible();
+    await expect(text(phone, "Hi Najmi")).toBeVisible();
   });
 
   test("two people adding the same name at once: only one gets it", async ({ browser }) => {
@@ -751,7 +751,7 @@ test.describe("adding a bill", () => {
   test("+ Add puts a new name on the bill, saved only with the bill", async ({ page }) => {
     await openBill(page);
     const form = await startAdding(page, "Snacks", "3000", "Najmi");
-    await form.getByRole("button", { name: "+ Add" }).click();
+    await form.getByRole("button", { name: "+ New person" }).click();
     await form.getByPlaceholder("Name").fill("Siti");
     await form.getByRole("button", { name: "Add", exact: true }).click();
     await expect(form.getByRole("button", { name: "Siti" }).first()).toBeVisible();
@@ -767,7 +767,7 @@ test.describe("adding a bill", () => {
   test("+ Add cannot add a duplicate name", async ({ page }) => {
     await openBill(page);
     const form = await startAdding(page, "Snacks", "3000", "Najmi");
-    await form.getByRole("button", { name: "+ Add" }).click();
+    await form.getByRole("button", { name: "+ New person" }).click();
     await form.getByPlaceholder("Name").fill("afiq");
     await form.getByRole("button", { name: "Add", exact: true }).click();
     await expect(text(page, "afiq is already in the list")).toBeVisible();
@@ -1447,7 +1447,7 @@ test.describe("telling the group", () => {
       people: doc.people.map((p) => (p.id === "n" ? { ...p, name: "Najmi Ali" } : p)),
     }));
     await openBill(me);
-    await expect(button(me, "Hi Najmi Ali")).toBeVisible();
+    await expect(text(me, "Hi Najmi Ali")).toBeVisible();
     await expect(me.getByText(/since your last visit/)).toHaveCount(0);
   });
 

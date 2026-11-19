@@ -2,32 +2,26 @@
 
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
-import { Sheet } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { withoutPerson, type BillDoc, type Person } from "@/lib/bill";
+import { cn } from "@/lib/utils";
 import { BankFields, useBankDetails } from "./bank-fields";
 
-export function PersonSheet({
-  open,
-  onOpenChange,
-  person,
-  doc,
-  update,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  person: Person | null;
+type FormProps = {
+  person: Person;
   doc: BillDoc;
   update: (fn: (doc: BillDoc) => BillDoc) => void;
-}) {
+  onDone: () => void;
+  pinned?: boolean;
+};
+
+export function PersonForm({ person, doc, update, onDone, pinned = false }: FormProps) {
   const { t } = useI18n();
   const toast = useToast();
-  const [name, setName] = useState(person?.name ?? "");
+  const [name, setName] = useState(person.name);
   const details = useBankDetails(person);
-
-  if (!person) return null;
   const displayName = name.trim() || person.name;
   const { bankName, accountNo, payQr } = details;
 
@@ -48,7 +42,7 @@ export function PersonSheet({
           : p,
       ),
     }));
-    onOpenChange(false);
+    onDone();
   };
 
   const remove = () => {
@@ -56,35 +50,46 @@ export function PersonSheet({
       toast({ message: fmt(t.person.paidABill, { name: person.name }) });
       return;
     }
+    const previous = doc;
     update((d) => withoutPerson(d, person.id));
-    onOpenChange(false);
+    onDone();
+    toast({
+      message: fmt(t.person.removed, { name: person.name }),
+      action: { label: t.common.undo, onClick: () => update(() => previous) },
+    });
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={<span className="sr-only">{person.name}</span>}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-        className="-mt-1.5 flex flex-col gap-4"
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        save();
+      }}
+      className={cn("flex flex-col gap-4", pinned ? "mt-1.5" : "-mt-1.5")}
+    >
+      <div className="flex items-center gap-3">
+        <Avatar name={displayName} color={person.color} size={48} />
+        <label className="flex-1">
+          <span className="sr-only">{t.person.name}</span>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={30}
+            className="h-12 w-full rounded-xl border border-border bg-card px-[14px] text-[18px] font-bold text-ink outline-none focus:border-green"
+          />
+        </label>
+      </div>
+
+      <BankFields name={displayName} details={details} />
+
+      <div
+        className={cn(
+          "flex flex-col gap-1",
+          pinned &&
+            "sticky bottom-0 -mx-4 -mb-[max(16px,env(safe-area-inset-bottom))] border-t border-line bg-card px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]",
+        )}
       >
-        <div className="flex items-center gap-3">
-          <Avatar name={displayName} color={person.color} size={48} />
-          <label className="flex-1">
-            <span className="sr-only">{t.person.name}</span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={30}
-              className="h-12 w-full rounded-xl border border-border bg-card px-[14px] text-[18px] font-bold text-ink outline-none focus:border-green"
-            />
-          </label>
-        </div>
-
-        <BankFields name={displayName} details={details} />
-
         <button
           type="submit"
           disabled={!name.trim()}
@@ -92,10 +97,10 @@ export function PersonSheet({
         >
           {t.common.save}
         </button>
-        <button type="button" onClick={remove} className="-mt-1.5 h-10 text-[15px] font-bold text-owe">
+        <button type="button" onClick={remove} className="h-10 text-[15px] font-bold text-owe">
           {fmt(t.person.remove, { name: person.name })}
         </button>
-      </form>
-    </Sheet>
+      </div>
+    </form>
   );
 }

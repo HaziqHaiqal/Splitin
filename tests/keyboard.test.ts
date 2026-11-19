@@ -100,7 +100,7 @@ test("every form input is at least 16px, so iPhone does not zoom", async ({ page
   await pickMe(page, "Najmi");
   const form = panel(page);
   await expect(form.getByText("Add what you paid")).toBeVisible();
-  await form.getByRole("button", { name: "+ Add" }).click();
+  await form.getByRole("button", { name: "+ New person" }).click();
   await form.getByPlaceholder("Name").focus();
   const sizes = await form
     .locator("input")

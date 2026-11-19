@@ -278,7 +278,7 @@ test.describe("entering a code", () => {
     await enter(page, ` ${CODE.toLowerCase().slice(0, 4)}-${CODE.toLowerCase().slice(4)} `);
     await expect(page).toHaveURL(new RegExp(`/bill/${CODE}$`));
     await pickMe(page, "Najmi");
-    await expect(button(page, "Hi Najmi")).toBeVisible();
+    await expect(text(page, "Hi Najmi")).toBeVisible();
   });
 
   test("a wrong code stays and says so, then fixing the last letter opens it", async ({ page }) => {
