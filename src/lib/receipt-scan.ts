@@ -11,6 +11,7 @@ export type Scan = {
   serviceBp?: number;
   taxBp?: number;
   includedTaxBp?: number;
+  taxLabel?: string;
   offMinor?: number;
   totalMinor: number;
 };
@@ -199,6 +200,18 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
     taxLine &&
     (taxLine.inclusive || /incl/i.test(taxLine.label) || (total > 0 && Math.abs(total - linesMinor + billOff) <= 10)),
   );
+  const named = [...(r.taxLines ?? []), ...printedTax].find(
+    (line) => /tax|sst|gst|cukai/i.test(line.label) && line.amount > 0,
+  )?.label;
+  const taxLabel = (named ?? "")
+    .replace(/@?\s*\d+(?:\.\d+)?\s*%/g, " ")
+    .replace(/\d+(?:[.,]\d+)?/g, " ")
+    .replace(/[([]\s*[)\]]/g, "")
+    .replace(/\s+([)\]])/g, "$1")
+    .replace(/[\s:@-]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
   const tax = toMinor(r.tax) || (taxLine && !lineInside ? toMinor(taxLine.amount) : 0);
   const taxRate = r.taxRate ?? (taxLine && !lineInside ? taxLine.rate : undefined);
   const includedTax = toMinor(r.includedTax) || (taxLine && lineInside ? toMinor(taxLine.amount) : 0);
@@ -264,6 +277,7 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
       subtotalMinor: before,
       ...(serviceBp ? { serviceBp } : {}),
       ...(taxBp || inside ? { taxBp: taxBp || includedTaxBp } : {}),
+      ...((taxBp || inside) && taxLabel ? { taxLabel } : {}),
       ...(includedTaxBp && !inside ? { includedTaxBp } : {}),
       ...(offMinor > 0 ? { offMinor } : {}),
       totalMinor,

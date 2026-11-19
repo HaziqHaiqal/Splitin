@@ -92,7 +92,7 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await expect(form.locator("button[type=submit]")).toHaveText("Pick who paid");
   await paidBy(form, "Najmi");
   await expect(payer(form, "Najmi")).toHaveAttribute("aria-pressed", "true");
-  await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Total paid" })).toHaveValue("46.65");
   await expect(form.getByRole("heading", { name: "Who had what?" })).toBeVisible();
   await expect(item(form, "Teh ais")).toHaveAccessibleName("Teh ais Not picked yet 6.00");
   await expect(form.locator("button[type=submit]")).toHaveText("Pick who had 3 more");
@@ -236,12 +236,11 @@ test("paying less than the receipt, like with a ShopeePay deal, shares the savin
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await form.getByRole("button", { name: /^Total paid/ }).click();
   const total = form.getByRole("textbox", { name: "Total paid" });
   await total.fill("");
   await total.pressSequentially("3500");
-  await form.getByRole("button", { name: "Done" }).click();
-  await expect(form.getByRole("button", { name: /^Total paid RM 35\.00/ })).toBeVisible();
+  await total.press("Enter");
+  await expect(form.getByRole("textbox", { name: "Total paid" })).toHaveValue("35.00");
   await expect(form.getByText("RM 11.65 off at payment · everyone pays 25% less")).toBeVisible();
   await everyoneHad(form, ...ALL);
   await paidBy(form, "Najmi");
@@ -283,7 +282,7 @@ test("fixing a price keeps the total paid", async ({ page }) => {
   await price.pressSequentially("700");
   await price.press("Enter");
   await expect(form.getByRole("button", { name: "Price of Teh ais" })).toHaveText(/7\.00/);
-  await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Total paid" })).toHaveValue("46.65");
   await everyoneHad(form, ...ALL);
   await paidBy(form, "Najmi");
   await submit(form);
@@ -354,7 +353,7 @@ test("a receipt with SST already in its prices says so and adds nothing", async 
   const inclusive = { ...scanned, serviceBp: undefined, taxBp: undefined, includedTaxBp: 600, totalMinor: 4000 };
   const form = await scanReceipt(page, { ok: true, data: inclusive });
   await expect(form.getByText("Scanned · 3 items · SST 6% is already in the prices")).toBeVisible();
-  await expect(form.getByRole("button", { name: /^Total paid RM 40\.00/ })).toBeVisible();
+  await expect(form.getByRole("textbox", { name: "Total paid" })).toHaveValue("40.00");
   await tapWho(form, "Roti canai", "Afiq");
   await everyoneHad(form, "2 × Nasi lemak", "Teh ais");
   await paidBy(form, "Najmi");

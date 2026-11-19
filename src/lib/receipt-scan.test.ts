@@ -112,7 +112,12 @@ describe("toScan", () => {
       ],
       total: 98.5,
     });
-    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
+    expect(result.ok && result.scan).toMatchObject({
+      subtotalMinor: 9292,
+      taxBp: 600,
+      totalMinor: 9850,
+      taxLabel: "Inclusive Service Tax",
+    });
   });
 
   it("adds a tax line on top when the total includes it", () => {

@@ -87,6 +87,8 @@ export const en = {
     notPicked: "Not picked yet",
     chargesSplit: "Split by what each person had",
     items: "Items",
+    withTax: "{amount} with tax",
+    withCharges: "{amount} with charges",
     change: "Change",
     splitEveryone: "Split equally between everyone",
     splitEachLine: "Split equally · {amount} each",
