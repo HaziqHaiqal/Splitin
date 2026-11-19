@@ -96,6 +96,25 @@ describe("toScan", () => {
     expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
   });
 
+  it("finds SST inside the prices in the printed footer when nothing else was filled", () => {
+    const result = toScan({
+      ...receipt,
+      lines: [{ name: "Briyani set", amount: 98.5 }],
+      subtotal: 98.5,
+      serviceRate: null,
+      service: null,
+      taxRate: null,
+      tax: null,
+      footer: [
+        { text: "Net Total 98.50", numbers: [98.5] },
+        { text: "Tax Summary Amount Tax", numbers: [] },
+        { text: "Inclusive Service Tax@6% 92.92 5.58", numbers: [6, 92.92, 5.58] },
+      ],
+      total: 98.5,
+    });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
+  });
+
   it("adds a tax line on top when the total includes it", () => {
     const result = toScan({
       ...receipt,
