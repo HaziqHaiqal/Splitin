@@ -31,7 +31,28 @@ async function ask(key: string, photo: Blob): Promise<Read> {
   const text = replyText(await response.json());
   if (!text) return { ok: false, error: "unreadable" };
   try {
-    return toScan(JSON.parse(text));
+    const read = JSON.parse(text);
+    const lines: { amount?: unknown }[] = Array.isArray(read?.lines) ? read.lines : [];
+    const fields = [
+      "subtotal",
+      "serviceRate",
+      "service",
+      "taxRate",
+      "tax",
+      "includedTaxRate",
+      "includedTax",
+      "taxLines",
+    ];
+    console.info(
+      "[splitin] scan read:",
+      JSON.stringify({
+        lines: lines.length,
+        footer: Array.isArray(read?.footer) ? read.footer.length : 0,
+        sum: lines.reduce((sum, line) => sum + (typeof line?.amount === "number" ? line.amount : 0), 0),
+        ...Object.fromEntries([...fields, "discount", "total"].map((key) => [key, read?.[key] ?? null])),
+      }),
+    );
+    return toScan(read);
   } catch {
     return { ok: false, error: "unreadable" };
   }

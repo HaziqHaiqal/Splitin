@@ -57,9 +57,17 @@ async function tapWho(form: Locator, line: string, name: string) {
   await who(form, line).getByRole("button", { name, exact: true }).click();
 }
 
+const payer = (form: Locator, name: string) =>
+  form.getByRole("group", { name: "Who paid?" }).getByRole("button", { name, exact: true });
+
+const ALL = scanned.lines.map((line) => line.name);
+
+async function everyoneHad(form: Locator, ...lines: string[]) {
+  for (const line of lines) for (const name of ["Haziq", "Najmi", "Afiq"]) await tapWho(form, line, name);
+}
+
 async function paidBy(form: Locator, name: string) {
-  await form.getByRole("button", { name: /^Who paid\?/ }).click();
-  await form.getByRole("group", { name: "Who paid?" }).getByRole("button", { name, exact: true }).click();
+  await payer(form, name).click();
 }
 
 const added = async () => {
@@ -73,19 +81,25 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await expect(form.getByText("Scanned · 3 items · Service charge 10% RM 4.00 · SST 6% RM 2.64")).toBeVisible();
+  await expect(form.getByText("Scanned · 3 items", { exact: true })).toBeVisible();
+  await expect(form.getByText("Items", { exact: true })).toBeVisible();
+  await expect(form.getByText("Service charge 10%", { exact: true })).toBeVisible();
+  await expect(form.getByText("SST 6%", { exact: true })).toBeVisible();
+  await expect(form.getByText("RM 2.64", { exact: true })).toBeVisible();
+  await expect(form.getByText("Split by what each person had")).toBeVisible();
   await expect(form.getByText("Scan a receipt")).toHaveCount(0);
-  await expect(form.getByRole("button", { name: "What for: Restoran Ali" })).toBeVisible();
-  await expect(form.getByRole("button", { name: /^Who paid\?/ })).toBeVisible();
-  await expect(form.locator("button[type=submit]")).toBeDisabled();
+  await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
+  await expect(form.locator("button[type=submit]")).toHaveText("Pick who paid");
   await paidBy(form, "Najmi");
-  await expect(form.getByRole("button", { name: /^Najmi paid/ })).toBeVisible();
+  await expect(payer(form, "Najmi")).toHaveAttribute("aria-pressed", "true");
   await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
   await expect(form.getByRole("heading", { name: "Who had what?" })).toBeVisible();
-  await expect(who(form, "2 × Nasi lemak").getByRole("button", { name: "Everyone" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(item(form, "Teh ais")).toHaveAccessibleName("Teh ais Not picked yet 6.00");
+  await expect(form.locator("button[type=submit]")).toHaveText("Pick who had 3 more");
+  await form.locator("button[type=submit]").click();
+  await expect(who(form, "2 × Nasi lemak").getByRole("button", { name: "Everyone" })).toHaveCount(0);
+  await expect(who(form, "2 × Nasi lemak").getByRole("button", { pressed: true })).toHaveCount(0);
+  await everyoneHad(form, ...ALL);
   await expect(item(form, "Teh ais")).toHaveAccessibleName("Teh ais Everyone 6.00");
   await expect(form.getByRole("textbox", { name: "Amount (RM)" })).toHaveCount(0);
   await expect(form.getByRole("checkbox", { name: "Service charge" })).toHaveCount(0);
@@ -125,6 +139,7 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   await tapWho(form, "Teh ais", "Najmi");
   await expect(who(form, "2 × Nasi lemak")).toHaveCount(0);
   await expect(item(form, "2 × Nasi lemak")).toHaveAccessibleName("2 × Nasi lemak Haziq 24.00");
+  await everyoneHad(form, "Roti canai");
   await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, {
@@ -140,6 +155,7 @@ test("a printed scan opens again as the same list, with its photo, and can be ch
   const form = await scanReceipt(page, { ok: true, data: scanned });
   await tapWho(form, "2 × Nasi lemak", "Haziq");
   await tapWho(form, "Teh ais", "Najmi");
+  await everyoneHad(form, "Roti canai");
   await paidBy(form, "Najmi");
   await submit(form);
   await settled(async () => (await added())?.overrides, { h: 2734, n: 933, a: 333 });
@@ -151,9 +167,13 @@ test("a printed scan opens again as the same list, with its photo, and can be ch
     .click();
   const again = panel(page);
   await expect(again.getByText("Scanned · 3 items")).toBeVisible();
+  await expect(again.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
+  await expect(payer(again, "Najmi")).toHaveAttribute("aria-pressed", "true");
   await expect(item(again, "2 × Nasi lemak")).toHaveAccessibleName("2 × Nasi lemak Haziq 24.00");
+  await expect(item(again, "Roti canai")).toHaveAccessibleName("Roti canai Everyone 10.00");
   await expect(again.getByRole("button", { name: "See the receipt photo" })).toBeEnabled();
-  await tapWho(again, "Roti canai", "Afiq");
+  await tapWho(again, "Roti canai", "Haziq");
+  await tapWho(again, "Roti canai", "Najmi");
   await again.getByRole("button", { name: "Save", exact: true }).click();
   await settled(async () => (await added())?.overrides, { h: 2400, n: 600, a: 1000 });
 });
@@ -182,7 +202,7 @@ test("the arrows on the line move between items, and tapping the open item close
   await expect(prev).toBeDisabled();
 });
 
-test("more than one person can have an item, and Everyone puts it back", async ({ page }) => {
+test("more than one person can have an item, and tapping a name again takes them off", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
@@ -191,15 +211,12 @@ test("more than one person can have an item, and Everyone puts it back", async (
   await expect(who(form, "Teh ais").getByRole("button", { pressed: true })).toHaveCount(2);
   await item(form, "Teh ais").click();
   await expect(item(form, "Teh ais")).toHaveAccessibleName("Teh ais Haziq and Najmi 6.00");
-  await tapWho(form, "Teh ais", "Everyone");
-  await expect(who(form, "Teh ais").getByRole("button", { pressed: true })).toHaveText("Everyone");
+  await tapWho(form, "Teh ais", "Najmi");
+  await expect(who(form, "Teh ais").getByRole("button", { pressed: true })).toHaveText(/Haziq/);
+  await everyoneHad(form, "2 × Nasi lemak", "Roti canai");
   await paidBy(form, "Najmi");
   await submit(form);
-  await settled(added, {
-    amountMinor: 4665,
-    charges: { subtotalMinor: 4000, serviceBp: 1000, taxBp: 600 },
-    overrides: {},
-  });
+  await settled(async () => (await added())?.amountMinor, 4665);
 });
 
 test("someone new can be added right on an item", async ({ page }) => {
@@ -226,20 +243,33 @@ test("paying less than the receipt, like with a ShopeePay deal, shares the savin
   await form.getByRole("button", { name: "Done" }).click();
   await expect(form.getByRole("button", { name: /^Total paid RM 35\.00/ })).toBeVisible();
   await expect(form.getByText("RM 11.65 off at payment · everyone pays 25% less")).toBeVisible();
+  await everyoneHad(form, ...ALL);
   await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, { amountMinor: 3500, charges: { subtotalMinor: 4000 }, overrides: {} });
 });
 
-test("who paid is picked from a list", async ({ page }) => {
+test("Print it points to what's missing: what it's for, then who paid", async ({ page }) => {
   await seed();
   await openBill(page);
-  const form = await scanReceipt(page, { ok: true, data: scanned });
+  const form = await scanReceipt(page, { ok: true, data: { ...scanned, shop: "" } });
+  const name = form.getByRole("textbox", { name: "What for" });
+  const print = form.locator("button[type=submit]");
+  await expect(print).toHaveText("Add what it's for");
+  await print.click();
+  await expect(name).toBeFocused();
+  await name.fill("Lunch");
+  await expect(print).toHaveText("Pick who paid");
+  await print.click();
   await paidBy(form, "Najmi");
-  await form.getByRole("button", { name: /^Najmi paid/ }).click();
-  await form.getByRole("group", { name: "Who paid?" }).getByRole("button", { name: "Afiq" }).click();
-  await expect(form.getByRole("button", { name: /^Afiq paid/ })).toBeVisible();
-  await expect(form.getByRole("group", { name: "Who paid?" })).toHaveCount(0);
+  await paidBy(form, "Afiq");
+  await expect(payer(form, "Afiq")).toHaveAttribute("aria-pressed", "true");
+  await expect(payer(form, "Najmi")).toHaveAttribute("aria-pressed", "false");
+  await expect(print).toHaveText("Pick who had 3 more");
+  await print.click();
+  await expect(who(form, "2 × Nasi lemak")).toBeVisible();
+  await everyoneHad(form, ...ALL);
+  await expect(print).toHaveText(/^Print it/);
 });
 
 test("fixing a price keeps the total paid", async ({ page }) => {
@@ -254,6 +284,7 @@ test("fixing a price keeps the total paid", async ({ page }) => {
   await price.press("Enter");
   await expect(form.getByRole("button", { name: "Price of Teh ais" })).toHaveText(/7\.00/);
   await expect(form.getByRole("button", { name: /^Total paid RM 46\.65/ })).toBeVisible();
+  await everyoneHad(form, ...ALL);
   await paidBy(form, "Najmi");
   await submit(form);
   await settled(added, { amountMinor: 4665, charges: { subtotalMinor: 4100 }, overrides: {} });
@@ -325,6 +356,7 @@ test("a receipt with SST already in its prices says so and adds nothing", async 
   await expect(form.getByText("Scanned · 3 items · SST 6% is already in the prices")).toBeVisible();
   await expect(form.getByRole("button", { name: /^Total paid RM 40\.00/ })).toBeVisible();
   await tapWho(form, "Roti canai", "Afiq");
+  await everyoneHad(form, "2 × Nasi lemak", "Teh ais");
   await paidBy(form, "Najmi");
   await submit(form);
   await settled(async () => (await added())?.overrides, { h: 1000, n: 1000, a: 2000 });
