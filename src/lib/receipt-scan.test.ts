@@ -90,6 +90,22 @@ describe("toScan", () => {
     ]);
   });
 
+  it("adds SST printed on top when the total read is the amount before it", () => {
+    const result = toScan({
+      ...receipt,
+      lines: [{ name: "Nasi kandar", amount: 98.5 }],
+      subtotal: 98.5,
+      serviceRate: null,
+      service: null,
+      taxRate: 6,
+      tax: 5.91,
+      total: 98.5,
+    });
+    expect(result.ok && [result.scan.subtotalMinor, result.scan.taxBp, result.scan.totalMinor]).toEqual([
+      9850, 600, 10441,
+    ]);
+  });
+
   it("keeps the rates when the total doesn't match any of them", () => {
     const result = toScan({ ...receipt, total: 45 });
     expect(result.ok && [result.scan.serviceBp, result.scan.taxBp, result.scan.totalMinor]).toEqual([1000, 600, 4500]);
