@@ -87,6 +87,7 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await expect(form.getByText("SST 6%", { exact: true })).toBeVisible();
   await expect(form.getByText("RM 2.64", { exact: true })).toBeVisible();
   await expect(form.getByText("Split by what each person had")).toBeVisible();
+  await expect(form.getByText("Split equally between who had something")).toBeVisible();
   await expect(form.getByText("Scan a receipt")).toHaveCount(0);
   await expect(form.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
   await expect(form.locator("button[type=submit]")).toHaveText("Pick who paid");
@@ -370,13 +371,14 @@ test("on the home page, each person's part from the receipt is what prints", asy
   await tapWho(form, "2 × Nasi lemak", "Haziq");
   await tapWho(form, "Teh ais", "Najmi");
   await tapWho(form, "Roti canai", "Afiq");
+  await expect(form.getByText("Split equally · RM 0.88 each")).toBeVisible();
   await form.getByRole("button", { name: "See the receipt photo" }).click();
   await expect(page.getByRole("dialog").getByRole("img", { name: "Receipt" })).toBeVisible();
   await page.keyboard.press("Escape");
   await form.getByRole("textbox", { name: "What for" }).fill("Makan");
   await paidBy(form, "Haziq");
   await form.getByRole("button", { name: /Print it/ }).click();
-  await expect(text(page, "HAZIQ 27.99")).toBeVisible();
+  await expect(text(page, "HAZIQ 27.29")).toBeVisible();
   const draft = await page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));
   expect(draft.doc.items[0].overrides).toEqual({ h: 2400, n: 600, a: 1000 });
 });

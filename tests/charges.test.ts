@@ -68,7 +68,7 @@ test("each person pays what they had plus their part of the charges", async ({ p
   await seed({ ...trip, items: [dinner] });
   await openAs(page, "Najmi");
   await expect(text(page, "INCL. SERVICE 10% · SST 6%")).toBeVisible();
-  await expect(text(page, "HAZIQ 46.64 · OTHERS 34.98 EACH")).toBeVisible();
+  await expect(text(page, "HAZIQ 46.20 · OTHERS 35.20 EACH")).toBeVisible();
   await expect(text(page, "116.60")).toBeVisible();
 });
 
@@ -83,7 +83,7 @@ test("your part is typed before charges and shown with them", async ({ page }) =
   await expect(box).toHaveValue("33.33");
   await box.fill("");
   await box.pressSequentially("2000");
-  await expect(text(page, "Before service charge and SST. With them: RM 23.32.")).toBeVisible();
+  await expect(text(page, "Before service charge and SST. With them: RM 24.20.")).toBeVisible();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await settled(async () => (await serverItem("dinner"))?.overrides, { n: 2000 });
 });

@@ -530,16 +530,18 @@ export function BillForm({
       : t.bill.splitEveryone;
 
   const onTop = asPrinted && kept ? addCharges(kept.subtotalMinor, kept) : null;
+  const sharers = new Set(lines?.flatMap((line) => line.who) ?? []).size;
+  const taxNote = (tax: number) =>
+    sharers > 1 ? fmt(t.bill.taxEach, { amount: money(Math.round(tax / sharers)) }) : t.bill.taxEqual;
   const chargeRows = [
-    { label: t.bill.service, bp: kept?.serviceBp, amount: onTop?.service ?? 0 },
-    { label: receipt?.taxLabel || t.bill.sst, bp: kept?.taxBp, amount: onTop?.tax ?? 0 },
+    { label: t.bill.service, bp: kept?.serviceBp, amount: onTop?.service ?? 0, note: t.bill.chargesSplit },
+    {
+      label: receipt?.taxLabel || t.bill.sst,
+      bp: kept?.taxBp,
+      amount: onTop?.tax ?? 0,
+      note: taxNote(onTop?.tax ?? 0),
+    },
   ].filter((c) => c.bp && c.amount > 0);
-  const taxedNote = (minor: number) =>
-    chargeRows.length > 0 && kept ? (
-      <span aria-hidden className="text-[11.5px] leading-tight font-semibold text-green-ink">
-        {fmt(kept.serviceBp ? t.bill.withCharges : t.bill.withTax, { amount: plain(addCharges(minor, kept).total) })}
-      </span>
-    ) : null;
   const scannedLine = [
     lines?.length === 1 ? t.bill.scannedOne : fmt(t.bill.scannedItems, { count: lines?.length ?? 0 }),
     receipt?.offMinor ? fmt(t.bill.discountOff, { amount: money(receipt.offMinor) }) : "",
@@ -669,11 +671,14 @@ export function BillForm({
                     <span className="tabular">{money(amountMinor)}</span>
                   </div>
                   {chargeRows.map((c) => (
-                    <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
-                      <span>
-                        {c.label} {rateText(c.bp ?? 0)}%
-                      </span>
-                      <span className="tabular">{money(c.amount)}</span>
+                    <div key={c.label} className="flex flex-col">
+                      <div className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                        <span>
+                          {c.label} {rateText(c.bp ?? 0)}%
+                        </span>
+                        <span className="tabular">{money(c.amount)}</span>
+                      </div>
+                      <span className="text-[12.5px] text-muted">{c.note}</span>
                     </div>
                   ))}
                 </>
@@ -704,7 +709,6 @@ export function BillForm({
                   />
                 </span>
               </label>
-              {chargeRows.length > 0 ? <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span> : null}
             </div>
             {kept && paidMinor > 0 && paidMinor < kept.totalMinor ? (
               <span className="animate-pop self-start rounded-full bg-green-soft px-2.5 py-1 text-[12.5px] font-bold text-green-ink">
@@ -797,12 +801,9 @@ export function BillForm({
                             {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(line.offMinor) })}` : null}
                           </small>
                         </span>
-                        <span className="flex flex-col items-end text-right text-[14px] font-bold tabular">
-                          <span>
-                            {was}
-                            {plain(line.amountMinor)}
-                          </span>
-                          {taxedNote(line.amountMinor)}
+                        <span className="text-right text-[14px] font-bold tabular">
+                          {was}
+                          {plain(line.amountMinor)}
                         </span>
                       </button>
                     </li>
@@ -860,16 +861,13 @@ export function BillForm({
                           type="button"
                           aria-label={fmt(t.bill.priceOf, { name: line.name })}
                           onClick={() => setFixing(toInputValue(line.amountMinor, "MYR"))}
-                          className="flex min-h-[34px] shrink-0 flex-col items-end justify-center text-[14px] font-bold tabular"
+                          className="flex h-[34px] shrink-0 items-center gap-1 text-[14px] font-bold tabular"
                         >
-                          <span className="flex items-center gap-1">
-                            {was}
-                            {plain(line.amountMinor)}
-                            <span aria-hidden className="text-[12px] text-muted">
-                              ✎
-                            </span>
+                          {was}
+                          {plain(line.amountMinor)}
+                          <span aria-hidden className="text-[12px] text-muted">
+                            ✎
                           </span>
-                          {taxedNote(line.amountMinor)}
                         </button>
                       )}
                     </div>

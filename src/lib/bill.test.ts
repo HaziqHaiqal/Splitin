@@ -384,9 +384,19 @@ describe("service charge and SST", () => {
     charges: { subtotalMinor: 10000, serviceBp: 1000, taxBp: 600 },
   };
 
-  it("adds each person's part of the charges to what they had", () => {
+  it("adds service by what each person had and splits SST equally", () => {
     expect(baseShares(dinner)).toEqual({ h: 4000, n: 3000, a: 3000 });
-    expect(itemShares(dinner)).toEqual({ h: 4664, n: 3498, a: 3498 });
+    expect(itemShares(dinner)).toEqual({ h: 4620, n: 3520, a: 3520 });
+  });
+
+  it("splits SST already in a receipt's prices equally between who had something", () => {
+    const meal: Item = {
+      ...dinner,
+      amountMinor: 9850,
+      overrides: { h: 802, n: 5660, a: 2830 },
+      charges: { subtotalMinor: 9292, taxBp: 600 },
+    };
+    expect(itemShares(meal)).toEqual({ h: 988, n: 5846, a: 3016 });
   });
 
   it("keeps an equal split within a sen", () => {
@@ -401,8 +411,8 @@ describe("service charge and SST", () => {
   });
 
   it("works out a joining person's share with charges, from a price before them", () => {
-    expect(joinShare(dinner, "i")).toBe(2332);
-    expect(joinShare(dinner, "i", 3000)).toBe(3498);
+    expect(joinShare(dinner, "i")).toBe(2365);
+    expect(joinShare(dinner, "i", 3000)).toBe(3465);
   });
 
   it("checks typed amounts against the price before charges", () => {
@@ -419,7 +429,7 @@ describe("service charge and SST", () => {
     const words = { each: "EACH", about: "ABOUT", others: "OTHERS", not: "NOT" };
     const plain = (minor: number) => formatMoney(minor, "MYR");
     expect(itemSplitText(dinner, people, plain, words)).toBe(
-      `HAZIQ ${plain(4664)} · OTHERS ${plain(3498)} EACH · NOT IMANUL`,
+      `HAZIQ ${plain(4620)} · OTHERS ${plain(3520)} EACH · NOT IMANUL`,
     );
   });
 
@@ -427,8 +437,8 @@ describe("service charge and SST", () => {
     const summary = summarize({ ...houseBills, items: [dinner] });
     expect(summary.total).toBe(11660);
     expect(summary.remaining).toEqual([
-      { from: "n", to: "h", amount: 3498 },
-      { from: "a", to: "h", amount: 3498 },
+      { from: "n", to: "h", amount: 3520 },
+      { from: "a", to: "h", amount: 3520 },
     ]);
   });
 });
