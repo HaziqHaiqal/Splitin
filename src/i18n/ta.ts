@@ -88,6 +88,7 @@ export const ta: Dictionary = {
     needWho: "இன்னும் {count} பொருளுக்கு யார் என்று தேர்ந்தெடுக்கவும்",
     notPicked: "இன்னும் தேர்ந்தெடுக்கவில்லை",
     chargesSplit: "ஒவ்வொருவரும் எடுத்ததன் விகிதத்தில் பிரிக்கப்படும்",
+    items: "பொருட்கள்",
     change: "மாற்று",
     splitEveryone: "அனைவருக்கும் சமமாகப் பிரி",
     splitEachLine: "சமமாகப் பிரி · ஒருவருக்கு {amount}",
