@@ -33,7 +33,16 @@ async function ask(key: string, photo: Blob): Promise<Read> {
   try {
     const read = JSON.parse(text);
     const lines: { amount?: unknown }[] = Array.isArray(read?.lines) ? read.lines : [];
-    const fields = ["subtotal", "serviceRate", "service", "taxRate", "tax", "includedTaxRate", "includedTax"];
+    const fields = [
+      "subtotal",
+      "serviceRate",
+      "service",
+      "taxRate",
+      "tax",
+      "includedTaxRate",
+      "includedTax",
+      "taxLines",
+    ];
     console.info(
       "[splitin] scan read:",
       JSON.stringify({
