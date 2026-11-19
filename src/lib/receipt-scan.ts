@@ -29,7 +29,7 @@ export const SCAN_PROMPT = [
   "serviceRate and taxRate: the percent printed, like 10 or 6.",
   "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
   "includedTaxRate: the percent when the receipt says the prices already include the tax, like 6 for Inclusive Service Tax 6%.",
-  "total: the final amount to pay, after discounts and any rounding.",
+  "total: the final amount to pay, after service charge, tax, discounts and any rounding. When several totals are printed, use the last one, like Grand Total.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
   "readable: false when the photo isn't a receipt or can't be read.",
@@ -164,7 +164,12 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   );
   const fits = ({ rates, off }: { rates: Rates; off: number }) =>
     Math.abs(addCharges(subtotalOf(off), rates).total - total) <= 10;
-  const chosen = (total > 0 ? choices.find(fits) : undefined) ?? { rates: read, off: gross > 0 ? billOff : 0 };
+  const onTop =
+    service + tax > 0 &&
+    [read.serviceBp, read.taxBp].every((bp) => !bp || bp % 100 === 0) &&
+    Math.abs(addCharges(base, read).total - (base + service + tax)) <= 2;
+  const trusted = total > 0 && !(onTop && Math.abs(total - base) <= 10);
+  const chosen = (trusted ? choices.find(fits) : undefined) ?? { rates: read, off: gross > 0 ? billOff : 0 };
   const { serviceBp, taxBp } = chosen.rates;
   const subtotalMinor = subtotalOf(chosen.off);
   const shares =
@@ -174,7 +179,7 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   const lines = items
     .map((line, i) => ({ ...line, amountMinor: line.amountMinor - (shares[i] ?? 0) }))
     .filter((line) => line.amountMinor > 0);
-  const totalMinor = total > 0 ? total : addCharges(subtotalMinor, read).total;
+  const totalMinor = trusted ? total : addCharges(subtotalMinor, read).total;
   const includedTaxBp = taxBp ? undefined : (rateBp(r.includedTaxRate, 0, 0) ?? read.taxBp);
   const offMinor = itemOff + billOff;
   if (subtotalMinor <= 0 || totalMinor <= 0 || totalMinor > MAX_MINOR || subtotalMinor > MAX_MINOR)
