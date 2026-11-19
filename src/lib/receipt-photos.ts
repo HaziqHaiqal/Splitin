@@ -1,8 +1,10 @@
+import { uploadPhoto } from "@/app/actions";
+
 const NAME = "splitin-photos";
 const STORE = "photos";
 const KEEP = 30 * 24 * 60 * 60 * 1000;
 
-type Saved = { blob: Blob; at: number };
+type Saved = { blob: Blob; at: number; shared?: boolean };
 
 function open(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
@@ -68,4 +70,13 @@ export async function movePhoto(from: string, to: string) {
       store.delete(from);
     };
   });
+}
+
+export async function sharePhoto(billId: string, itemId: string, ownerToken: string | null) {
+  const saved = (await run("readonly", (store) => store.get(itemId))) as Saved | undefined | null;
+  if (!saved || saved.shared) return;
+  const form = new FormData();
+  form.append("photo", saved.blob, "receipt");
+  const result = await uploadPhoto(billId, itemId, ownerToken, form).catch(() => null);
+  if (result?.ok) await run("readwrite", (store) => void store.put({ ...saved, shared: true } satisfies Saved, itemId));
 }

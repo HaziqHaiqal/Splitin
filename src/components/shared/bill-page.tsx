@@ -63,7 +63,7 @@ import {
 import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
 import { getAsked, getMe, setAsked, setMe, setOwnerToken, useMe } from "@/lib/store";
 import { cn, newId } from "@/lib/utils";
-import { movePhoto } from "@/lib/receipt-photos";
+import { movePhoto, sharePhoto } from "@/lib/receipt-photos";
 import { BankForm } from "./bank-form";
 import { IconTile, MenuFab, MenuItem, MenuPills, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
@@ -290,7 +290,10 @@ export function BillPage({
         }),
         fmt(t.member.added, { name: item.name }),
         () => deleteItem(item),
-        () => setFreshId(item.id),
+        () => {
+          setFreshId(item.id);
+          if (item.lines) void sharePhoto(bill.id, item.id, ownerToken);
+        },
       );
     start(async () => {
       const result = await addMemberItem(
@@ -301,7 +304,7 @@ export function BillPage({
       );
       if (!result.ok) return void toast({ message: errorText(result.error, newPeople[0]?.name) });
       const { id } = result.data;
-      void movePhoto(item.id, id);
+      if (item.lines) void movePhoto(item.id, id).then(() => sharePhoto(bill.id, id, null));
       setFreshId(id);
       setTell(true);
       toast({
@@ -360,6 +363,9 @@ export function BillPage({
           ),
         message,
         () => ownerSave((d) => withItem(d, old), message),
+        () => {
+          if (item.lines) void sharePhoto(bill.id, item.id, ownerToken);
+        },
       );
     run(
       () =>
@@ -371,6 +377,7 @@ export function BillPage({
         ),
       newPeople.length > 0 ? null : withItem(bill.doc, item),
       () => {
+        if (item.lines) void sharePhoto(bill.id, item.id, null);
         setTell(true);
         toast({ message, action: { label: t.common.undo, onClick: () => saveItem(item, old, []) } });
       },
@@ -779,6 +786,7 @@ export function BillPage({
           <BillForm
             key={item.id}
             item={item}
+            billId={bill.id}
             doc={doc}
             bare={bare}
             autoFocus={desktop}
@@ -1211,6 +1219,7 @@ export function BillPage({
   const detail = (item: Item, onBack?: () => void, onClose?: () => void) => (
     <BillDetail
       key={`${item.id}:${me ? itemShares(item)[me] : ""}`}
+      billId={bill.id}
       item={item}
       doc={doc}
       me={me}

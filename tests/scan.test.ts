@@ -1,9 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
+  BILL,
   choose,
   closePhones,
+  database,
   newPhone,
+  openAs,
   openBill,
+  openBillDetail,
   panel,
   pickMe,
   seed,
@@ -177,6 +181,27 @@ test("a printed scan opens again as the same list, with its photo, and can be ch
   await tapWho(again, "Roti canai", "Najmi");
   await again.getByRole("button", { name: "Save", exact: true }).click();
   await settled(async () => (await added())?.overrides, { h: 2400, n: 600, a: 1000 });
+});
+
+test("everyone with the link can see the photo of a scanned receipt", async ({ page, browser }) => {
+  await seed();
+  await openBill(page);
+  const form = await scanReceipt(page, { ok: true, data: scanned });
+  await everyoneHad(form, ...ALL);
+  await paidBy(form, "Najmi");
+  await submit(form);
+  await settled(async () => {
+    const id = (await serverDoc()).items.find((i) => i.name === "Restoran Ali")?.id;
+    const { data } = await database.storage.from("receipts").list(BILL);
+    return Boolean(id && data?.some((file) => file.name === id));
+  }, true);
+
+  const other = await newPhone(browser);
+  await openAs(other, "Afiq");
+  await openBillDetail(other, "Restoran Ali");
+  await other.getByRole("button", { name: "See the receipt photo" }).click();
+  const image = other.getByRole("img", { name: "Receipt" });
+  await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 });
 
 test("the arrows on the line move between items, and tapping the open item closes it", async ({ page }) => {
