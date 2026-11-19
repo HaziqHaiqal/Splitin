@@ -148,6 +148,8 @@ test.describe("sharing", () => {
     const list = sheet(owner);
     await expect(list.getByRole("heading", { name: "Which one is you?" })).toBeVisible();
     await list.getByRole("button", { name: "Najmi" }).click();
+    await expect(list.getByText("Where should people pay Najmi?")).toBeVisible();
+    await list.getByRole("button", { name: "Share", exact: true }).click();
     await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     await expect(list.getByRole("heading", { name: "Which one is you?" })).toHaveCount(0);
     await expect(sheet(owner).getByRole("button", { name: "Back" })).toHaveCount(0);
@@ -169,7 +171,7 @@ test.describe("sharing", () => {
     await expect(who.getByRole("button", { name: "Najmi" })).toHaveCount(0);
   });
 
-  test("an owner not on the list types their name and is in no bills", async ({ browser }) => {
+  test("an owner not on the list types their name, adds their bank and is in no bills", async ({ browser }) => {
     const { ownerId, ...doc } = trip;
     void ownerId;
     const owner = await newPhone(browser, openDraft(doc));
@@ -179,10 +181,14 @@ test.describe("sharing", () => {
     await ask.getByRole("button", { name: "Not on the list" }).click();
     await ask.getByPlaceholder("Name").fill("Zara");
     await ask.getByRole("button", { name: "That's me", exact: true }).click();
+    await ask.getByRole("button", { name: "Maybank", exact: true }).click();
+    await ask.getByPlaceholder("e.g. 7012 4455 0921").fill("1000 2000 3000");
+    await ask.getByRole("button", { name: "Share", exact: true }).click();
     await expect(sheet(owner).getByRole("button", { name: "Copy link" })).toBeEnabled();
     const published = (await getDb()).bills.find((b) => b.id !== BILL)!;
     const zara = published.doc.people.find((p) => p.name === "Zara")!;
     expect(published.doc.ownerId).toBe(zara.id);
+    expect([zara.bank, zara.accountNo]).toEqual(["Maybank", "1000 2000 3000"]);
     expect(published.doc.items.some((i) => i.participants.includes(zara.id))).toBe(false);
   });
 });

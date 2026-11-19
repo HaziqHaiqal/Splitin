@@ -423,57 +423,57 @@ export const ms: Dictionary = {
     steps: [
       {
         title: "Selamat datang ke Splitin!",
-        desc: "Splitin macam mesin cetak resit kecil: tambah orang dan bil, dan resit dicetak sambil anda isi.",
+        desc: "Tambah orang dan bil, dan resit anda dicetak sambil anda isi.",
         hint: "Ketik langkah untuk terus ke sana.",
       },
       {
         title: "Langkah 1: Namakan dan tambah orang",
-        desc: "Tulis apa yang anda bahagi, ketik Seterusnya, kemudian taip nama semua orang. Koma atau Enter menjadikan setiap nama satu cip, dan kedua-duanya dicetak pada resit sambil anda taip. Ada senarai? Tampal dengan koma. Ketik nama kemudian untuk tambah akaun bank atau QR.",
+        desc: "Namakan apa yang dikongsi, kemudian taip nama semua orang. Ketik nama nanti untuk tambah akaun bank atau QR mereka.",
         hint: "Cuba: tambah yang lain.",
       },
       {
         title: "Langkah 2: Tambah bil",
-        desc: "Taip untuk apa dan jumlahnya, kemudian ketik siapa yang bayar. Ada orang baru? Ketik + Tambah. Ada resit? Ketik Imbas resit dan bil ditulis daripada gambar, dengan diskaun ditolak terus. Ketik ✎ untuk tukar nama atau jumlah dibayar, contohnya bila ada tawaran yang tolak sedikit. Di bawah garis, ketik item dan pilih siapa yang ambil; yang tiada nama dikongsi oleh semua. Ketik harga untuk betulkannya. Ketik ✕ pada resit untuk membuangnya. Garis putus-putus menunjukkannya pada resit; Cetak menambahnya.",
+        desc: "Taip untuk apa, jumlah dan siapa yang bayar, atau ketik Imbas resit. Kemudian ketik setiap item dan pilih siapa yang ambil.",
         hint: "Cuba: cetak bil seterusnya, atau imbas resit.",
       },
       {
         title: "Langkah 3: Ubah bahagian (pilihan)",
-        desc: "Bil dibahagi sama rata. Ketik Ubah untuk beri jumlah lain kepada seseorang, atau nyahtanda sesiapa yang tidak terlibat. Ada SST atau caj perkhidmatan? Ketik + Caj perkhidmatan / SST di bawah jumlah dan tandakan. Taip harga sebelum caj itu, dan bahagian setiap orang ditambah untuk mereka.",
+        desc: "Bil dibahagi sama rata. Ketik Ubah untuk jumlah lain, nyahtanda sesiapa yang tiada, atau tambah SST dan Caj perkhidmatan.",
         hint: "Cuba: nyahtanda seseorang, ketik jumlah atau tanda SST.",
       },
       {
         title: "Langkah 4: Lihat siapa bayar siapa",
-        desc: "Resit menunjukkan jumlah dan siapa bayar siapa, dengan bayaran paling sedikit. Ketik bil untuk ubah. Selepas dikongsi, Kiraan di bawah butang ☰ menunjukkan cara ia dikira, bil demi bil (pada komputer, ketik Bagaimana ia dikira).",
+        desc: "Resit menunjukkan jumlah dan siapa bayar siapa, dengan bayaran sesedikit mungkin. Ketik bil untuk mengubahnya.",
         hint: "Ketik resit untuk cetak semula.",
       },
       {
         title: "Langkah 5: Kongsi",
-        desc: "Ketik butang ☰ di bawah sebelah kanan, kemudian Kongsi resit (pada komputer ia di bawah resit). Pilih atau taip nama anda, kemudian ketik Kongsi untuk hantar gambar, pautan dan kod melalui mana-mana app di telefon anda. Bila anda tutup, halaman bil dibuka, dan selepas itu anda ubah bil di situ. Halaman utama bermula semula, dengan Buka untuk kembali ke bil itu. Tak perlu daftar atau pasang apa-apa. Pautan kekal sama dan sentiasa tunjuk yang terkini, dan sesiapa yang ada pautan boleh kongsi semula. Pautan dipadam sendiri selepas 30 hari. Pada halaman bil, ketik Hai dan nama anda di atas untuk butiran bank, Nama bil dan orang, suis yang membenarkan orang lain tambah dan ubah bil (tutup untuk kunci bil), dan pautan pemilik, yang membolehkan anda urus bil dari telefon lain. Buat pautan pemilik baru jika yang lama terlepas. Butang ☰ di bawah sebelah kanan ada Bil anda, Tambah bil, Sejarah dan Kiraan (pada komputer semuanya di sebelah kiri). Setiap satu naik dari bawah: ‹ kembali ke menu, dan ✕ atau leret ke bawah menutupnya. Ketik bil di bawah Bil anda untuk mengubahnya.",
+        desc: "Ketik ☰, kemudian Kongsi resit. Pilih nama anda, tambah butiran bank jika mahu, dan hantar pautan. Tanpa daftar; pautan kekal 30 hari.",
         hint: "Cuba: ketik Kongsi.",
       },
       {
         title: "Langkah 6: Tanda siapa dah bayar",
-        desc: "Semua orang buka pautan, atau ketik Ada kod? di halaman utama. Mereka pilih nama, atau taip jika tiada dalam senarai. Ketik Hai dan nama mereka di atas untuk betulkan ejaan atau pilih nama lain. Selepas bayar, mereka ketik bayaran mereka dan semua orang nampak cap DIBAYAR. Orang yang menerima bayaran juga boleh tanda, dan anda boleh tanda atau ingatkan sesiapa. Salah? Mereka ketik semula di telefon yang sama, atau anda tanda belum bayar. Bayar jumlah lain? Ketik Ubah di tepi jumlah, dan resit kira selebihnya.",
+        desc: "Semua orang buka pautan dan pilih nama. Selepas bayar, mereka ketik bayaran mereka dan semua nampak DIBAYAR.",
         hint: "Cuba: pilih nama, kemudian tanda bayaran anda.",
       },
       {
         title: "Langkah 7: Bayar dengan QR atau butiran bank",
-        desc: "Di bawah Bayar kepada pada resit, ketik Tambah butiran bank untuk tambah akaun atau QR bayaran anda. Orang lain nampak apabila mereka ketik bayaran mereka, atau Butiran bank di tepi nama anda. Mereka boleh simpan QR atau salin nombor akaun, kemudian bayar dalam aplikasi bank sendiri. Jika nama pada QR tiada kaitan dengan nama pada bil, Splitin beri amaran dahulu. Splitin tidak memindahkan wang.",
+        desc: "Ketik Tambah butiran bank untuk tambah akaun atau QR anda. Orang lain nampak bila ketik bayaran, kemudian bayar dalam aplikasi bank sendiri.",
         hint: "Cuba: tukar QR untuk lihat amaran.",
       },
       {
         title: "Langkah 8: Orang lain tambah apa yang mereka bayar",
-        desc: "Orang lain bayar sesuatu juga? Pada pautan, mereka ketik butang ☰, kemudian Tambah bil, dan resit tunjukkannya sebelum disimpan. Mereka hanya boleh ubah atau padam apa yang mereka tambah, pada telefon yang sama: di bawah Bil anda, ketik bil itu.",
+        desc: "Orang lain pun bayar? Mereka ketik ☰, kemudian Tambah bil. Mereka hanya boleh ubah atau padam apa yang mereka tambah.",
         hint: "Cuba: tambah bil, kemudian padam.",
       },
       {
         title: "Langkah 9: Orang lain sertai bil mereka",
-        desc: "Tertinggal? Di bawah Bil anda, mereka ketik Sertai pada setiap bil yang berkaitan. Bahagian mereka dikira serta-merta, dengan Buat asal, dan sesiapa yang dah terlebih bayar akan dibayar semula. Ketik bil yang mereka sertai untuk tulis jumlah sendiri atau keluar, pada telefon itu. Hanya anda boleh keluarkan seseorang dari bil yang anda masukkan mereka.",
+        desc: "Tertinggal? Mereka buka Bil anda dan ketik Sertai pada setiap bil yang mereka ikut. Bahagian mereka dikira serta-merta.",
         hint: "Cuba: ketik Sertai dan lihat bahagian anda.",
       },
       {
         title: "Langkah 10: Lihat semua perubahan",
-        desc: "Sejarah tunjuk setiap perubahan, dengan nama dan masa: orang menyertai, bil ditambah, diubah atau dipadam, butiran bank dikemas kini, bayaran ditanda atau dibatalkan. Semua yang ada pautan boleh baca.",
+        desc: "Sejarah menunjukkan setiap perubahan, siapa buat dan bila. Semua yang ada pautan boleh baca.",
         hint: "Cuba: ketik untuk perubahan seterusnya.",
       },
     ],
