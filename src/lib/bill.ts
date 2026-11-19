@@ -1,4 +1,4 @@
-import { simplifyDebts, splitByWeights, splitEqual, type Allocation, type Transfer } from "@/lib/money";
+import { addCharges, simplifyDebts, splitByWeights, splitEqual, type Allocation, type Transfer } from "@/lib/money";
 
 export type Person = {
   id: string;
@@ -96,13 +96,22 @@ export function withCharges(
   overrides: Readonly<Record<string, number>>,
 ): Allocation {
   if (baseOf(item) === item.amountMinor || !Object.values(shares).some((v) => v > 0)) return shares;
-  const scaled = splitByWeights(item.amountMinor, shares);
+  const { charges } = item;
+  const rated = charges?.taxBp ? addCharges(charges.subtotalMinor, charges) : null;
+  const tax = rated && rated.total > 0 ? Math.round((rated.tax * item.amountMinor) / rated.total) : 0;
+  const scaled = splitByWeights(item.amountMinor - tax, shares);
+  const each = splitEqual(
+    tax,
+    Object.keys(shares).filter((id) => shares[id] > 0),
+  );
+  const total: Allocation = {};
+  for (const id of Object.keys(shares)) total[id] = scaled[id] + (each[id] ?? 0);
   const free = Object.keys(shares).filter((id) => overrides[id] === undefined);
-  if (free.length < 2) return scaled;
+  if (free.length < 2) return total;
   return {
-    ...scaled,
+    ...total,
     ...splitEqual(
-      free.reduce((sum, id) => sum + scaled[id], 0),
+      free.reduce((sum, id) => sum + total[id], 0),
       free,
     ),
   };
