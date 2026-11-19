@@ -81,6 +81,26 @@ describe("toScan", () => {
     expect(result.ok && "includedTaxBp" in result.scan).toBe(false);
   });
 
+  it("treats tax inside the prices read as a service charge as SST", () => {
+    const result = toScan({
+      ...receipt,
+      lines: [{ name: "Briyani set", amount: 98.5 }],
+      subtotal: 98.5,
+      serviceRate: null,
+      service: 5.58,
+      taxRate: null,
+      tax: null,
+      total: 98.5,
+    });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
+    expect(result.ok && "serviceBp" in result.scan).toBe(false);
+  });
+
+  it("doesn't take a real service charge for tax when the total read misses it", () => {
+    const result = toScan({ ...receipt, taxRate: null, tax: null, total: 40 });
+    expect(result.ok && [result.scan.taxBp, result.scan.totalMinor]).toEqual([undefined, 4000]);
+  });
+
   it("works out SST inside the prices from its percent when the tax read can't be right", () => {
     const result = toScan({
       ...receipt,
@@ -221,6 +241,14 @@ describe("lineSplit", () => {
       participants: ["h", "n", "a"],
       overrides: { h: 2734, n: 933, a: 333 },
     });
+  });
+
+  it("is a plain equal split when every item was had by the same people", () => {
+    const lines = [
+      { name: "Nasi", amountMinor: 1000, who: ["a", "b"] },
+      { name: "Teh", amountMinor: 501, who: ["b", "a"] },
+    ];
+    expect(lineSplit(lines, ["a", "b", "c"])).toEqual({ participants: ["a", "b"], overrides: {} });
   });
 
   it("leaves out people who had nothing", () => {

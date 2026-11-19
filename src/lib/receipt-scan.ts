@@ -28,7 +28,7 @@ export const SCAN_PROMPT = [
   "subtotal: the amount before service charge and tax, if printed.",
   "serviceRate and taxRate: the percent printed, like 10 or 6.",
   "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
-  "includedTaxRate and includedTax: the percent and the tax amount when the receipt says the prices already include the tax, like 6 and 5.58 for Inclusive Service Tax 6% with Tax 5.58.",
+  "includedTaxRate and includedTax: the percent and the tax amount when the receipt says the prices already include the tax, like 6 and 5.58 for Inclusive Service Tax 6% with Tax 5.58. Inclusive Service Tax, SST or GST in a Tax Summary is a tax, never a service charge.",
   "total: the final amount to pay, after discounts and any rounding.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
@@ -177,10 +177,16 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
     .map((line, i) => ({ ...line, amountMinor: line.amountMinor - (shares[i] ?? 0) }))
     .filter((line) => line.amountMinor > 0);
   const totalMinor = total > 0 ? total : addCharges(subtotalMinor, read).total;
-  const inPrinted = toMinor(r.includedTax);
+  const fromService =
+    !serviceBp && !taxBp && !tax && service > 0 ? rateBp(r.serviceRate, service, subtotalMinor - service) : undefined;
+  const inService =
+    fromService && Math.abs(service - Math.round((subtotalMinor * fromService) / (10_000 + fromService))) <= 2
+      ? fromService
+      : undefined;
+  const inPrinted = toMinor(r.includedTax) || (inService ? service : 0);
   const includedTaxBp = taxBp
     ? undefined
-    : (rateBp(r.includedTaxRate, inPrinted, totalMinor - inPrinted) ?? read.taxBp);
+    : (rateBp(r.includedTaxRate, inPrinted, totalMinor - inPrinted) ?? inService ?? read.taxBp);
   const inTax = inPrinted || tax;
   const exact = includedTaxBp ? Math.round((subtotalMinor * includedTaxBp) / (10_000 + includedTaxBp)) : 0;
   const inside = includedTaxBp && !serviceBp ? (Math.abs(inTax - exact) <= 2 ? inTax : exact) : 0;
@@ -227,6 +233,9 @@ export function lineSplit(
   const total = groups.reduce((sum, group) => sum + group.amount, 0);
   if (!lines.some((line) => line.who.length > 0) || sharers.length === 0 || total <= 0)
     return { participants: [...sharers], overrides: {} };
+  const [first] = groups;
+  if (groups.every((g) => g.owners.length === first.owners.length && g.owners.every((id) => first.owners.includes(id))))
+    return { participants: everyone.filter((id) => first.owners.includes(id)), overrides: {} };
   const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
   const unit = groups.reduce((lcm, group) => (lcm / gcd(lcm, group.owners.length)) * group.owners.length, 1);
   const weights: Allocation = Object.fromEntries(everyone.map((id) => [id, 0]));

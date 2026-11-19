@@ -94,8 +94,9 @@ export function BillForm({
   const [showSplit, setShowSplit] = useState(false);
   const [paid, setPaid] = useState("");
   const [editPaid, setEditPaid] = useState(false);
-  const [editName, setEditName] = useState(false);
-  const [payerOpen, setPayerOpen] = useState(false);
+  const [flash, setFlash] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const payerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [fixing, setFixing] = useState<string | null>(null);
   const jump = useRef(false);
@@ -168,8 +169,15 @@ export function BillForm({
   })();
 
   const problem = !name.trim() ? null : amountMinor <= 0 ? null : !split.ok ? split.error : null;
+  const unpicked = scanned && lines ? lines.findIndex((line) => line.who.length === 0) : -1;
   const canSave =
-    Boolean(name.trim()) && amountMinor > 0 && totalMinor > 0 && split.ok && Boolean(paidBy) && (scanned || ratesOk);
+    Boolean(name.trim()) &&
+    amountMinor > 0 &&
+    totalMinor > 0 &&
+    split.ok &&
+    Boolean(paidBy) &&
+    (scanned || ratesOk) &&
+    unpicked < 0;
 
   const previewKey = JSON.stringify([
     name,
@@ -298,8 +306,6 @@ export function BillForm({
     setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, offMinor: result.offMinor, photo });
     setPaid(toInputValue(result.totalMinor, "MYR"));
     setEditPaid(false);
-    setEditName(false);
-    setPayerOpen(false);
     setOpen(0);
     if (!payerPicked.current) setPaidBy("");
     setFixing(null);
@@ -341,9 +347,7 @@ export function BillForm({
     setKept(null);
     setLines(null);
     setReceipt(null);
-    setEditName(false);
     setEditPaid(false);
-    setPayerOpen(false);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -388,7 +392,7 @@ export function BillForm({
     setFixing(null);
   };
 
-  const setWho = (i: number, id: string | null) => {
+  const setWho = (i: number, id: string) => {
     if (!lines) return;
     applyLines(
       lines.map((l, j) =>
@@ -396,12 +400,9 @@ export function BillForm({
           ? l
           : {
               ...l,
-              who:
-                id === null
-                  ? []
-                  : l.who.includes(id)
-                    ? l.who.filter((x) => x !== id)
-                    : everyone.filter((x) => x === id || l.who.includes(x)),
+              who: l.who.includes(id)
+                ? l.who.filter((x) => x !== id)
+                : everyone.filter((x) => x === id || l.who.includes(x)),
             },
       ),
     );
@@ -456,7 +457,6 @@ export function BillForm({
       setPaid("");
       setOpen(null);
       setFixing(null);
-      setEditName(false);
       setEditPaid(false);
       payerPicked.current = false;
       setScan("idle");
@@ -505,19 +505,28 @@ export function BillForm({
       ? fmt(exact ? t.bill.splitEachLine : t.bill.splitAboutLine, { amount: money(evenEach) })
       : t.bill.splitEveryone;
 
-  const payer = people.find((p) => p.id === paidBy);
   const onTop = asPrinted && kept ? addCharges(kept.subtotalMinor, kept) : null;
-  const chargeText = (label: string, bp: number | undefined, amount: number | undefined) =>
-    bp && amount ? `${label} ${rateText(bp)}% ${money(amount)}` : "";
+  const chargeRows = [
+    { label: t.bill.service, bp: kept?.serviceBp, amount: onTop?.service ?? 0 },
+    { label: t.bill.sst, bp: kept?.taxBp, amount: onTop?.tax ?? 0 },
+  ].filter((c) => c.bp && c.amount > 0);
   const scannedLine = [
     lines?.length === 1 ? t.bill.scannedOne : fmt(t.bill.scannedItems, { count: lines?.length ?? 0 }),
     receipt?.offMinor ? fmt(t.bill.discountOff, { amount: money(receipt.offMinor) }) : "",
-    chargeText(t.bill.service, kept?.serviceBp, onTop?.service),
-    chargeText(t.bill.sst, kept?.taxBp, onTop?.tax),
     receipt?.includedTaxBp ? fmt(t.bill.taxIncluded, { rate: rateText(receipt.includedTaxBp) }) : "",
   ]
     .filter(Boolean)
     .join(" · ");
+  const missing = !name.trim() ? "name" : !paidBy ? "payer" : unpicked >= 0 ? "who" : null;
+  const showMissing = () => {
+    if (missing === "name") {
+      nameRef.current?.focus();
+      nameRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    } else if (missing === "payer") {
+      payerRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      setFlash(true);
+    } else if (missing === "who") openItem(unpicked);
+  };
   const phone = bare && !desktop;
   const pill =
     "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full bg-chip px-3 text-[13.5px] font-bold text-ink";
@@ -570,115 +579,61 @@ export function BillForm({
             <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
               {thumb}
               <div className="min-w-0 flex-1 leading-snug">
-                {editName || !name.trim() ? (
-                  <input
-                    type="text"
-                    value={name}
-                    autoFocus={editName}
-                    aria-label={t.bill.whatFor}
-                    placeholder={t.bill.namePlaceholder}
-                    maxLength={60}
-                    enterKeyHint="done"
-                    onFocus={() => setEditName(true)}
-                    onBlur={() => setEditName(false)}
-                    onChange={(e) => setName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    className="h-9 w-full min-w-0 rounded-lg border-[1.5px] border-green bg-card px-2.5 text-[16px] font-bold text-ink outline-none placeholder:font-normal"
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    aria-label={`${t.bill.whatFor}: ${name}`}
-                    onClick={() => setEditName(true)}
-                    className="block max-w-full text-left text-[16px] leading-tight font-extrabold [overflow-wrap:anywhere]"
-                  >
-                    {name}{" "}
-                    <span aria-hidden className="text-[13px] font-semibold text-muted">
-                      ✎
-                    </span>
-                  </button>
-                )}
+                <b className="block text-[14px]">{t.bill.attached}</b>
                 <span className="mt-0.5 block text-[12.5px] text-muted">{scannedLine}</span>
               </div>
               {unattach}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div
-                className="relative"
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12.5px] text-muted">{t.bill.whatFor}</span>
+              <input
+                ref={nameRef}
+                type="text"
+                value={name}
+                placeholder={t.bill.namePlaceholder}
+                maxLength={60}
+                enterKeyHint="done"
+                onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") setPayerOpen(false);
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  }
                 }}
+                className={cn(field, "font-semibold")}
+              />
+            </label>
+
+            <div
+              ref={payerRef}
+              role="group"
+              aria-label={t.bill.whoPaid}
+              onAnimationEnd={() => setFlash(false)}
+              className={cn("flex flex-col gap-1.5 rounded-xl", flash && "animate-flash")}
+            >
+              <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
+              <PersonChips
+                people={people}
+                value={paidBy}
+                onChange={(id) => {
+                  payerPicked.current = true;
+                  setPaidBy(id);
+                }}
+                bare={bare}
               >
-                <button
-                  type="button"
-                  aria-expanded={payerOpen}
-                  onClick={() => setPayerOpen(!payerOpen)}
-                  className={cn(
-                    pill,
-                    payer ? "pl-1.5" : "border-[1.5px] border-dashed border-dash bg-transparent text-green-ink",
-                  )}
-                >
-                  {payer ? <Avatar name={payer.name} color={payer.color} size={24} /> : null}
-                  {payer ? fmt(t.bill.paidBy, { name: payer.name }) : t.bill.whoPaid}
-                  <span aria-hidden className="text-muted">
-                    ⌄
-                  </span>
-                </button>
-                {payerOpen ? (
-                  <>
-                    <button
-                      type="button"
-                      aria-hidden
-                      tabIndex={-1}
-                      onClick={() => setPayerOpen(false)}
-                      className="fixed inset-0 z-20 cursor-default"
-                    />
-                    <div
-                      role="group"
-                      aria-label={t.bill.whoPaid}
-                      className="absolute top-10 left-0 z-30 flex max-h-[260px] w-[230px] animate-drop flex-col overflow-y-auto rounded-2xl bg-card px-3 py-1 shadow-[0_12px_30px_rgba(0,0,0,0.28)] ring-1 ring-border"
-                    >
-                      {people.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          aria-pressed={p.id === paidBy}
-                          onClick={() => {
-                            setPaidBy(p.id);
-                            setPayerOpen(false);
-                          }}
-                          className="flex min-h-[46px] shrink-0 items-center gap-2.5 border-b border-line text-left"
-                        >
-                          <Avatar name={p.name} color={p.color} size={26} />
-                          <span className="min-w-0 flex-1 text-[14px] font-bold [overflow-wrap:anywhere]">
-                            {p.name}
-                          </span>
-                          {p.id === paidBy ? (
-                            <span className="text-green-ink">
-                              <CheckIcon size={15} />
-                            </span>
-                          ) : null}
-                        </button>
-                      ))}
-                      <div className="py-2">
-                        <NewNameChip
-                          onAdd={(text) => {
-                            const [id] = addNames(text);
-                            if (id) setPaidBy(id);
-                            setPayerOpen(false);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-              </div>
+                <NewNameChip
+                  onAdd={(text) => {
+                    const [id] = addNames(text);
+                    if (!id) return;
+                    payerPicked.current = true;
+                    setPaidBy(id);
+                  }}
+                />
+              </PersonChips>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
               {editPaid ? (
                 <span className="inline-flex h-[34px] items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 text-[13.5px] font-bold shadow-[0_0_0_3px_var(--green-soft)]">
                   RM
@@ -797,7 +752,13 @@ export function BillForm({
                             {line.name}
                           </b>
                           <small className="mt-0.5 block truncate text-[12.5px] text-muted">
-                            {line.who.length ? list(line.who) : t.bill.everyone}
+                            {line.who.length === 0 ? (
+                              <span className="font-semibold text-green-ink">{t.bill.notPicked}</span>
+                            ) : line.who.length === everyone.length ? (
+                              t.bill.everyone
+                            ) : (
+                              list(line.who)
+                            )}
                             {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(line.offMinor) })}` : null}
                           </small>
                         </span>
@@ -876,14 +837,6 @@ export function BillForm({
                       aria-label={fmt(t.bill.whoHadItem, { name: line.name })}
                       className="flex flex-wrap gap-1.5"
                     >
-                      <button
-                        type="button"
-                        aria-pressed={line.who.length === 0}
-                        onClick={() => setWho(i, null)}
-                        className={cn(chip, "px-4", line.who.length === 0 ? "bg-green text-white" : "bg-card text-ink")}
-                      >
-                        {t.bill.everyone}
-                      </button>
                       {people.map((p) => {
                         const had = line.who.includes(p.id);
                         return (
@@ -906,6 +859,20 @@ export function BillForm({
               })}
             </ol>
 
+            {chargeRows.length > 0 ? (
+              <div className="flex flex-col gap-1 rounded-xl border border-line px-3.5 py-3">
+                {chargeRows.map((c) => (
+                  <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                    <span>
+                      {c.label} {rateText(c.bp ?? 0)}%
+                    </span>
+                    <span className="tabular">{money(c.amount)}</span>
+                  </div>
+                ))}
+                <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span>
+              </div>
+            ) : null}
+
             <div
               className={cn(
                 bare && "sticky bottom-0 z-10 pt-2",
@@ -914,11 +881,27 @@ export function BillForm({
             >
               <button
                 type="submit"
-                disabled={!canSave}
+                disabled={!canSave && !missing}
                 onMouseDown={(e) => e.preventDefault()}
-                className="h-[44px] w-full rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
+                onClick={(e) => {
+                  if (!missing) return;
+                  e.preventDefault();
+                  showMissing();
+                }}
+                className={cn(
+                  "h-[44px] w-full rounded-xl px-5 text-[15px] font-bold disabled:bg-disabled disabled:text-disabled-ink",
+                  missing ? "bg-green-soft text-green-ink" : "bg-green text-white",
+                )}
               >
-                {desktop ? `${t.bill.printIt} ↵` : t.bill.printIt}
+                {missing === "name"
+                  ? t.bill.needName
+                  : missing === "payer"
+                    ? t.bill.needPayer
+                    : missing === "who"
+                      ? fmt(t.bill.needWho, { count: lines.filter((line) => line.who.length === 0).length })
+                      : desktop
+                        ? `${t.bill.printIt} ↵`
+                        : t.bill.printIt}
               </button>
             </div>
           </>

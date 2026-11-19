@@ -83,6 +83,11 @@ export const ms: Dictionary = {
   bill: {
     namePlaceholder: "Untuk apa, cth. Air",
     printIt: "Cetak",
+    needName: "Tambah untuk apa",
+    needPayer: "Pilih siapa yang bayar",
+    needWho: "Pilih siapa ambil {count} lagi",
+    notPicked: "Belum dipilih",
+    chargesSplit: "Dibahagi ikut apa yang setiap orang ambil",
     change: "Ubah",
     splitEveryone: "Bahagi sama rata untuk semua",
     splitEachLine: "Bahagi sama rata · {amount} seorang",

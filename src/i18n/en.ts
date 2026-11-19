@@ -81,6 +81,11 @@ export const en = {
   bill: {
     namePlaceholder: "What for, e.g. Water",
     printIt: "Print it",
+    needName: "Add what it's for",
+    needPayer: "Pick who paid",
+    needWho: "Pick who had {count} more",
+    notPicked: "Not picked yet",
+    chargesSplit: "Split by what each person had",
     change: "Change",
     splitEveryone: "Split equally between everyone",
     splitEachLine: "Split equally · {amount} each",
