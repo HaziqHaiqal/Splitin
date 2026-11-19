@@ -421,57 +421,57 @@ export const en = {
     steps: [
       {
         title: "Welcome to Splitin!",
-        desc: "Splitin works like a little receipt printer: add the people and the bills, and your receipt prints as you go.",
+        desc: "Add the people and the bills, and your receipt prints as you go.",
         hint: "Tap a step to jump to it.",
       },
       {
         title: "Step 1: Name it and add people",
-        desc: "Say what you're splitting, tap Next, then type everyone's names. A comma or Enter turns each one into a chip, and both print on the receipt as you type. Paste a list with commas if you have one. Tap a name later to add their bank account or QR.",
+        desc: "Name what you're splitting, then type everyone's names. Tap a name later to add their bank account or QR.",
         hint: "Try it: add the others.",
       },
       {
         title: "Step 2: Add the bills",
-        desc: "Type what it's for and the amount, and tap who paid. Someone new? Tap + Add. Have a receipt? Tap Scan a receipt and the bill is written out from the photo, with any discount taken off. Tap ✎ to change the name or the total paid, like when a deal took some off. Below the line, tap an item and pick who had it; anything nobody picks is shared by everyone. Tap a price to fix it. Tap ✕ on the receipt to remove it. A dashed line shows it on the receipt; Print it adds it.",
+        desc: "Type what it's for, the amount and who paid, or tap Scan a receipt. Then tap each item and pick who had it.",
         hint: "Try it: print the next bill, or scan a receipt.",
       },
       {
         title: "Step 3: Change the split (optional)",
-        desc: "Bills are split equally. Tap Change to give someone a different amount, or untick anyone who isn't part of it. Is there SST or a service charge? Tap + Service charge / SST under the amount and tick them. Type prices before those, and each person's part is added for them.",
+        desc: "Bills are split equally. Tap Change for a different amount, untick anyone not in it, or add SST and Service charge.",
         hint: "Try it: untick someone, tap an amount or tick SST.",
       },
       {
         title: "Step 4: See who pays who",
-        desc: "The receipt shows the total and who pays who, with as few payments as possible. Tap a bill to change it. Once it's shared, Calculation under the ☰ button shows how it's worked out, bill by bill (on a computer, tap How it's worked out).",
+        desc: "The receipt shows the total and who pays who, with as few payments as possible. Tap a bill to change it.",
         hint: "Tap the receipt to print it again.",
       },
       {
         title: "Step 5: Share it",
-        desc: "Tap the ☰ button at the bottom right, then Share receipt (on a computer it's under the receipt). Pick your name or type it, then tap Share to send the picture, link and code through any app on your phone. When you close it, the bill page opens, and from then on you change the bill there. The home page starts fresh, with Open to get back to it. No sign-up or app needed. The link stays the same and always shows the latest, and anyone with it can share it again. Links delete themselves after 30 days. On the bill page, tap Hi and your name at the top for your bank details, Bill name and people, the switch that lets others add and change bills (turn it off to lock the bill), and the owner link, which lets you manage the bill from another phone. Make a new owner link if the old one got out. The ☰ button at the bottom right has Your bills, Add bill, History and Calculation (on a computer it's all on the left). Each one slides up from the bottom: ‹ goes back to the menu, and ✕ or a swipe down closes it. Tap a bill under Your bills to change it.",
+        desc: "Tap ☰, then Share receipt. Pick your name, add your bank details if you like, and send the link. No sign-up; links last 30 days.",
         hint: "Try it: tap Share.",
       },
       {
         title: "Step 6: Mark who has paid",
-        desc: "Everyone opens the link, or taps Have a code? on the home page. They pick their name, or type it if it's not on the list. Tapping Hi and their name at the top lets them fix the spelling or pick another name. Once they've paid, they tap their payment and everyone sees a PAID stamp. The person being paid can mark it too, and you can mark or remind anyone. Wrong? They tap it again on the same phone, or you mark it unpaid. Paid a different amount? Tap Change beside the amount, and the receipt works out the rest.",
+        desc: "Everyone opens the link and picks their name. Once they've paid, they tap their payment and everyone sees PAID.",
         hint: "Try it: pick a name, then mark your payment.",
       },
       {
         title: "Step 7: Pay by QR or bank details",
-        desc: "Under Pay to on the receipt, tap Add bank details to add your account or payment QR. Others see it when they tap their payment, or Bank details beside your name. They can save the QR or copy the account number, then pay in their own bank app. If the name on the QR has nothing to do with the name on the bill, Splitin warns them first. Splitin never moves any money.",
+        desc: "Tap Add bank details to add your account or QR. Others see it when they tap their payment, then pay in their own bank app.",
         hint: "Try it: swap the QR to see the warning.",
       },
       {
         title: "Step 8: Others add what they paid",
-        desc: "Did someone else pay for something too? On the link they tap the ☰ button, then Add bill, and the receipt shows it before they save. They can change or delete only what they added, on that same phone: under Your bills, tap the bill.",
+        desc: "Someone else paid too? They tap ☰, then Add bill. They can change or delete only what they added.",
         hint: "Try it: add a bill, then delete it.",
       },
       {
         title: "Step 9: Others join the bills they're in",
-        desc: "Missed out? Under Your bills, they tap Join on each bill they're in. Their share is worked out at once, with Undo, and anyone who already paid too much gets paid back. Tap a bill they joined to write their own amount or leave it, on that phone. Only you can take someone out of a bill you put them in.",
+        desc: "Missed out? They open Your bills and tap Join on each bill they're in. Their share is worked out at once.",
         hint: "Try it: tap Join and watch your share.",
       },
       {
         title: "Step 10: See every change",
-        desc: "History shows every change, with the name and time: people joining, bills added, changed or deleted, bank details updated, payments marked or undone. Everyone with the link can read it.",
+        desc: "History shows every change, with who made it and when. Everyone with the link can read it.",
         hint: "Try it: tap for the next change.",
       },
     ],

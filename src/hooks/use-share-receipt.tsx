@@ -1,21 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { publishBill } from "@/app/actions";
+import { BankFields, useBankDetails } from "@/components/home/bank-fields";
 import { PickOrType } from "@/components/name-chip";
 import { Receipt } from "@/components/receipt/receipt";
 import { ShareSheet } from "@/components/receipt/share-sheet";
 import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
-import { ownerOf, repeatedName, type BillDoc } from "@/lib/bill";
+import { ownerOf, repeatedName, type BillDoc, type Person } from "@/lib/bill";
 import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
 import { newId } from "@/lib/utils";
 
 const LIFETIME = 30 * 24 * 60 * 60 * 1000;
 
 type Shared = { id: string; doc: BillDoc; expiresAt: string };
+type Bank = Pick<Person, "bank" | "accountNo" | "payQr">;
 
 export function useShareReceipt(draft: Draft | null | undefined) {
   const { t } = useI18n();
@@ -25,6 +27,8 @@ export function useShareReceipt(draft: Draft | null | undefined) {
   const [open, setOpen] = useState(false);
   const [back, setBack] = useState<{ to: () => void } | null>(null);
   const [shared, setShared] = useState<Shared | null>(null);
+  const [owner, setOwner] = useState<{ id: string; people: Person[] } | null>(null);
+  const [bank, setBank] = useState<Bank | null>(null);
   const [pending, start] = useTransition();
 
   const publish = (current: Draft) => {
@@ -49,6 +53,8 @@ export function useShareReceipt(draft: Draft | null | undefined) {
   const share = (to?: () => void) => {
     if (!draft || draft.billId) return;
     setBack(to ? { to } : null);
+    setOwner(null);
+    setBank(null);
     setOpen(true);
     if (draft.doc.ownerId !== undefined) publish(draft);
   };
@@ -66,15 +72,24 @@ export function useShareReceipt(draft: Draft | null | undefined) {
     publish(next);
   };
 
+  const choose = (id: string, people = draft?.doc.people ?? []) => {
+    const person = people.find((p) => p.id === id);
+    if (person && !person.bank && !person.payQr) return setOwner({ id, people });
+    pickOwner(id, people);
+  };
+
   const typeOwner = (name: string) => {
     if (!draft) return;
     const { people } = draft.doc;
     const same = people.find((p) => p.name.toLowerCase() === name.toLowerCase());
-    if (same) return pickOwner(same.id);
+    if (same) return choose(same.id);
     const id = newId(6);
     const color = people.reduce((max, p) => Math.max(max, p.color + 1), 0) % 100;
-    pickOwner(id, [...people, { id, name, color }]);
+    choose(id, [...people, { id, name, color }]);
   };
+
+  const shareAs = (who: { id: string; people: Person[] }) =>
+    pickOwner(who.id, bank ? who.people.map((p) => (p.id === who.id ? { ...p, ...bank } : p)) : who.people);
 
   const doc = shared?.doc ?? draft?.doc;
   const asking = Boolean(draft && !shared && draft.doc.ownerId === undefined);
@@ -99,7 +114,7 @@ export function useShareReceipt(draft: Draft | null | undefined) {
         doc={doc}
         receiptRef={paper}
         waiting={pending}
-        onPublish={draft && !asking ? () => publish(draft) : undefined}
+        onPublish={draft && !asking ? () => publish(draft) : asking && owner ? () => shareAs(owner) : undefined}
         onBack={
           back && !shared
             ? () => {
@@ -109,7 +124,9 @@ export function useShareReceipt(draft: Draft | null | undefined) {
             : undefined
         }
         ask={
-          asking && draft ? (
+          asking && owner ? (
+            <BankStep person={owner.people.find((p) => p.id === owner.id)} onChange={setBank} />
+          ) : asking && draft ? (
             <div className="flex flex-col gap-2">
               <h3 className="m-0 text-[15px] font-bold text-ink">{t.share.whichTitle}</h3>
               <p className="m-0 text-[13px] leading-[1.45] text-muted">{t.share.whichDesc}</p>
@@ -117,7 +134,7 @@ export function useShareReceipt(draft: Draft | null | undefined) {
                 people={draft.doc.people}
                 button={t.share.go}
                 pending={pending}
-                onPick={(id) => pickOwner(id)}
+                onPick={(id) => choose(id)}
                 onName={typeOwner}
               />
             </div>
@@ -128,4 +145,24 @@ export function useShareReceipt(draft: Draft | null | undefined) {
   ) : null;
 
   return { share, pending: pending || open, leaving: Boolean(shared), sheet };
+}
+
+function BankStep({ person, onChange }: { person: Person | undefined; onChange: (bank: Bank | null) => void }) {
+  const details = useBankDetails(person ?? null);
+  const { bankName, accountNo, payQr } = details;
+
+  useEffect(() => {
+    onChange(
+      bankName || payQr
+        ? { bank: bankName || null, accountNo: bankName ? accountNo.trim() || null : null, payQr }
+        : null,
+    );
+  }, [bankName, accountNo, payQr, onChange]);
+
+  if (!person) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <BankFields name={person.name} own details={details} />
+    </div>
+  );
 }
