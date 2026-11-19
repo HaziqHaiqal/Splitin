@@ -81,6 +81,31 @@ describe("toScan", () => {
     expect(result.ok && "includedTaxBp" in result.scan).toBe(false);
   });
 
+  it("finds SST inside the prices from a Tax Summary line when no tax field was filled", () => {
+    const result = toScan({
+      ...receipt,
+      lines: [{ name: "Briyani set", amount: 98.5 }],
+      subtotal: 98.5,
+      serviceRate: null,
+      service: null,
+      taxRate: null,
+      tax: null,
+      taxLines: [{ label: "Inclusive Service Tax(SST)", amount: 5.58 }],
+      total: 98.5,
+    });
+    expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
+  });
+
+  it("adds a tax line on top when the total includes it", () => {
+    const result = toScan({
+      ...receipt,
+      taxRate: null,
+      tax: null,
+      taxLines: [{ label: "SST 6%", amount: 2.64, rate: 6 }],
+    });
+    expect(result.ok && [result.scan.serviceBp, result.scan.taxBp, result.scan.totalMinor]).toEqual([1000, 600, 4665]);
+  });
+
   it("treats tax inside the prices read as a service charge as SST", () => {
     const result = toScan({
       ...receipt,
