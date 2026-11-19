@@ -16,6 +16,7 @@ const lineSchema = z.object({
   name: z.string().trim().min(1).max(60),
   amountMinor: minor.min(1),
   offMinor: minor.optional(),
+  printedMinor: minor.optional(),
   who: z.array(id).max(50),
 });
 

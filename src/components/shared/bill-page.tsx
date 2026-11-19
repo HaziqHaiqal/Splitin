@@ -26,6 +26,7 @@ import {
   LinkIcon,
   LockIcon,
   PencilIcon,
+  PeopleIcon,
   PlusIcon,
   ReceiptIcon,
   ResetIcon,
@@ -1106,7 +1107,17 @@ export function BillPage({
     setBackTo(null);
     openMe();
   };
-  const askBack = ask && "back" in ask && ask.back ? openMe : undefined;
+  const askBack =
+    ask?.kind === "me"
+      ? desktop
+        ? undefined
+        : () => {
+            setAsking(false);
+            setMenu("root");
+          }
+      : ask && "back" in ask && ask.back
+        ? openMe
+        : undefined;
   const topLine = owner ? (
     <div className="flex min-h-9 min-w-0 items-center gap-2">
       {ownerPerson ? (
@@ -1123,6 +1134,16 @@ export function BillPage({
     </div>
   ) : myName ? (
     <Greeting name={myName} onChange={openMe} />
+  ) : canName ? (
+    <Greeting text={t.member.whoTitle} onChange={() => showAsk({ kind: "who", then: () => undefined })} />
+  ) : null;
+  const phoneLine = owner ? (
+    <div className="flex min-h-9 min-w-0 items-center gap-2">
+      {ownerPerson ? <Greeting name={ownerPerson.name} className="min-w-0" /> : null}
+      <OwnerChip />
+    </div>
+  ) : myName ? (
+    <Greeting name={myName} />
   ) : canName ? (
     <Greeting text={t.member.whoTitle} onChange={() => showAsk({ kind: "who", then: () => undefined })} />
   ) : null;
@@ -1270,18 +1291,13 @@ export function BillPage({
     return null;
   };
 
-  const menuTiles: Tile[] =
-    me || owner
-      ? [
-          {
-            key: "bills",
-            icon: <ReceiptIcon />,
-            label: t.page.yourBills,
-            onClick: () => setMenu("bills"),
-          },
-          ...tiles,
-        ]
-      : tiles;
+  const menuTiles: Tile[] = [
+    ...(me || owner
+      ? [{ key: "bills", icon: <ReceiptIcon />, label: t.page.yourBills, onClick: () => setMenu("bills") }]
+      : []),
+    { key: "people", icon: <PeopleIcon size={21} />, label: t.home.people, onClick: () => withMe(openMe) },
+    ...tiles,
+  ];
 
   const sharedBy = ownerPerson?.name ?? "";
   const created = date(bill.createdAt, { day: "numeric", month: "short" });
@@ -1364,7 +1380,7 @@ export function BillPage({
         phoneTop={
           view ? undefined : (
             <>
-              {topLine ? <div className="px-1">{topLine}</div> : null}
+              {phoneLine ? <div className="px-1">{phoneLine}</div> : null}
               {progress}
               {lockNote}
               {tellCard}

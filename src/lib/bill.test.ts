@@ -16,6 +16,7 @@ import {
   repeatedName,
   splitItem,
   summarize,
+  taxShares,
   withoutOwnItem,
   type BillDoc,
   type BillRights,
@@ -397,6 +398,7 @@ describe("service charge and SST", () => {
       charges: { subtotalMinor: 9292, taxBp: 600 },
     };
     expect(itemShares(meal)).toEqual({ h: 988, n: 5846, a: 3016 });
+    expect(taxShares(meal, baseShares(meal))).toEqual({ h: 186, n: 186, a: 186 });
   });
 
   it("keeps an equal split within a sen", () => {

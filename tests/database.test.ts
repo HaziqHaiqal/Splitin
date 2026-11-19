@@ -315,7 +315,7 @@ test.describe("the browser key", () => {
 
     await owner.evaluate(() => localStorage.clear());
     await owner.goto(`/bill/${id}`);
-    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect(text(owner, "Hi Haziq")).toBeVisible();
     const tools = await openMine(owner);
     await expect(tools.getByRole("button", { name: /^Copy owner link/ })).toHaveCount(0);
     await lockSwitch(owner).click();
@@ -335,7 +335,7 @@ test.describe("the browser key", () => {
   test("a phone holding the owner link can still copy it", async ({ browser }) => {
     const owner = await newPhone(browser, ownerStorage());
     await owner.goto(`/bill/${BILL}`);
-    await expect(button(owner, "Hi Haziq")).toBeVisible();
+    await expect(text(owner, "Hi Haziq")).toBeVisible();
     await expect((await openMine(owner)).getByRole("button", { name: /^Copy owner link/ })).toBeVisible();
   });
 });

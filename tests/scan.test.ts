@@ -224,7 +224,7 @@ test("someone new can be added right on an item", async ({ page }) => {
   await seed();
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
-  await who(form, "2 × Nasi lemak").getByRole("button", { name: "+ Add" }).click();
+  await who(form, "2 × Nasi lemak").getByRole("button", { name: "+ New person" }).click();
   await form.getByRole("textbox", { name: "Add person" }).fill("Mei");
   await form.getByRole("textbox", { name: "Add person" }).press("Enter");
   await expect(who(form, "2 × Nasi lemak").getByRole("button", { name: "Mei", exact: true })).toHaveAttribute(
@@ -381,6 +381,39 @@ test("on the home page, each person's part from the receipt is what prints", asy
   await expect(text(page, "HAZIQ 27.29")).toBeVisible();
   const draft = await page.evaluate(() => JSON.parse(localStorage.getItem("splitin:draft:v2") ?? "null"));
   expect(draft.doc.items[0].overrides).toEqual({ h: 2400, n: 600, a: 1000 });
+});
+
+test("SST inside the prices shows the prices as printed, and what each person pays with their equal tax", async ({
+  page,
+}) => {
+  await seed();
+  await openBill(page);
+  const inside: Scan = {
+    shop: "Kapitan",
+    lines: [
+      { name: "Apple Juice", amountMinor: 802, printedMinor: 850 },
+      { name: "Milani Lamb Briyani", amountMinor: 2830, printedMinor: 3000 },
+      { name: "3 × Ice Water @1.00", amountMinor: 283, printedMinor: 300 },
+      { name: "Bendi", amountMinor: 5377, printedMinor: 5700 },
+    ],
+    subtotalMinor: 9292,
+    taxBp: 600,
+    taxLabel: "Inclusive Service Tax",
+    totalMinor: 9850,
+  };
+  const form = await scanReceipt(page, { ok: true, data: inside });
+  await expect(form.getByText("Before tax", { exact: true })).toBeVisible();
+  await expect(form.getByRole("button", { name: "Price of Apple Juice" })).toContainText("8.50");
+  await expect(item(form, "3 × Ice Water @1.00")).toContainText("3.00");
+  await expect(form.getByText("Each person pays")).toHaveCount(0);
+  await tapWho(form, "Apple Juice", "Afiq");
+  await tapWho(form, "Milani Lamb Briyani", "Haziq");
+  await tapWho(form, "3 × Ice Water @1.00", "Najmi");
+  await tapWho(form, "Bendi", "Najmi");
+  await expect(form.getByText("Each person pays")).toBeVisible();
+  await expect(form.getByText("8.02 + 1.86 tax")).toBeVisible();
+  await expect(form.getByText("28.30 + 1.86 tax")).toBeVisible();
+  await expect(form.getByText("56.60 + 1.86 tax")).toBeVisible();
 });
 
 test("while it reads, the photo shows with the steps", async ({ page }) => {

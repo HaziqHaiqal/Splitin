@@ -78,6 +78,7 @@ describe("toScan", () => {
     });
     expect(result.ok && result.scan).toMatchObject({ subtotalMinor: 9292, taxBp: 600, totalMinor: 9850 });
     expect(result.ok && result.scan.lines.map((line) => line.amountMinor)).toEqual([802, 2830, 2028, 3632]);
+    expect(result.ok && result.scan.lines.map((line) => line.printedMinor)).toEqual([850, 3000, 2150, 3850]);
     expect(result.ok && "includedTaxBp" in result.scan).toBe(false);
   });
 

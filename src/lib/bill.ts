@@ -15,7 +15,7 @@ export type Join = { at: string };
 
 export type Charges = { subtotalMinor: number; serviceBp?: number; taxBp?: number };
 
-export type ItemLine = { name: string; amountMinor: number; offMinor?: number; who: string[] };
+export type ItemLine = { name: string; amountMinor: number; offMinor?: number; printedMinor?: number; who: string[] };
 
 export type Item = {
   id: string;
@@ -90,20 +90,23 @@ export function splitItem(
 
 export const baseOf = (item: Pick<Item, "amountMinor" | "charges">) => item.charges?.subtotalMinor ?? item.amountMinor;
 
+export function taxShares(item: Pick<Item, "amountMinor" | "charges">, shares: Allocation): Allocation {
+  const { charges } = item;
+  const taxed = Object.keys(shares).filter((id) => shares[id] > 0);
+  if (!charges?.taxBp || baseOf(item) === item.amountMinor || taxed.length === 0) return {};
+  const rated = addCharges(charges.subtotalMinor, charges);
+  return rated.total > 0 ? splitEqual(Math.round((rated.tax * item.amountMinor) / rated.total), taxed) : {};
+}
+
 export function withCharges(
   item: Pick<Item, "amountMinor" | "charges">,
   shares: Allocation,
   overrides: Readonly<Record<string, number>>,
 ): Allocation {
   if (baseOf(item) === item.amountMinor || !Object.values(shares).some((v) => v > 0)) return shares;
-  const { charges } = item;
-  const rated = charges?.taxBp ? addCharges(charges.subtotalMinor, charges) : null;
-  const tax = rated && rated.total > 0 ? Math.round((rated.tax * item.amountMinor) / rated.total) : 0;
+  const each = taxShares(item, shares);
+  const tax = Object.values(each).reduce((sum, v) => sum + v, 0);
   const scaled = splitByWeights(item.amountMinor - tax, shares);
-  const each = splitEqual(
-    tax,
-    Object.keys(shares).filter((id) => shares[id] > 0),
-  );
   const total: Allocation = {};
   for (const id of Object.keys(shares)) total[id] = scaled[id] + (each[id] ?? 0);
   const free = Object.keys(shares).filter((id) => overrides[id] === undefined);
