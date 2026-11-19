@@ -558,10 +558,7 @@ export function BillForm({
         }}
         className={cn("flex flex-col", bare ? "gap-2.5" : "gap-3 rounded-2xl border border-border bg-card p-4")}
       >
-        <PanelHead
-          title={title ?? (isEdit ? t.bill.editTitle : t.bill.addTitle)}
-          onClose={onCancel}
-        />
+        <PanelHead title={title ?? (isEdit ? t.bill.editTitle : t.bill.addTitle)} onClose={onCancel} />
 
         {scanned && receipt && lines ? (
           <>
