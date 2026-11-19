@@ -12,7 +12,15 @@ const rate = z.int().min(1).max(10_000).optional();
 
 export const chargesSchema = z.object({ subtotalMinor: minor.min(1), serviceBp: rate, taxBp: rate });
 
-export const itemSchema = z.object({
+const lineSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  amountMinor: minor.min(1),
+  offMinor: minor.optional(),
+  who: z.array(id).max(50),
+});
+
+export const itemSchema = z
+  .object({
   id,
   name: z.string().trim().min(1).max(60),
   amountMinor: minor.min(1),
@@ -20,9 +28,17 @@ export const itemSchema = z.object({
   participants: z.array(id).min(1).max(50),
   overrides: z.record(id, minor),
   charges: chargesSchema.optional(),
+  lines: z.array(lineSchema).min(1).max(60).optional(),
   addedAt: when.optional(),
   joins: z.record(id, z.object({ at: when })).optional(),
-});
+})
+  .refine(
+    (i) =>
+      !i.lines ||
+      (i.lines.reduce((sum, line) => sum + line.amountMinor, 0) === (i.charges?.subtotalMinor ?? i.amountMinor) &&
+        i.lines.every((line) => line.who.every((p) => i.participants.includes(p)))),
+    { message: "lines don't add up" },
+  );
 
 export const personNameSchema = z.string().trim().min(1).max(30);
 export const bankSchema = z.string().trim().max(40).nullable();

@@ -149,6 +149,35 @@ test("tapping who had what sets each person's part", async ({ page }) => {
   });
 });
 
+test("a printed scan opens again as the same list, with its photo, and can be changed", async ({ page }) => {
+  await seed();
+  await openBill(page);
+  const form = await scanReceipt(page, { ok: true, data: scanned });
+  await tapWho(form, "2 × Nasi lemak", "Haziq");
+  await tapWho(form, "Teh ais", "Najmi");
+  await everyoneHad(form, "Roti canai");
+  await paidBy(form, "Najmi");
+  await submit(form);
+  await settled(async () => (await added())?.overrides, { h: 2734, n: 933, a: 333 });
+
+  await choose(page, "Your bills");
+  await panel(page)
+    .getByRole("button", { name: /Restoran Ali/ })
+    .first()
+    .click();
+  const again = panel(page);
+  await expect(again.getByText("Scanned · 3 items")).toBeVisible();
+  await expect(again.getByRole("textbox", { name: "What for" })).toHaveValue("Restoran Ali");
+  await expect(payer(again, "Najmi")).toHaveAttribute("aria-pressed", "true");
+  await expect(item(again, "2 × Nasi lemak")).toHaveAccessibleName("2 × Nasi lemak Haziq 24.00");
+  await expect(item(again, "Roti canai")).toHaveAccessibleName("Roti canai Everyone 10.00");
+  await expect(again.getByRole("button", { name: "See the receipt photo" })).toBeEnabled();
+  await tapWho(again, "Roti canai", "Haziq");
+  await tapWho(again, "Roti canai", "Najmi");
+  await again.getByRole("button", { name: "Save", exact: true }).click();
+  await settled(async () => (await added())?.overrides, { h: 2400, n: 600, a: 1000 });
+});
+
 test("the arrows on the line move between items, and tapping the open item closes it", async ({ page }) => {
   await seed();
   await openBill(page);

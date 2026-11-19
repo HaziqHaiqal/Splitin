@@ -235,7 +235,7 @@ export async function addMemberItem(
     if (!parsed.success || !added.success) return { ok: false, error: "invalid" };
     if (await tooManyChanges(id)) return { ok: false, error: "rate_limited" };
     const browser = await ensureBrowserHash();
-    const { name, amountMinor, paidBy, participants, overrides, charges } = parsed.data;
+    const { name, amountMinor, paidBy, participants, overrides, charges, lines } = parsed.data;
     const item: Item = {
       id: randomId(8),
       name,
@@ -244,6 +244,7 @@ export async function addMemberItem(
       participants,
       overrides,
       ...(charges ? { charges } : {}),
+      ...(lines ? { lines } : {}),
     };
     let refused = "invalid";
     const saved = await writeBill(id, (current, rights) => {
@@ -331,7 +332,7 @@ export async function editMemberItem(
         refused = "duplicate";
         return null;
       }
-      const { name, amountMinor, paidBy, participants, overrides, charges } = parsed.data;
+      const { name, amountMinor, paidBy, participants, overrides, charges, lines } = parsed.data;
       const joins = Object.fromEntries(Object.entries(old.joins ?? {}).filter(([p]) => participants.includes(p)));
       const item: Item = {
         id: old.id,
@@ -341,6 +342,7 @@ export async function editMemberItem(
         participants,
         overrides,
         ...(charges ? { charges } : {}),
+        ...(lines ? { lines } : {}),
         addedAt: old.addedAt,
         ...(Object.keys(joins).length > 0 ? { joins } : {}),
       };
