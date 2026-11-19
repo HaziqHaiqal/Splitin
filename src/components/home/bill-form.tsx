@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { photoLink } from "@/app/actions";
 import { CameraIcon, CheckIcon, CloseIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
 import { Sheet } from "@/components/sheet";
@@ -40,6 +41,7 @@ type Attached = { shop: string; includedTaxBp?: number; taxLabel?: string; offMi
 
 export function BillForm({
   item,
+  billId,
   doc,
   update,
   bare = false,
@@ -53,6 +55,7 @@ export function BillForm({
   onPreview,
 }: {
   item: Item | null;
+  billId?: string;
   doc: BillDoc;
   update?: (fn: (doc: BillDoc) => BillDoc) => void;
   bare?: boolean;
@@ -247,16 +250,21 @@ export function BillForm({
   useEffect(() => {
     if (!reopenId) return;
     let gone = false;
-    void loadPhoto(reopenId).then((blob) => {
-      if (!blob || gone) return;
-      const url = URL.createObjectURL(blob);
-      photos.current.push(url);
-      setReceipt((r) => (r && !r.photo ? { ...r, photo: url } : r));
+    const show = (url: string) => setReceipt((r) => (r && !r.photo ? { ...r, photo: url } : r));
+    void loadPhoto(reopenId).then(async (blob) => {
+      if (gone) return;
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        photos.current.push(url);
+        return show(url);
+      }
+      const link = billId ? await photoLink(billId, reopenId) : null;
+      if (link?.ok && !gone) show(link.data.url);
     });
     return () => {
       gone = true;
     };
-  }, [reopenId]);
+  }, [reopenId, billId]);
 
   const commitEditing = () => {
     if (!editing) return;

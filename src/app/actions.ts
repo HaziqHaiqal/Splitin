@@ -38,8 +38,10 @@ import {
 } from "@/lib/bill-schema";
 import { browserHash, ensureBrowserHash, hashToken, ipHash } from "@/lib/browser-key";
 import { getBill, linkExpired, readBill } from "@/lib/data/bill";
+import { PHOTO_BYTES, photoPath, photos } from "@/lib/data/photos";
 import { createdEvent, diffDocs, memberWho, ownerWho, personName, type EventBody, type Who } from "@/lib/history";
 import { broadcastChange } from "@/lib/realtime-server";
+import { SCAN_TYPES } from "@/lib/receipt-scan";
 import { db } from "@/lib/supabase/server";
 import { CODE_LENGTH } from "@/lib/utils";
 
@@ -141,6 +143,35 @@ export async function publishBill(input: BillDoc): Promise<Result<{ id: string; 
       }
     }
     return { ok: false, error: "db" };
+  });
+}
+
+export async function uploadPhoto(id: string, itemId: string, ownerToken: string | null, form: FormData): Promise<Result> {
+  return guard(async () => {
+    const photo = form.get("photo");
+    const path = photoPath(id, itemId);
+    if (!path || !(photo instanceof Blob) || photo.size === 0 || photo.size > PHOTO_BYTES || !SCAN_TYPES.includes(photo.type))
+      return { ok: false, error: "invalid" };
+    const bill = await readBill(id);
+    if (!bill?.doc.items.find((i) => i.id === itemId)?.lines) return { ok: false, error: "invalid" };
+    const browser = await browserHash();
+    const added = Boolean(browser && bill.rights.items?.[itemId] === browser);
+    if (!added && !(await isOwner(id, ownerToken))) return { ok: false, error: "forbidden" };
+    const { error } = await photos().upload(path, photo, { contentType: photo.type, upsert: true });
+    if (error) {
+      console.error("[splitin] photo upload failed:", error);
+      return { ok: false, error: "db" };
+    }
+    return { ok: true, data: null };
+  });
+}
+
+export async function photoLink(id: string, itemId: string): Promise<Result<{ url: string }>> {
+  return guard(async () => {
+    const path = photoPath(id, itemId);
+    if (!path) return { ok: false, error: "invalid" };
+    const { data, error } = await photos().createSignedUrl(path, 3600);
+    return data && !error ? { ok: true, data: { url: data.signedUrl } } : { ok: false, error: "not_found" };
   });
 }
 

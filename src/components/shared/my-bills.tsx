@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { CloseIcon, PencilIcon, ResetIcon } from "@/components/icons";
+import { photoLink } from "@/app/actions";
+import { CloseIcon, PencilIcon, ReceiptIcon, ResetIcon } from "@/components/icons";
+import { Sheet } from "@/components/sheet";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { baseOf, baseShares, itemShares, joinShare, type BillDoc, type Item } from "@/lib/bill";
@@ -134,6 +136,7 @@ export function BillRows({
 const autoPoint = (v: string) => toAutoPointInput(v, "MYR");
 
 export function BillDetail({
+  billId,
   item,
   doc,
   me,
@@ -146,6 +149,7 @@ export function BillDetail({
   onEdit,
   onLeave,
 }: {
+  billId: string;
   item: Item;
   doc: BillDoc;
   me: string | null;
@@ -170,6 +174,20 @@ export function BillDetail({
   const part = on && rules.canPart(item);
   const edit = rules.canEdit(item);
   const own = Boolean(me && item.overrides[me] !== undefined);
+  const scanned = Boolean(item.lines);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [showPhoto, setShowPhoto] = useState(false);
+
+  useEffect(() => {
+    if (!scanned) return;
+    let gone = false;
+    void photoLink(billId, item.id).then((link) => {
+      if (link.ok && !gone) setPhoto(link.data.url);
+    });
+    return () => {
+      gone = true;
+    };
+  }, [billId, item.id, scanned]);
 
   useEffect(() => {
     if (part && !onBack) input.current?.select();
@@ -254,6 +272,15 @@ export function BillDetail({
         <>
           {part ? <div className="mx-1.5 my-1 h-px bg-line" /> : null}
           <MenuItem icon={<PencilIcon size={16} />} label={t.page.editBill} onClick={() => onEdit(item)} />
+        </>
+      ) : null}
+      {photo ? (
+        <>
+          <MenuItem icon={<ReceiptIcon size={16} />} label={t.bill.seePhoto} onClick={() => setShowPhoto(true)} />
+          <Sheet open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt={t.bill.photoTitle} className="w-full rounded-lg" />
+          </Sheet>
         </>
       ) : null}
     </>

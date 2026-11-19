@@ -11,6 +11,7 @@ import { useToast } from "@/components/toast";
 import { fmt } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { ownerOf, repeatedName, type BillDoc, type Person } from "@/lib/bill";
+import { sharePhoto } from "@/lib/receipt-photos";
 import { saveDraft, setOwnerToken, type Draft } from "@/lib/store";
 import { newId } from "@/lib/utils";
 
@@ -41,6 +42,8 @@ export function useShareReceipt(draft: Draft | null | undefined) {
         return;
       }
       setOwnerToken(result.data.id, result.data.ownerToken);
+      for (const item of current.doc.items)
+        if (item.lines) void sharePhoto(result.data.id, item.id, result.data.ownerToken);
       setShared({
         id: result.data.id,
         doc: current.doc,
