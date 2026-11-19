@@ -15,6 +15,8 @@ export type Join = { at: string };
 
 export type Charges = { subtotalMinor: number; serviceBp?: number; taxBp?: number };
 
+export type ItemLine = { name: string; amountMinor: number; offMinor?: number; who: string[] };
+
 export type Item = {
   id: string;
   name: string;
@@ -23,6 +25,7 @@ export type Item = {
   participants: string[];
   overrides: Record<string, number>;
   charges?: Charges;
+  lines?: ItemLine[];
   addedAt?: string;
   joins?: Record<string, Join>;
 };

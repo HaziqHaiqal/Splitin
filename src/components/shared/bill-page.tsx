@@ -62,6 +62,7 @@ import {
 import { nameFitsQr, qrFileName, readQrDetails } from "@/lib/pay-qr";
 import { getAsked, getMe, setAsked, setMe, setOwnerToken, useMe } from "@/lib/store";
 import { cn, newId } from "@/lib/utils";
+import { movePhoto } from "@/lib/receipt-photos";
 import { BankForm } from "./bank-form";
 import { IconTile, MenuFab, MenuItem, MenuPills, MenuRow, Rise, type Tile } from "./bill-menu";
 import { Greeting } from "./greeting";
@@ -299,6 +300,7 @@ export function BillPage({
       );
       if (!result.ok) return void toast({ message: errorText(result.error, newPeople[0]?.name) });
       const { id } = result.data;
+      void movePhoto(item.id, id);
       setFreshId(id);
       setTell(true);
       toast({

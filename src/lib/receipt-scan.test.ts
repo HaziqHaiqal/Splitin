@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineSplit, replyText, toScan } from "./receipt-scan";
+import { lineSplit, linesMatch, replyText, toScan } from "./receipt-scan";
 
 const receipt = {
   readable: true,
@@ -259,5 +259,25 @@ describe("lineSplit", () => {
       participants: ["h", "n", "a"],
       overrides: { h: 2400, n: 600, a: 1000 },
     });
+  });
+});
+
+describe("linesMatch", () => {
+  const lines = [
+    { name: "Nasi", amountMinor: 1000, who: ["a"] },
+    { name: "Teh", amountMinor: 600, who: [] },
+  ];
+  const everyone = ["a", "b", "c"];
+  const saved = { lines, ...lineSplit(lines, everyone, everyone) };
+
+  it("matches an item saved from its scanned lines", () => {
+    expect(linesMatch(saved, everyone)).toBe(true);
+    expect(linesMatch(saved, [...everyone, "d"])).toBe(true);
+  });
+
+  it("doesn't match once the split was changed another way, like someone joining", () => {
+    expect(linesMatch({ ...saved, participants: [...saved.participants, "d"] }, [...everyone, "d"])).toBe(false);
+    expect(linesMatch({ ...saved, overrides: { ...saved.overrides, a: 1 } }, everyone)).toBe(false);
+    expect(linesMatch({ ...saved, lines: undefined }, everyone)).toBe(false);
   });
 });

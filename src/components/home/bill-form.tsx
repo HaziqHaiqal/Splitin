@@ -20,7 +20,8 @@ import {
   type PreviewItem,
 } from "@/lib/bill";
 import { addCharges, parseMoney, parseRate, rateText, toAutoPointInput, toInputValue } from "@/lib/money";
-import { lineSplit, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from "@/lib/receipt-scan";
+import { loadPhoto, savePhoto } from "@/lib/receipt-photos";
+import { lineSplit, linesMatch, SCAN_TYPES, type Scan, type ScanError, type ScanLine } from "@/lib/receipt-scan";
 import { shrinkPhoto } from "@/lib/shrink-photo";
 import { cn, newId, parseNames } from "@/lib/utils";
 import { PersonChips } from "./person-chips";
@@ -77,14 +78,17 @@ export function BillForm({
   const [service, setService] = useState(rateOf(saved?.serviceBp, "10"));
   const [tax, setTax] = useState(rateOf(saved?.taxBp, "6"));
   const [kept, setKept] = useState<Kept | null>(item && saved ? { ...saved, totalMinor: item.amountMinor } : null);
-  const [lines, setLines] = useState<Line[] | null>(null);
+  const reopened = item?.lines && linesMatch(item, everyone) ? item.lines : null;
+  const reopenId = reopened ? item?.id : undefined;
+  const [lines, setLines] = useState<Line[] | null>(reopened);
   const [scan, setScan] = useState<"idle" | "reading" | ScanError>("idle");
-  const [receipt, setReceipt] = useState<Attached | null>(null);
+  const [receipt, setReceipt] = useState<Attached | null>(reopened ? { shop: item?.name ?? "", photo: null } : null);
   const [showPhoto, setShowPhoto] = useState(false);
   const [reading, setReading] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [filled, setFilled] = useState(0);
   const photos = useRef<string[]>([]);
+  const blobs = useRef(new Map<string, Blob>());
   const [paidBy, setPaidBy] = useState(
     item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
   );
@@ -92,7 +96,7 @@ export function BillForm({
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
   const [showSplit, setShowSplit] = useState(false);
-  const [paid, setPaid] = useState("");
+  const [paid, setPaid] = useState(reopened && item ? toInputValue(item.amountMinor, "MYR") : "");
   const [editPaid, setEditPaid] = useState(false);
   const [editName, setEditName] = useState(false);
   const [payerOpen, setPayerOpen] = useState(false);
@@ -232,6 +236,19 @@ export function BillForm({
     const made = photos.current;
     return () => made.forEach((url) => URL.revokeObjectURL(url));
   }, []);
+  useEffect(() => {
+    if (!reopenId) return;
+    let gone = false;
+    void loadPhoto(reopenId).then((blob) => {
+      if (!blob || gone) return;
+      const url = URL.createObjectURL(blob);
+      photos.current.push(url);
+      setReceipt((r) => (r && !r.photo ? { ...r, photo: url } : r));
+    });
+    return () => {
+      gone = true;
+    };
+  }, [reopenId]);
 
   const commitEditing = () => {
     if (!editing) return;
@@ -317,6 +334,7 @@ export function BillForm({
     if (!SCAN_TYPES.includes(photo.type)) return setScan("photo");
     const url = URL.createObjectURL(photo);
     photos.current.push(url);
+    blobs.current.set(url, photo);
     setReading(url);
     const body = new FormData();
     body.append("photo", photo, "receipt");
@@ -429,8 +447,13 @@ export function BillForm({
       participants: included,
       overrides: cleanOverrides,
       ...(charges ? { charges } : {}),
+      ...(scanned && lines
+        ? { lines: lines.map((line) => ({ ...line, who: line.who.filter((id) => included.includes(id)) })) }
+        : {}),
       ...(Object.keys(joins).length > 0 ? { joins } : {}),
     };
+    const photo = scanned && receipt?.photo ? blobs.current.get(receipt.photo) : undefined;
+    if (photo) void savePhoto(next.id, photo);
     if (onAdd) onAdd(next, newPeople);
     else
       update?.((d) => ({
@@ -903,17 +926,23 @@ export function BillForm({
 
             <div
               className={cn(
+                isEdit && "flex items-center gap-3",
                 bare && "sticky bottom-0 z-10 pt-2",
                 bare && (desktop ? "bg-bg pb-4" : "-mx-4 bg-card px-4"),
               )}
             >
+              {isEdit ? (
+                <button type="button" onClick={remove} className="h-10 shrink-0 text-[13.5px] font-bold text-owe">
+                  {t.bill.delete}
+                </button>
+              ) : null}
               <button
                 type="submit"
                 disabled={!canSave}
                 onMouseDown={(e) => e.preventDefault()}
                 className="h-[44px] w-full rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink"
               >
-                {desktop ? `${t.bill.printIt} ↵` : t.bill.printIt}
+                {isEdit ? t.common.save : desktop ? `${t.bill.printIt} ↵` : t.bill.printIt}
               </button>
             </div>
           </>

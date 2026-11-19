@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Item } from "./bill";
 import { addCharges, splitByWeights, type Allocation, type Rates } from "./money";
 
 export type ScanLine = { name: string; amountMinor: number; offMinor?: number };
@@ -235,4 +236,15 @@ export function lineSplit(
   const shares = splitByWeights(total, weights);
   const participants = Object.keys(weights).filter((id) => (shares[id] ?? 0) > 0);
   return { participants, overrides: Object.fromEntries(participants.map((id) => [id, shares[id]])) };
+}
+
+export function linesMatch(item: Pick<Item, "lines" | "participants" | "overrides">, everyone: readonly string[]) {
+  if (!item.lines?.length) return false;
+  const { participants, overrides } = lineSplit(item.lines, item.participants, everyone);
+  const same = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((id) => b.includes(id));
+  return (
+    same(participants, item.participants) &&
+    same(Object.keys(overrides), Object.keys(item.overrides)) &&
+    Object.entries(overrides).every(([id, amount]) => item.overrides[id] === amount)
+  );
 }

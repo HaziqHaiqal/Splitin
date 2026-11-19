@@ -1,8 +1,8 @@
-import { liveRights, type BillDoc, type BillRights, type Payment } from "./bill";
+import { liveRights, type BillDoc, type BillRights, type ItemLine, type Payment } from "./bill";
 import type { BillEvent, EventBody, Who } from "./history";
 
 const SHARE_COLUMNS = "person_id, position, amount_override, browser_hash, joined_at";
-const ITEM_COLUMNS = `id, position, name, amount_minor, subtotal_minor, service_bp, tax_bp, paid_by, browser_hash, added_at, item_shares(${SHARE_COLUMNS})`;
+const ITEM_COLUMNS = `id, position, name, amount_minor, subtotal_minor, service_bp, tax_bp, lines, paid_by, browser_hash, added_at, item_shares(${SHARE_COLUMNS})`;
 const PERSON_COLUMNS = "id, position, name, color, bank, account_no, pay_qr, browser_hash, added_at, details_at";
 const PAYMENT_COLUMNS = "id, from_person, to_person, amount_minor, by_role, browser_hash, created_at";
 const EVENT_COLUMNS = "id, kind, by_role, by_person_id, by_name, data, created_at";
@@ -26,6 +26,7 @@ export type ItemRow = {
   subtotal_minor: number | null;
   service_bp: number | null;
   tax_bp: number | null;
+  lines: ItemLine[] | null;
   paid_by: string;
   browser_hash: string | null;
   added_at: string | null;
@@ -117,6 +118,7 @@ export function docFromRow(row: BillRow): BillDoc {
                 serviceBp: i.service_bp ?? undefined,
                 taxBp: i.tax_bp ?? undefined,
               },
+        lines: i.lines ?? undefined,
         paidBy: i.paid_by,
         participants: i.item_shares.map((s) => s.person_id),
         overrides: Object.fromEntries(
@@ -196,6 +198,7 @@ export function saveArgs(doc: BillDoc, rights: BillRights) {
       subtotal_minor: i.charges?.subtotalMinor ?? null,
       service_bp: i.charges?.serviceBp ?? null,
       tax_bp: i.charges?.taxBp ?? null,
+      lines: i.lines ?? null,
       paid_by: i.paidBy,
       browser_hash: live.items?.[i.id] ?? null,
       added_at: i.addedAt ?? null,
