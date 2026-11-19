@@ -82,6 +82,7 @@ test("a scanned receipt shows the bill on top and who had what below, and keeps 
   await openBill(page);
   const form = await scanReceipt(page, { ok: true, data: scanned });
   await expect(form.getByText("Scanned · 3 items", { exact: true })).toBeVisible();
+  await expect(form.getByText("Items", { exact: true })).toBeVisible();
   await expect(form.getByText("Service charge 10%", { exact: true })).toBeVisible();
   await expect(form.getByText("SST 6%", { exact: true })).toBeVisible();
   await expect(form.getByText("RM 2.64", { exact: true })).toBeVisible();

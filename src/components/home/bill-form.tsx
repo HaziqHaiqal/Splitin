@@ -633,6 +633,24 @@ export function BillForm({
               </PersonChips>
             </div>
 
+            {chargeRows.length > 0 ? (
+              <div className="flex flex-col gap-1 rounded-xl border border-line px-3.5 py-3">
+                <div className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                  <span>{t.bill.items}</span>
+                  <span className="tabular">{money(amountMinor)}</span>
+                </div>
+                {chargeRows.map((c) => (
+                  <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                    <span>
+                      {c.label} {rateText(c.bp ?? 0)}%
+                    </span>
+                    <span className="tabular">{money(c.amount)}</span>
+                  </div>
+                ))}
+                <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span>
+              </div>
+            ) : null}
+
             <div className="flex flex-wrap items-center gap-2">
               {editPaid ? (
                 <span className="inline-flex h-[34px] items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 text-[13.5px] font-bold shadow-[0_0_0_3px_var(--green-soft)]">
@@ -858,20 +876,6 @@ export function BillForm({
                 );
               })}
             </ol>
-
-            {chargeRows.length > 0 ? (
-              <div className="flex flex-col gap-1 rounded-xl border border-line px-3.5 py-3">
-                {chargeRows.map((c) => (
-                  <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
-                    <span>
-                      {c.label} {rateText(c.bp ?? 0)}%
-                    </span>
-                    <span className="tabular">{money(c.amount)}</span>
-                  </div>
-                ))}
-                <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span>
-              </div>
-            ) : null}
 
             <div
               className={cn(

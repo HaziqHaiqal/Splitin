@@ -88,6 +88,7 @@ export const ms: Dictionary = {
     needWho: "Pilih siapa ambil {count} lagi",
     notPicked: "Belum dipilih",
     chargesSplit: "Dibahagi ikut apa yang setiap orang ambil",
+    items: "Item",
     change: "Ubah",
     splitEveryone: "Bahagi sama rata untuk semua",
     splitEachLine: "Bahagi sama rata · {amount} seorang",

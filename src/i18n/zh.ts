@@ -87,6 +87,7 @@ export const zh: Dictionary = {
     needWho: "还有 {count} 项要选谁",
     notPicked: "还没选",
     chargesSplit: "按每人所点的比例分摊",
+    items: "商品",
     change: "更改",
     splitEveryone: "所有人平分",
     splitEachLine: "平分 · 每人 {amount}",
