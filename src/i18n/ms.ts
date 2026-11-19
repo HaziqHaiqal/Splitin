@@ -89,6 +89,8 @@ export const ms: Dictionary = {
     notPicked: "Belum dipilih",
     chargesSplit: "Dibahagi ikut apa yang setiap orang ambil",
     items: "Item",
+    withTax: "{amount} dengan cukai",
+    withCharges: "{amount} dengan caj",
     change: "Ubah",
     splitEveryone: "Bahagi sama rata untuk semua",
     splitEachLine: "Bahagi sama rata · {amount} seorang",

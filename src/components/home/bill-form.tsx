@@ -35,7 +35,7 @@ const rateOf = (bp: number | undefined, fallback: string): Rate =>
 
 type Kept = { subtotalMinor: number; serviceBp?: number; taxBp?: number; totalMinor: number };
 type Line = ScanLine & { who: string[] };
-type Attached = { shop: string; includedTaxBp?: number; offMinor?: number; photo: string | null };
+type Attached = { shop: string; includedTaxBp?: number; taxLabel?: string; offMinor?: number; photo: string | null };
 
 export function BillForm({
   item,
@@ -97,7 +97,6 @@ export function BillForm({
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
   const [showSplit, setShowSplit] = useState(false);
   const [paid, setPaid] = useState(reopened && item ? toInputValue(item.amountMinor, "MYR") : "");
-  const [editPaid, setEditPaid] = useState(false);
   const [flash, setFlash] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const payerRef = useRef<HTMLDivElement>(null);
@@ -320,9 +319,14 @@ export function BillForm({
       totalMinor: result.totalMinor,
     });
     setLines(linesMinor > 0 ? result.lines.map((line) => ({ ...line, who: [] })) : null);
-    setReceipt({ shop: result.shop, includedTaxBp: result.includedTaxBp, offMinor: result.offMinor, photo });
+    setReceipt({
+      shop: result.shop,
+      includedTaxBp: result.includedTaxBp,
+      taxLabel: result.taxLabel,
+      offMinor: result.offMinor,
+      photo,
+    });
     setPaid(toInputValue(result.totalMinor, "MYR"));
-    setEditPaid(false);
     setOpen(0);
     if (!payerPicked.current) setPaidBy("");
     setFixing(null);
@@ -365,7 +369,6 @@ export function BillForm({
     setKept(null);
     setLines(null);
     setReceipt(null);
-    setEditPaid(false);
     setParticipants(everyone);
     setOverrides({});
     setEditing(null);
@@ -434,7 +437,6 @@ export function BillForm({
 
   const commitPaid = () => {
     if (paidMinor <= 0 && kept) setPaid(toInputValue(kept.totalMinor, "MYR"));
-    setEditPaid(false);
   };
 
   const save = () => {
@@ -480,7 +482,6 @@ export function BillForm({
       setPaid("");
       setOpen(null);
       setFixing(null);
-      setEditPaid(false);
       payerPicked.current = false;
       setScan("idle");
     }
@@ -531,8 +532,14 @@ export function BillForm({
   const onTop = asPrinted && kept ? addCharges(kept.subtotalMinor, kept) : null;
   const chargeRows = [
     { label: t.bill.service, bp: kept?.serviceBp, amount: onTop?.service ?? 0 },
-    { label: t.bill.sst, bp: kept?.taxBp, amount: onTop?.tax ?? 0 },
+    { label: receipt?.taxLabel || t.bill.sst, bp: kept?.taxBp, amount: onTop?.tax ?? 0 },
   ].filter((c) => c.bp && c.amount > 0);
+  const taxedNote = (minor: number) =>
+    chargeRows.length > 0 && kept ? (
+      <span aria-hidden className="text-[11.5px] leading-tight font-semibold text-green-ink">
+        {fmt(kept.serviceBp ? t.bill.withCharges : t.bill.withTax, { amount: plain(addCharges(minor, kept).total) })}
+      </span>
+    ) : null;
   const scannedLine = [
     lines?.length === 1 ? t.bill.scannedOne : fmt(t.bill.scannedItems, { count: lines?.length ?? 0 }),
     receipt?.offMinor ? fmt(t.bill.discountOff, { amount: money(receipt.offMinor) }) : "",
@@ -551,8 +558,6 @@ export function BillForm({
     } else if (missing === "who") openItem(unpicked);
   };
   const phone = bare && !desktop;
-  const pill =
-    "inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-full bg-chip px-3 text-[13.5px] font-bold text-ink";
   const chip = "inline-flex h-[38px] shrink-0 items-center gap-1.5 rounded-full pr-3.5 pl-[5px] text-[14px] font-bold";
   const stickTop = (desktop ? 64 : 0) + headH;
   const notches =
@@ -656,30 +661,33 @@ export function BillForm({
               </PersonChips>
             </div>
 
-            {chargeRows.length > 0 ? (
-              <div className="flex flex-col gap-1 rounded-xl border border-line px-3.5 py-3">
-                <div className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
-                  <span>{t.bill.items}</span>
-                  <span className="tabular">{money(amountMinor)}</span>
-                </div>
-                {chargeRows.map((c) => (
-                  <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
-                    <span>
-                      {c.label} {rateText(c.bp ?? 0)}%
-                    </span>
-                    <span className="tabular">{money(c.amount)}</span>
+            <div className="flex flex-col gap-1 rounded-xl border border-line px-3.5 py-3">
+              {chargeRows.length > 0 ? (
+                <>
+                  <div className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                    <span>{t.bill.items}</span>
+                    <span className="tabular">{money(amountMinor)}</span>
                   </div>
-                ))}
-                <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span>
-              </div>
-            ) : null}
-
-            <div className="flex flex-wrap items-center gap-2">
-              {editPaid ? (
-                <span className="inline-flex h-[34px] items-center gap-1 rounded-full border-[1.5px] border-green bg-card pr-1 pl-3 text-[13.5px] font-bold shadow-[0_0_0_3px_var(--green-soft)]">
-                  RM
+                  {chargeRows.map((c) => (
+                    <div key={c.label} className="flex items-baseline justify-between gap-3 text-[14px] font-bold">
+                      <span>
+                        {c.label} {rateText(c.bp ?? 0)}%
+                      </span>
+                      <span className="tabular">{money(c.amount)}</span>
+                    </div>
+                  ))}
+                </>
+              ) : null}
+              <label
+                className={cn(
+                  "flex items-center justify-between gap-3",
+                  chargeRows.length > 0 && "mt-1.5 border-t border-line pt-2.5",
+                )}
+              >
+                <span className="text-[15px] font-extrabold">{t.bill.totalPaid}</span>
+                <span className="flex h-10 w-[140px] items-center gap-1 rounded-lg border border-border bg-card px-2.5 focus-within:border-green">
+                  <span className="text-[13px] font-bold text-muted">RM</span>
                   <input
-                    autoFocus
                     type="text"
                     inputMode="numeric"
                     value={paid}
@@ -689,28 +697,14 @@ export function BillForm({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        commitPaid();
+                        e.currentTarget.blur();
                       }
                     }}
-                    className="w-[84px] bg-transparent text-[16px] font-extrabold text-ink tabular outline-none"
+                    className="w-full min-w-0 bg-transparent text-right text-[16px] font-extrabold text-ink tabular outline-none"
                   />
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={commitPaid}
-                    className="h-[26px] rounded-full bg-green px-2.5 text-[12.5px] font-bold text-white"
-                  >
-                    {t.bill.done}
-                  </button>
                 </span>
-              ) : (
-                <button type="button" onClick={() => setEditPaid(true)} className={pill}>
-                  {t.bill.totalPaid} <span className="tabular">{money(paidMinor)}</span>
-                  <span aria-hidden className="text-muted">
-                    ✎
-                  </span>
-                </button>
-              )}
+              </label>
+              {chargeRows.length > 0 ? <span className="text-[12.5px] text-muted">{t.bill.chargesSplit}</span> : null}
             </div>
             {kept && paidMinor > 0 && paidMinor < kept.totalMinor ? (
               <span className="animate-pop self-start rounded-full bg-green-soft px-2.5 py-1 text-[12.5px] font-bold text-green-ink">
@@ -803,9 +797,12 @@ export function BillForm({
                             {line.offMinor ? ` · ${fmt(t.bill.offShort, { amount: plain(line.offMinor) })}` : null}
                           </small>
                         </span>
-                        <span className="text-right text-[14px] font-bold tabular">
-                          {was}
-                          {plain(line.amountMinor)}
+                        <span className="flex flex-col items-end text-right text-[14px] font-bold tabular">
+                          <span>
+                            {was}
+                            {plain(line.amountMinor)}
+                          </span>
+                          {taxedNote(line.amountMinor)}
                         </span>
                       </button>
                     </li>
@@ -863,13 +860,16 @@ export function BillForm({
                           type="button"
                           aria-label={fmt(t.bill.priceOf, { name: line.name })}
                           onClick={() => setFixing(toInputValue(line.amountMinor, "MYR"))}
-                          className="flex h-[34px] shrink-0 items-center gap-1 text-[14px] font-bold tabular"
+                          className="flex min-h-[34px] shrink-0 flex-col items-end justify-center text-[14px] font-bold tabular"
                         >
-                          {was}
-                          {plain(line.amountMinor)}
-                          <span aria-hidden className="text-[12px] text-muted">
-                            ✎
+                          <span className="flex items-center gap-1">
+                            {was}
+                            {plain(line.amountMinor)}
+                            <span aria-hidden className="text-[12px] text-muted">
+                              ✎
+                            </span>
                           </span>
+                          {taxedNote(line.amountMinor)}
                         </button>
                       )}
                     </div>
