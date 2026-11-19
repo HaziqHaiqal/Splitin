@@ -28,8 +28,8 @@ export const SCAN_PROMPT = [
   "subtotal: the amount before service charge and tax, if printed.",
   "serviceRate and taxRate: the percent printed, like 10 or 6.",
   "service, serviceRate, tax and taxRate: only for charges added on top of the prices. Leave them out when the receipt says the prices already include them, like Inclusive Service Tax.",
-  "includedTaxRate: the percent when the receipt says the prices already include the tax, like 6 for Inclusive Service Tax 6%.",
-  "total: the final amount to pay, after service charge, tax, discounts and any rounding. When several totals are printed, use the last one, like Grand Total.",
+  "includedTaxRate and includedTax: the percent and the tax amount when the receipt says the prices already include the tax, like 6 and 5.58 for Inclusive Service Tax 6% with Tax 5.58.",
+  "total: the final amount to pay, after discounts and any rounding.",
   "currency: the ISO 4217 code, MYR for RM.",
   "shop: the shop or restaurant name.",
   "readable: false when the photo isn't a receipt or can't be read.",
@@ -57,6 +57,7 @@ export const SCAN_SCHEMA = {
     taxRate: amount,
     tax: amount,
     includedTaxRate: amount,
+    includedTax: amount,
     discount: amount,
     total: amount,
   },
@@ -79,6 +80,7 @@ const replySchema = z.object({
   taxRate: num,
   tax: num,
   includedTaxRate: num,
+  includedTax: num,
   discount: num,
   total: num,
 });
@@ -164,23 +166,37 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
   );
   const fits = ({ rates, off }: { rates: Rates; off: number }) =>
     Math.abs(addCharges(subtotalOf(off), rates).total - total) <= 10;
-  const onTop =
-    service + tax > 0 &&
-    [read.serviceBp, read.taxBp].every((bp) => !bp || bp % 100 === 0) &&
-    Math.abs(addCharges(base, read).total - (base + service + tax)) <= 2;
-  const trusted = total > 0 && !(onTop && Math.abs(total - base) <= 10);
-  const chosen = (trusted ? choices.find(fits) : undefined) ?? { rates: read, off: gross > 0 ? billOff : 0 };
+  const chosen = (total > 0 ? choices.find(fits) : undefined) ?? { rates: read, off: gross > 0 ? billOff : 0 };
   const { serviceBp, taxBp } = chosen.rates;
   const subtotalMinor = subtotalOf(chosen.off);
   const shares =
     chosen.off > 0 && chosen.off < linesMinor
       ? splitByWeights(chosen.off, Object.fromEntries(items.map((line, i) => [i, line.amountMinor])))
       : {};
-  const lines = items
+  const charged = items
     .map((line, i) => ({ ...line, amountMinor: line.amountMinor - (shares[i] ?? 0) }))
     .filter((line) => line.amountMinor > 0);
-  const totalMinor = trusted ? total : addCharges(subtotalMinor, read).total;
-  const includedTaxBp = taxBp ? undefined : (rateBp(r.includedTaxRate, 0, 0) ?? read.taxBp);
+  const totalMinor = total > 0 ? total : addCharges(subtotalMinor, read).total;
+  const inPrinted = toMinor(r.includedTax);
+  const includedTaxBp = taxBp
+    ? undefined
+    : (rateBp(r.includedTaxRate, inPrinted, totalMinor - inPrinted) ?? read.taxBp);
+  const inTax = inPrinted || tax;
+  const exact = includedTaxBp ? Math.round((subtotalMinor * includedTaxBp) / (10_000 + includedTaxBp)) : 0;
+  const inside = includedTaxBp && !serviceBp ? (Math.abs(inTax - exact) <= 2 ? inTax : exact) : 0;
+  const before = subtotalMinor - inside;
+  const pre =
+    inside > 0 ? splitByWeights(before, Object.fromEntries(charged.map((line, i) => [i, line.amountMinor]))) : {};
+  const lines =
+    inside > 0
+      ? charged
+          .map(({ offMinor, ...line }, i) => ({
+            ...line,
+            amountMinor: pre[i] ?? 0,
+            ...(offMinor ? { offMinor: Math.round((offMinor * before) / subtotalMinor) } : {}),
+          }))
+          .filter((line) => line.amountMinor > 0)
+      : charged;
   const offMinor = itemOff + billOff;
   if (subtotalMinor <= 0 || totalMinor <= 0 || totalMinor > MAX_MINOR || subtotalMinor > MAX_MINOR)
     return { ok: false, error: "unreadable" };
@@ -190,10 +206,10 @@ export function toScan(reply: unknown): { ok: true; scan: Scan } | { ok: false; 
     scan: {
       shop: (r.shop ?? "").trim().replace(/\s+/g, " ").slice(0, 60),
       lines,
-      subtotalMinor,
+      subtotalMinor: before,
       ...(serviceBp ? { serviceBp } : {}),
-      ...(taxBp ? { taxBp } : {}),
-      ...(includedTaxBp ? { includedTaxBp } : {}),
+      ...(taxBp || inside ? { taxBp: taxBp || includedTaxBp } : {}),
+      ...(includedTaxBp && !inside ? { includedTaxBp } : {}),
       ...(offMinor > 0 ? { offMinor } : {}),
       totalMinor,
     },
