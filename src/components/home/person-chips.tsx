@@ -10,17 +10,15 @@ export function PersonChips({
   people,
   value,
   onChange,
-  bare,
   children,
 }: {
   people: readonly Person[];
   value: string;
   onChange: (id: string) => void;
-  bare: boolean;
   children?: ReactNode;
 }) {
   return (
-    <div className={cn("flex gap-1.5", bare ? "-mx-4 [scrollbar-width:none] overflow-x-auto px-4" : "flex-wrap")}>
+    <div className="flex flex-wrap gap-1.5">
       {people.map((p) => (
         <ChoiceChip key={p.id} person={p} on={value === p.id} onClick={() => onChange(p.id)} />
       ))}

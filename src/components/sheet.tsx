@@ -112,7 +112,7 @@ function BottomSheet({ open, onOpenChange, title, children, onBack }: SheetProps
   );
 }
 
-function Modal({ open, onOpenChange, title, children, wide, onBack }: SheetProps) {
+export function Modal({ open, onOpenChange, title, children, wide, onBack }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -134,7 +134,7 @@ function Modal({ open, onOpenChange, title, children, wide, onBack }: SheetProps
         if (e.target === ref.current) onOpenChange(false);
       }}
       className={cn(
-        "m-auto w-full rounded-[24px] border border-sheet-edge bg-sheet p-0 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.25)] outline-none backdrop:bg-overlay",
+        "m-auto w-[calc(100%-32px)] rounded-[24px] border border-sheet-edge bg-sheet p-0 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.25)] outline-none backdrop:bg-overlay",
         wide ? "max-w-[min(860px,calc(100vw-48px))]" : "max-w-[460px]",
       )}
     >

@@ -427,7 +427,7 @@ test("SST inside the prices shows the prices as printed, and what each person pa
     totalMinor: 9850,
   };
   const form = await scanReceipt(page, { ok: true, data: inside });
-  await expect(form.getByText("Before tax", { exact: true })).toBeVisible();
+  await expect(form.getByText("Amount", { exact: true })).toBeVisible();
   await expect(form.getByRole("button", { name: "Price of Apple Juice" })).toContainText("8.50");
   await expect(item(form, "3 × Ice Water @1.00")).toContainText("3.00");
   await expect(form.getByText("Each person pays")).toHaveCount(0);
