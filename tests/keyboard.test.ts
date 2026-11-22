@@ -65,11 +65,6 @@ test("the page stays still behind the form while typing", async ({ page }) => {
   expect(await scrollY(), "typing: dragging the form does not move the page").toBe(0);
   expect(await top(), "typing: the form stays put").toBe(pinned);
 
-  const row = form.locator(".overflow-x-auto").first();
-  const box = (await row.boundingBox())!;
-  await drag(cdp, page, [330, box.y + box.height / 2], [60, box.y + box.height / 2]);
-  expect(await row.evaluate((el) => el.scrollLeft), "typing: Who paid can be swiped sideways").toBeGreaterThan(50);
-
   await page.keyboard.insertText("Petrol");
   await expect(name).toHaveValue("Petrol");
 

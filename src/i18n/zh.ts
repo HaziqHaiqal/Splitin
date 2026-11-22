@@ -89,6 +89,7 @@ export const zh: Dictionary = {
     namePlaceholder: "用途，例如 水费",
     printIt: "打印",
     needName: "填写用途",
+    needAmount: "填写金额",
     needPayer: "选择谁付的钱",
     needWho: "还有 {count} 项要选谁",
     notPicked: "还没选",

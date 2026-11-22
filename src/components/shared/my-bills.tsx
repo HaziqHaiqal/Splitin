@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { photoLink } from "@/app/actions";
 import { CloseIcon, PencilIcon, ReceiptIcon, ResetIcon } from "@/components/icons";
-import { Sheet } from "@/components/sheet";
+import { Modal } from "@/components/sheet";
 import { fmt, intlLocale } from "@/i18n";
 import { useI18n } from "@/i18n/client";
 import { baseOf, baseShares, itemShares, joinShare, type BillDoc, type Item } from "@/lib/bill";
@@ -277,10 +277,10 @@ export function BillDetail({
       {photo ? (
         <>
           <MenuItem icon={<ReceiptIcon size={16} />} label={t.bill.seePhoto} onClick={() => setShowPhoto(true)} />
-          <Sheet open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
+          <Modal open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt={t.bill.photoTitle} className="w-full rounded-lg" />
-          </Sheet>
+          </Modal>
         </>
       ) : null}
     </>

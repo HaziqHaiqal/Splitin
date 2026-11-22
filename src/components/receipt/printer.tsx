@@ -124,6 +124,7 @@ export function PrinterPage({
     if (desktop || !panel || !onPanelClose) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest("dialog")) return;
       if (e.target === document.body || (e.target instanceof Node && pinned.current?.contains(e.target)))
         onPanelClose();
     };
@@ -223,7 +224,12 @@ export function PrinterPage({
           onPointerCancel={letGo}
           style={{
             ...(keyboard
-              ? { top: keyboard.bottom, bottom: "auto", maxHeight: keyboard.height, transform: "translateY(-100%)" }
+              ? {
+                  top: keyboard.bottom,
+                  bottom: "auto",
+                  maxHeight: `min(66dvh, ${keyboard.height}px)`,
+                  transform: "translateY(-100%)",
+                }
               : undefined),
             translate: pull ? `0 ${pull}px` : undefined,
             transition: dragging ? "none" : "translate 0.3s cubic-bezier(0.32, 0.72, 0, 1)",

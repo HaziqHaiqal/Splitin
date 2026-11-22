@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { photoLink } from "@/app/actions";
 import { CameraIcon, CheckIcon, CloseIcon } from "@/components/icons";
 import { PanelHead } from "@/components/shared/panel-form";
-import { Sheet } from "@/components/sheet";
+import { Modal } from "@/components/sheet";
 import { useToast } from "@/components/toast";
 import { fmt, intlLocale } from "@/i18n";
 import { useIsDesktop } from "@/hooks/use-is-desktop";
@@ -93,9 +93,7 @@ export function BillForm({
   const [filled, setFilled] = useState(0);
   const photos = useRef<string[]>([]);
   const blobs = useRef(new Map<string, Blob>());
-  const [paidBy, setPaidBy] = useState(
-    item?.paidBy ?? (onAdd ? (defaultPaidBy ?? "") : (doc.ownerId ?? everyone[0] ?? "")),
-  );
+  const [paidBy, setPaidBy] = useState(item?.paidBy ?? defaultPaidBy ?? "");
   const [participants, setParticipants] = useState<string[]>(item?.participants ?? everyone);
   const [overrides, setOverrides] = useState<Record<string, number>>(item?.overrides ?? {});
   const [editing, setEditing] = useState<{ id: string; value: string; start: string } | null>(null);
@@ -103,6 +101,7 @@ export function BillForm({
   const [paid, setPaid] = useState(reopened && item ? toInputValue(item.amountMinor, "MYR") : "");
   const [flash, setFlash] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
   const payerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<number | null>(null);
   const [fixing, setFixing] = useState<string | null>(null);
@@ -487,6 +486,7 @@ export function BillForm({
     if (!isEdit) {
       setName("");
       setAmount("");
+      setPaidBy(defaultPaidBy ?? "");
       setOverrides({});
       setParticipants(doc.people.map((p) => p.id));
       setNewPeople([]);
@@ -584,6 +584,14 @@ export function BillForm({
       setFlash(true);
     } else if (missing === "who") openItem(unpicked);
   };
+  const typedMissing = !name.trim() ? "name" : amountMinor <= 0 ? "amount" : !paidBy ? "payer" : null;
+  const showTypedMissing = () => {
+    if (typedMissing === "payer") return showMissing();
+    const input = typedMissing === "name" ? nameRef.current : amountRef.current;
+    input?.focus();
+    input?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  const canScan = !isEdit && !receipt;
   const phone = bare && !desktop;
   const stickTop = (desktop ? 64 : 0) + headH;
   const notches =
@@ -632,32 +640,28 @@ export function BillForm({
           <>
             <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
               {thumb}
-              <div className="min-w-0 flex-1 leading-snug">
-                <b className="block text-[14px]">{t.bill.attached}</b>
-                <span className="mt-0.5 block text-[12.5px] text-muted">{scannedLine}</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <input
+                  ref={nameRef}
+                  type="text"
+                  value={name}
+                  aria-label={t.bill.whatFor}
+                  placeholder={t.bill.namePlaceholder}
+                  maxLength={60}
+                  enterKeyHint="done"
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className={cn(field, "h-10 font-semibold")}
+                />
+                <span className="truncate pl-1 text-[12.5px] text-muted">{scannedLine}</span>
               </div>
               {unattach}
             </div>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12.5px] text-muted">{t.bill.whatFor}</span>
-              <input
-                ref={nameRef}
-                type="text"
-                value={name}
-                placeholder={t.bill.namePlaceholder}
-                maxLength={60}
-                enterKeyHint="done"
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    e.currentTarget.blur();
-                  }
-                }}
-                className={cn(field, "font-semibold")}
-              />
-            </label>
 
             <div
               ref={payerRef}
@@ -674,7 +678,6 @@ export function BillForm({
                   payerPicked.current = true;
                   setPaidBy(id);
                 }}
-                bare={bare}
               >
                 <NewNameChip
                   onAdd={(text) => {
@@ -984,6 +987,40 @@ export function BillForm({
           </>
         ) : (
           <>
+            <div className="grid grid-cols-[1.3fr_1fr] gap-2">
+              <input
+                type="text"
+                value={name}
+                autoFocus={autoFocus}
+                ref={nameRef}
+                key={`name-${filled}`}
+                aria-label={t.bill.whatFor}
+                placeholder={t.bill.namePlaceholder}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={60}
+                className={cn(field, "font-semibold", filled > 0 && "animate-flash")}
+              />
+              <label
+                key={`amount-${filled}`}
+                className={cn(
+                  field,
+                  "flex cursor-text items-center gap-1.5 focus-within:border-[1.5px] focus-within:border-green focus-within:shadow-[0_0_0_3px_var(--green-soft)]",
+                  filled > 0 && "animate-flash",
+                )}
+              >
+                <span className="text-[15px] font-bold text-muted">RM</span>
+                <input
+                  ref={amountRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={amount}
+                  aria-label={t.bill.amount}
+                  placeholder="0.00"
+                  onChange={(e) => setAmount(autoPoint(e.target.value))}
+                  className="w-full min-w-0 bg-transparent font-extrabold text-ink tabular outline-none placeholder:font-normal"
+                />
+              </label>
+            </div>
             {isEdit ? null : receipt ? (
               <div className="flex animate-settle items-center gap-3 rounded-xl bg-chip py-2 pr-1 pl-3">
                 {thumb}
@@ -1003,41 +1040,43 @@ export function BillForm({
                 </div>
                 {unattach}
               </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {scan === "reading" ? (
-                  <div
-                    role="status"
-                    className="flex animate-settle items-center gap-3.5 overflow-hidden rounded-xl bg-chip px-3.5 py-3"
-                  >
-                    <div aria-hidden className="relative shrink-0 p-1.5">
-                      <i className="absolute top-0 left-0 size-3 rounded-tl-[5px] border-t-[2.5px] border-l-[2.5px] border-green-ink" />
-                      <i className="absolute top-0 right-0 size-3 rounded-tr-[5px] border-t-[2.5px] border-r-[2.5px] border-green-ink" />
-                      <i className="absolute bottom-0 left-0 size-3 rounded-bl-[5px] border-b-[2.5px] border-l-[2.5px] border-green-ink" />
-                      <i className="absolute right-0 bottom-0 size-3 rounded-br-[5px] border-r-[2.5px] border-b-[2.5px] border-green-ink" />
-                      <div className="h-[78px] w-[58px] -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
-                        {reading ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={reading} alt="" className="size-full object-cover" />
-                        ) : null}
-                      </div>
-                      <i className="absolute inset-x-0 top-1.5 h-0.5 animate-sweep rounded-full bg-[#34c26a] shadow-[0_0_10px_2px_#34c26a] before:absolute before:inset-x-0 before:bottom-0.5 before:h-6 before:bg-linear-to-t before:from-[#34c26a]/30 before:to-transparent before:content-['']" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <b className="block text-[14.5px] font-extrabold">{t.bill.scanning}</b>
-                      <span className="block h-[18px] overflow-hidden text-[12.5px] text-muted">
-                        <span key={step} className="block animate-rise">
-                          {t.bill.scanSteps[step]}
-                        </span>
-                      </span>
-                      <span className="relative mt-2 block h-[3px] overflow-hidden rounded-full bg-line">
-                        <i className="absolute inset-y-0 left-0 w-2/5 animate-slide rounded-full bg-green" />
-                      </span>
-                    </div>
+            ) : null}
+
+            {scan === "reading" ? (
+              <div
+                role="status"
+                className="flex animate-settle items-center gap-3.5 overflow-hidden rounded-xl bg-chip px-3.5 py-3"
+              >
+                <div aria-hidden className="relative shrink-0 p-1.5">
+                  <i className="absolute top-0 left-0 size-3 rounded-tl-[5px] border-t-[2.5px] border-l-[2.5px] border-green-ink" />
+                  <i className="absolute top-0 right-0 size-3 rounded-tr-[5px] border-t-[2.5px] border-r-[2.5px] border-green-ink" />
+                  <i className="absolute bottom-0 left-0 size-3 rounded-bl-[5px] border-b-[2.5px] border-l-[2.5px] border-green-ink" />
+                  <i className="absolute right-0 bottom-0 size-3 rounded-br-[5px] border-r-[2.5px] border-b-[2.5px] border-green-ink" />
+                  <div className="h-[78px] w-[58px] -rotate-6 overflow-hidden rounded-[3px] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                    {reading ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={reading} alt="" className="size-full object-cover" />
+                    ) : null}
                   </div>
-                ) : (
-                  <label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-dash text-[13.5px] font-bold text-green-ink focus-within:border-green">
-                    <CameraIcon size={18} />
+                  <i className="absolute inset-x-0 top-1.5 h-0.5 animate-sweep rounded-full bg-[#34c26a] shadow-[0_0_10px_2px_#34c26a] before:absolute before:inset-x-0 before:bottom-0.5 before:h-6 before:bg-linear-to-t before:from-[#34c26a]/30 before:to-transparent before:content-['']" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <b className="block text-[14.5px] font-extrabold">{t.bill.scanning}</b>
+                  <span className="block h-[18px] overflow-hidden text-[12.5px] text-muted">
+                    <span key={step} className="block animate-rise">
+                      {t.bill.scanSteps[step]}
+                    </span>
+                  </span>
+                  <span className="relative mt-2 block h-[3px] overflow-hidden rounded-full bg-line">
+                    <i className="absolute inset-y-0 left-0 w-2/5 animate-slide rounded-full bg-green" />
+                  </span>
+                </div>
+              </div>
+            ) : canScan || (!showCharges && amountMinor > 0) ? (
+              <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-4">
+                {canScan ? (
+                  <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 text-[12.5px] font-bold text-green-ink focus-within:underline">
+                    <CameraIcon size={15} />
                     {t.bill.scan}
                     <input
                       type="file"
@@ -1050,39 +1089,23 @@ export function BillForm({
                       }}
                     />
                   </label>
-                )}
-                {scan in t.bill.scanErrors ? (
-                  <p role="alert" className="text-[11.5px] leading-snug font-semibold text-owe">
-                    {t.bill.scanErrors[scan as ScanError]}
-                  </p>
+                ) : null}
+                {!showCharges && amountMinor > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCharges(true)}
+                    className="h-8 text-[12.5px] font-bold text-green-ink"
+                  >
+                    {t.bill.addCharges}
+                  </button>
                 ) : null}
               </div>
-            )}
-
-            <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-              <input
-                type="text"
-                value={name}
-                autoFocus={autoFocus}
-                key={`name-${filled}`}
-                aria-label={t.bill.whatFor}
-                placeholder={t.bill.namePlaceholder}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={60}
-                className={cn(field, "font-semibold", filled > 0 && "animate-flash")}
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={amount}
-                key={`amount-${filled}`}
-                aria-label={t.bill.amount}
-                placeholder="0.00"
-                onChange={(e) => setAmount(autoPoint(e.target.value))}
-                className={cn(field, "font-extrabold tabular", filled > 0 && "animate-flash")}
-              />
-            </div>
-
+            ) : null}
+            {scan in t.bill.scanErrors ? (
+              <p role="alert" className="text-[11.5px] leading-snug font-semibold text-owe">
+                {t.bill.scanErrors[scan as ScanError]}
+              </p>
+            ) : null}
             {showCharges ? (
               <div className="flex flex-col">
                 <ChargeRow label={t.bill.service} rate={service} onChange={setService} added={plain(added.service)} />
@@ -1097,17 +1120,12 @@ export function BillForm({
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowCharges(true)}
-                className="-mt-1 h-7 self-start text-[12.5px] font-bold text-green-ink"
-              >
-                {t.bill.addCharges}
-              </button>
-            )}
+            ) : null}
 
-            <div className={cn("flex flex-col", bare ? "gap-1.5" : "gap-2")}>
+            <div
+              ref={payerRef}
+              className={cn("flex flex-col rounded-xl", bare ? "gap-1.5" : "gap-2", flash && "animate-flash")}
+            >
               <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
               <PersonChips
                 people={people}
@@ -1116,7 +1134,6 @@ export function BillForm({
                   payerPicked.current = true;
                   setPaidBy(id);
                 }}
-                bare={bare}
               >
                 <NewNameChip onAdd={addNames} />
               </PersonChips>
@@ -1233,24 +1250,38 @@ export function BillForm({
               ) : null}
               <button
                 type="submit"
-                disabled={!canSave}
+                disabled={!canSave && !typedMissing}
                 onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  if (!typedMissing) return;
+                  e.preventDefault();
+                  showTypedMissing();
+                }}
                 className={cn(
-                  "h-[44px] rounded-xl bg-green px-5 text-[15px] font-bold text-white disabled:bg-disabled disabled:text-disabled-ink",
+                  "h-[44px] rounded-xl px-5 text-[15px] font-bold disabled:bg-disabled disabled:text-disabled-ink",
+                  typedMissing ? "bg-green-soft text-green-ink" : "bg-green text-white",
                   bare && !isEdit && "w-full",
                 )}
               >
-                {isEdit ? t.common.save : `${t.bill.printIt} ↵`}
+                {typedMissing === "name"
+                  ? t.bill.needName
+                  : typedMissing === "amount"
+                    ? t.bill.needAmount
+                    : typedMissing === "payer"
+                      ? t.bill.needPayer
+                      : isEdit
+                        ? t.common.save
+                        : `${t.bill.printIt} ↵`}
               </button>
             </div>
           </>
         )}
       </form>
       {receipt?.photo ? (
-        <Sheet open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
+        <Modal open={showPhoto} onOpenChange={setShowPhoto} title={t.bill.photoTitle}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={receipt.photo} alt={t.bill.photoTitle} className="w-full rounded-lg" />
-        </Sheet>
+        </Modal>
       ) : null}
     </>
   );

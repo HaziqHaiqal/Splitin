@@ -57,11 +57,11 @@ export function PayForm({
         <>
           <div className="flex flex-col gap-1.5">
             <span className="text-[12.5px] text-muted">{t.bill.whoPaid}</span>
-            <PersonChips people={doc.people} value={from} onChange={setFrom} bare={bare} />
+            <PersonChips people={doc.people} value={from} onChange={setFrom} />
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-[12.5px] text-muted">{t.pay.to}</span>
-            <PersonChips people={doc.people} value={to} onChange={setTo} bare={bare} />
+            <PersonChips people={doc.people} value={to} onChange={setTo} />
           </div>
         </>
       )}
