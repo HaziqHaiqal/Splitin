@@ -124,6 +124,7 @@ export function PrinterPage({
     if (desktop || !panel || !onPanelClose) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest("dialog")) return;
       if (e.target === document.body || (e.target instanceof Node && pinned.current?.contains(e.target)))
         onPanelClose();
     };
