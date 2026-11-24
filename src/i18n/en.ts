@@ -10,7 +10,7 @@ export const en = {
     settings: "Settings",
     close: "Close",
     language: "Language",
-    look: "Look",
+    look: "Theme",
     light: "Light",
     dark: "Dark",
     auto: "Auto",

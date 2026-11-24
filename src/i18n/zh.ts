@@ -12,7 +12,7 @@ export const zh: Dictionary = {
     settings: "设置",
     close: "关闭",
     language: "语言",
-    look: "外观",
+    look: "主题",
     light: "浅色",
     dark: "深色",
     auto: "自动",

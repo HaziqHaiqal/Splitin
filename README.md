@@ -23,7 +23,7 @@ Split shared bills with anyone. Name the bill, add the people and who paid what,
 - **See how it's worked out.** Calculation goes through the bills one by one with arrows for who owes who, cancels out debts that go both ways, then shows the fewest payments.
 - **Links delete themselves** 30 days after they are created.
 - **One button for everything on phones.** ☰ at the bottom right opens a short menu, and each item slides up from the bottom. ‹ goes back to the menu, and ✕ or a swipe down closes it.
-- **English, Bahasa Melayu, Mandarin (中文) and Tamil (தமிழ்)**, light, dark or automatic look, and a built-in guide.
+- **English, Bahasa Melayu, Mandarin (中文) and Tamil (தமிழ்)**, light, dark or automatic theme, and a built-in guide.
 
 Amounts are in Malaysian Ringgit (RM) only.
 

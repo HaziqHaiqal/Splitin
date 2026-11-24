@@ -12,7 +12,7 @@ export const ms: Dictionary = {
     generic: "Ada masalah. Cuba lagi.",
     settings: "Tetapan",
     language: "Bahasa",
-    look: "Paparan",
+    look: "Tema",
     light: "Cerah",
     dark: "Gelap",
     auto: "Auto",

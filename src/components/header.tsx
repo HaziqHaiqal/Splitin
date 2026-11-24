@@ -9,7 +9,7 @@ import { useI18n } from "@/i18n/client";
 import { useHydrated } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useGuide } from "./help/how-to";
-import { BackIcon, HelpIcon, MoonIcon, SettingsIcon, SunIcon } from "./icons";
+import { BackIcon, ChevronDownIcon, HelpIcon, MoonIcon, SettingsIcon, SunIcon } from "./icons";
 
 export function Logo() {
   return (
@@ -67,6 +67,28 @@ function Segments({
   );
 }
 
+function LanguagePicker({ label, locale, pick }: { label: string; locale: Locale; pick: (code: Locale) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="px-0.5 text-[12px] font-bold text-muted">{label}</span>
+      <span className="relative">
+        <select
+          value={locale}
+          onChange={(e) => pick(e.target.value as Locale)}
+          className="h-[34px] appearance-none rounded-[10px] bg-chip pr-8 pl-3 text-[13px] font-bold text-ink outline-none"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted" />
+      </span>
+    </label>
+  );
+}
+
 export function SettingsMenu() {
   const { t, locale } = useI18n();
   const { theme, setTheme } = useTheme();
@@ -115,16 +137,12 @@ export function SettingsMenu() {
           aria-label={t.common.settings}
           className="absolute top-full right-0 z-40 mt-1.5 flex w-[264px] animate-rise flex-col gap-3.5 rounded-2xl border border-border bg-sheet p-3 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
         >
-          <Segments
+          <LanguagePicker
             label={t.common.language}
-            options={LANGUAGES.map((l) => ({
-              key: l.code,
-              text: l.name,
-              on: l.code === locale,
-              pick: () => {
-                if (l.code !== locale && !pending) start(() => setLocale(l.code));
-              },
-            }))}
+            locale={locale}
+            pick={(code) => {
+              if (code !== locale && !pending) start(() => setLocale(code));
+            }}
           />
           <Segments
             label={t.common.look}
@@ -140,13 +158,14 @@ export function SettingsMenu() {
               pick: () => setTheme(l.value),
             }))}
           />
+          <div aria-hidden className="h-px bg-line" />
           <button
             type="button"
             onClick={() => {
               setOpen(false);
               guide.show();
             }}
-            className="-mx-1 -mb-1 flex h-11 items-center gap-2.5 rounded-xl border-t border-line px-2 text-left text-[14px] font-semibold text-ink hover:bg-chip"
+            className="-mx-1 -mt-2 -mb-1 flex h-11 items-center gap-2.5 rounded-xl px-2 text-left text-[14px] font-semibold text-ink hover:bg-chip"
           >
             <HelpIcon size={18} className="text-muted" />
             <span className="flex-1">{t.help.button}</span>

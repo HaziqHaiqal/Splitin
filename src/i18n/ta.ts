@@ -12,7 +12,7 @@ export const ta: Dictionary = {
     settings: "அமைப்புகள்",
     close: "மூடு",
     language: "மொழி",
-    look: "தோற்றம்",
+    look: "தீம்",
     light: "வெளிர்",
     dark: "இருள்",
     auto: "தானியங்கி",
